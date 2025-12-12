@@ -3,8 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CREST CPSA MCQ Quiz | sudosuraj</title>
+    <title>CREST CPSA MCQ Quiz | 803 Practice Questions | sudosuraj</title>
+    <meta name="description" content="Free CPSA certification practice quiz with 803 multiple-choice questions. Prepare for CREST Practitioner Security Analyst exam with instant feedback, progress tracking, and AI-powered explanations.">
+    <meta name="keywords" content="CPSA, CREST, cybersecurity, practice quiz, certification, security analyst, MCQ, penetration testing, CRT">
+    <meta name="author" content="Suraj Sharma (sudosuraj)">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://sudosuraj.github.io/CREST/">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sudosuraj.github.io/CREST/">
+    <meta property="og:title" content="CREST CPSA MCQ Quiz | 803 Practice Questions">
+    <meta property="og:description" content="Free CPSA certification practice quiz with 803 questions. Track progress, get AI explanations, and ace your CREST exam.">
+    <meta property="og:image" content="https://sudosuraj.github.io/CREST/og-image.png">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://sudosuraj.github.io/CREST/">
+    <meta name="twitter:title" content="CREST CPSA MCQ Quiz | 803 Practice Questions">
+    <meta name="twitter:description" content="Free CPSA certification practice quiz with 803 questions. Track progress, get AI explanations, and ace your CREST exam.">
+    <meta name="twitter:creator" content="@sudosuraj">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CPSA Quiz">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "CREST CPSA Practice Quiz",
+        "description": "Free CPSA certification practice quiz with 803 multiple-choice questions for CREST Practitioner Security Analyst exam preparation.",
+        "url": "https://sudosuraj.github.io/CREST/",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Person",
+            "name": "Suraj Sharma",
+            "url": "https://www.linkedin.com/in/sudosuraj/"
+        }
+    }
+    </script>
+    
     <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
         :root {
             --bg: #f7f9fb;
             --bg-strong: #eef1f7;
@@ -19,6 +73,325 @@
             --success: #16a34a;
             --danger: #ef4444;
             --warning: #f59e0b;
+            --streak: #f97316;
+        }
+        
+        /* Accessibility - Skip Link */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            z-index: 9999;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 0 0 8px 0;
+            transition: top 0.2s ease;
+        }
+        
+        .skip-link:focus {
+            top: 0;
+        }
+        
+        /* Offline Indicator */
+        .offline-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--warning);
+            color: #1f2937;
+            text-align: center;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 9998;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .offline-indicator.show {
+            transform: translateY(0);
+        }
+        
+        .offline-indicator[hidden] {
+            display: block;
+        }
+        
+        /* Back to Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 100px;
+            right: 22px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            z-index: 899;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .back-to-top.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .back-to-top:hover {
+            background: var(--primary-strong);
+            transform: translateY(-2px);
+        }
+        
+        .back-to-top[hidden] {
+            display: flex;
+        }
+        
+        /* Filter Select */
+        .filter-select {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 14px;
+            background: var(--card-muted);
+            color: var(--text);
+            cursor: pointer;
+            min-width: 160px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+        
+        /* Streak Card */
+        .streak-card {
+            background: linear-gradient(135deg, #fff7ed, #ffedd5);
+            border-color: #fed7aa;
+        }
+        
+        .streak-indicator {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        
+        .streak-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            transition: background 0.3s ease;
+        }
+        
+        .streak-dot.active {
+            background: var(--streak);
+        }
+        
+        /* Category Progress Overview */
+        .category-progress-overview {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+        
+        .progress-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0 0 12px 0;
+        }
+        
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        
+        .progress-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+            background: var(--card-muted);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        
+        .progress-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        
+        .progress-item-name {
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .progress-item-stats {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        
+        .progress-item-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        
+        .progress-item-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), #22c55e);
+            border-radius: 999px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Flag Button */
+        .flag-button {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--muted);
+            transition: all 0.15s ease;
+        }
+        
+        .flag-button:hover {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+        
+        .flag-button.flagged {
+            background: #fef3c7;
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+        
+        /* Question Status Indicators */
+        .question-container.answered-correct {
+            border-left: 4px solid var(--success);
+        }
+        
+        .question-container.answered-incorrect {
+            border-left: 4px solid var(--danger);
+        }
+        
+        .question-container.flagged {
+            border-left: 4px solid var(--warning);
+        }
+        
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        
+        .toast {
+            background: #1f2937;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: auto;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Badges */
+        .badges-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        
+        .badge.silver {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            color: #374151;
+            border-color: #d1d5db;
+        }
+        
+        .badge.gold {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+        
+        .badge.platinum {
+            background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+            color: #3730a3;
+            border-color: #a5b4fc;
+        }
+        
+        /* Share Button */
+        .share-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+        
+        .share-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         body {
@@ -770,6 +1143,61 @@
             }
         }
 
+        @media (max-width: 768px) {
+            .top-nav-inner {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 10px 14px;
+            }
+
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .hero {
+                padding: 18px 16px;
+            }
+
+            .hero-title {
+                font-size: 24px;
+            }
+
+            .utility-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .utility-group {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .search-input {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .category-title {
+                grid-template-columns: 1fr;
+                row-gap: 8px;
+                align-items: flex-start;
+            }
+
+            .category-badge,
+            .category-toggle {
+                justify-self: flex-start;
+            }
+
+            .chatbot-panel {
+                width: auto;
+                left: 16px;
+                right: 16px;
+                max-width: calc(100vw - 32px);
+            }
+        }
+
         @media (max-width: 600px) {
             .question-header {
                 flex-direction: column;
@@ -783,10 +1211,159 @@
                 width: 100%;
             }
         }
+
+        @media (max-width: 480px) {
+            .app-shell {
+                padding: 24px 12px 24px;
+            }
+
+            .hero {
+                padding: 16px 14px;
+            }
+
+            .hero-title {
+                font-size: 22px;
+            }
+
+            .hero-subtitle {
+                font-size: 14px;
+            }
+
+            .hero-eyebrow {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            .stat-card {
+                padding: 12px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .content-title {
+                font-size: 14px;
+            }
+
+            .utility-bar {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .pill-button {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+
+            .chip {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .category-title {
+                padding: 12px;
+            }
+
+            .category-title span:first-child strong {
+                font-size: 14px;
+            }
+
+            .category-badge {
+                min-width: 100px;
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+
+            .question-container {
+                padding: 12px;
+            }
+
+            .question-header h3 {
+                font-size: 15px;
+                min-width: 0;
+            }
+
+            .option {
+                padding: 10px 12px;
+            }
+
+            .chatbot-toggle {
+                right: 12px;
+                bottom: 12px;
+                padding: 8px 12px;
+            }
+
+            .chatbot-toggle .chatbot-icon {
+                width: 32px;
+                height: 32px;
+            }
+
+            .chatbot-toggle .chatbot-label-main {
+                font-size: 13px;
+            }
+
+            .chatbot-toggle .chatbot-label-sub {
+                font-size: 10px;
+            }
+
+            .chatbot-panel {
+                left: 10px;
+                right: 10px;
+                bottom: 70px;
+                max-width: 100%;
+            }
+
+            .chatbot-header {
+                padding: 12px 14px;
+            }
+
+            .chatbot-avatar {
+                width: 36px;
+                height: 36px;
+            }
+
+            .chatbot-title {
+                font-size: 14px;
+            }
+
+            .chat-messages {
+                padding: 10px;
+            }
+
+            .chat-message {
+                font-size: 13px;
+                padding: 8px 10px;
+            }
+
+            .chat-input-row {
+                padding: 8px;
+            }
+
+            .chat-input {
+                min-height: 42px;
+                padding: 8px;
+                font-size: 13px;
+            }
+
+            .ai-explanation,
+            .answer-explanation {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
-    <nav class="top-nav">
+    <!-- Skip to main content link for accessibility -->
+    <a href="#quiz-container" class="skip-link">Skip to quiz content</a>
+    
+    <!-- Offline indicator -->
+    <div id="offline-indicator" class="offline-indicator" role="alert" aria-live="polite" hidden>
+        You're offline. Quiz works, but AI features need internet.
+    </div>
+    
+    <nav class="top-nav" role="navigation" aria-label="Main navigation">
         <div class="top-nav-inner">
             <div class="brand">CPSA Practice</div>
             <div class="nav-links">
@@ -811,36 +1388,69 @@
                 <div class="stat-card">
                     <span class="stat-label">Accuracy</span>
                     <span class="stat-value"><span id="percentage">0</span>%</span>
-                    <div class="stat-bar">
+                    <div class="stat-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Accuracy percentage">
                         <div class="stat-bar-fill" id="accuracy-bar"></div>
                     </div>
+                </div>
+                <div class="stat-card streak-card">
+                    <span class="stat-label">Streak</span>
+                    <span class="stat-value"><span id="streak-count">0</span> days</span>
+                    <div class="streak-indicator" id="streak-indicator" title="Practice daily to build your streak!"></div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Attempted</span>
+                    <span class="stat-value"><span id="attempted-count">0</span></span>
                 </div>
             </div>
         </header>
 
-        <main class="content">
+        <main class="content" id="main-content" role="main">
             <div class="content-header">
                 <p class="content-title">Tap a category to open its questions. Options lock after you answer.</p>
             </div>
             <div class="utility-bar">
                 <div class="utility-group">
                     <span class="utility-label">Quick actions</span>
-                    <button class="pill-button" id="expand-all-btn">Expand all</button>
-                    <button class="pill-button" id="collapse-all-btn">Collapse all</button>
-                    <button class="pill-button" id="reset-filters-btn">Reset filters</button>
+                    <button class="pill-button" id="expand-all-btn" aria-label="Expand all categories">Expand all</button>
+                    <button class="pill-button" id="collapse-all-btn" aria-label="Collapse all categories">Collapse all</button>
+                    <button class="pill-button" id="reset-progress-btn" aria-label="Reset all progress">Reset progress</button>
+                </div>
+                <div class="utility-group">
+                    <span class="utility-label">Filter</span>
+                    <select id="filter-select" class="filter-select" aria-label="Filter questions by status">
+                        <option value="all">All questions</option>
+                        <option value="unanswered">Unanswered</option>
+                        <option value="correct">Answered correctly</option>
+                        <option value="incorrect">Answered incorrectly</option>
+                        <option value="flagged">Flagged for review</option>
+                    </select>
                 </div>
                 <div class="utility-group">
                     <span class="utility-label">Search</span>
-                    <input id="search-input" class="search-input" type="search" placeholder="Search categories or questions...">
+                    <input id="search-input" class="search-input" type="search" placeholder="Search categories or questions..." aria-label="Search questions">
                 </div>
                 <div class="utility-group">
                     <span class="chip" id="category-count-chip">Categories: --</span>
                     <span class="chip" id="question-count-chip">Questions: --</span>
                 </div>
             </div>
-            <div id="quiz-container"></div>
+            
+            <!-- Category progress overview -->
+            <div class="category-progress-overview" id="category-progress-overview">
+                <h2 class="progress-title">Category Progress</h2>
+                <div class="progress-grid" id="progress-grid"></div>
+            </div>
+            
+            <div id="quiz-container" role="region" aria-label="Quiz questions"></div>
         </main>
     </div>
+    
+    <!-- Back to top button -->
+    <button id="back-to-top" class="back-to-top" aria-label="Back to top" hidden>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+            <path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+        </svg>
+    </button>
     <button id="chatbot-toggle" class="chatbot-toggle" aria-controls="chatbot-panel" aria-expanded="false">
         <span class="chatbot-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" role="presentation">
@@ -8940,6 +9550,474 @@ const quizData = {
         /<script/i
     ];
     const answerState = {}; // Tracks last selected answers per question
+    const flaggedQuestions = new Set(); // Track flagged questions
+    let searchDebounceTimer = null; // For debouncing search input
+    
+    // ==================== PROGRESS PERSISTENCE ====================
+    const STORAGE_KEY = 'cpsa_quiz_progress';
+    const STREAK_KEY = 'cpsa_quiz_streak';
+    const BADGES_KEY = 'cpsa_quiz_badges';
+    
+    // Load saved progress from localStorage
+    function loadProgress() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                score = data.score || 0;
+                Object.assign(answerState, data.answerState || {});
+                data.flagged?.forEach(id => flaggedQuestions.add(id));
+                return data;
+            }
+        } catch (e) {
+            console.error('Error loading progress:', e);
+        }
+        return null;
+    }
+    
+    // Save progress to localStorage
+    function saveProgress() {
+        try {
+            const data = {
+                score,
+                answerState,
+                flagged: Array.from(flaggedQuestions),
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            console.error('Error saving progress:', e);
+        }
+    }
+    
+    // ==================== STREAK TRACKING ====================
+    function loadStreak() {
+        try {
+            const saved = localStorage.getItem(STREAK_KEY);
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {
+            console.error('Error loading streak:', e);
+        }
+        return { count: 0, lastDate: null, history: [] };
+    }
+    
+    function updateStreak() {
+        const streak = loadStreak();
+        const today = new Date().toDateString();
+        
+        if (streak.lastDate === today) {
+            // Already practiced today
+            return streak;
+        }
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (streak.lastDate === yesterday.toDateString()) {
+            // Continuing streak
+            streak.count++;
+        } else if (streak.lastDate !== today) {
+            // Streak broken, start fresh
+            streak.count = 1;
+        }
+        
+        streak.lastDate = today;
+        streak.history = streak.history || [];
+        if (!streak.history.includes(today)) {
+            streak.history.push(today);
+            // Keep only last 7 days
+            if (streak.history.length > 7) {
+                streak.history = streak.history.slice(-7);
+            }
+        }
+        
+        try {
+            localStorage.setItem(STREAK_KEY, JSON.stringify(streak));
+        } catch (e) {
+            console.error('Error saving streak:', e);
+        }
+        
+        return streak;
+    }
+    
+    function renderStreak() {
+        const streak = loadStreak();
+        const streakCount = document.getElementById('streak-count');
+        const streakIndicator = document.getElementById('streak-indicator');
+        
+        if (streakCount) {
+            streakCount.textContent = streak.count;
+        }
+        
+        if (streakIndicator) {
+            // Show last 7 days as dots
+            streakIndicator.innerHTML = '';
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toDateString();
+                const dot = document.createElement('span');
+                dot.className = 'streak-dot' + (streak.history?.includes(dateStr) ? ' active' : '');
+                dot.title = date.toLocaleDateString('en-US', { weekday: 'short' });
+                streakIndicator.appendChild(dot);
+            }
+        }
+    }
+    
+    // ==================== BADGE SYSTEM ====================
+    const BADGE_DEFINITIONS = [
+        { id: 'first_answer', name: 'First Steps', desc: 'Answer your first question', icon: '🎯', check: (stats) => stats.attempted >= 1 },
+        { id: 'ten_correct', name: 'Getting Started', desc: 'Get 10 questions correct', icon: '📚', check: (stats) => stats.correct >= 10 },
+        { id: 'fifty_correct', name: 'Knowledge Seeker', desc: 'Get 50 questions correct', icon: '🔍', check: (stats) => stats.correct >= 50 },
+        { id: 'hundred_correct', name: 'Century Club', desc: 'Get 100 questions correct', icon: '💯', check: (stats) => stats.correct >= 100 },
+        { id: 'all_categories', name: 'Well Rounded', desc: 'Answer questions in all categories', icon: '🌐', check: (stats) => stats.categoriesAttempted >= 12 },
+        { id: 'perfect_category', name: 'Category Master', desc: 'Get 100% in any category', icon: '⭐', check: (stats) => stats.perfectCategories >= 1 },
+        { id: 'streak_3', name: 'Consistent', desc: 'Maintain a 3-day streak', icon: '🔥', check: (stats) => stats.streak >= 3 },
+        { id: 'streak_7', name: 'Dedicated', desc: 'Maintain a 7-day streak', icon: '🏆', check: (stats) => stats.streak >= 7 },
+        { id: 'accuracy_80', name: 'Sharp Mind', desc: 'Achieve 80% overall accuracy', icon: '🎯', check: (stats) => stats.accuracy >= 80 && stats.attempted >= 50 },
+        { id: 'half_complete', name: 'Halfway There', desc: 'Answer 400+ questions', icon: '🚀', check: (stats) => stats.attempted >= 400 },
+        { id: 'completionist', name: 'Completionist', desc: 'Answer all 803 questions', icon: '👑', check: (stats) => stats.attempted >= 803 }
+    ];
+    
+    function loadBadges() {
+        try {
+            const saved = localStorage.getItem(BADGES_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    
+    function saveBadges(badges) {
+        try {
+            localStorage.setItem(BADGES_KEY, JSON.stringify(badges));
+        } catch (e) {
+            console.error('Error saving badges:', e);
+        }
+    }
+    
+    function checkAndAwardBadges() {
+        const earnedBadges = loadBadges();
+        const stats = calculateStats();
+        const streak = loadStreak();
+        stats.streak = streak.count;
+        
+        let newBadges = [];
+        
+        BADGE_DEFINITIONS.forEach(badge => {
+            if (!earnedBadges.includes(badge.id) && badge.check(stats)) {
+                earnedBadges.push(badge.id);
+                newBadges.push(badge);
+            }
+        });
+        
+        if (newBadges.length > 0) {
+            saveBadges(earnedBadges);
+            newBadges.forEach(badge => {
+                showToast(`Badge earned: ${badge.icon} ${badge.name}!`);
+            });
+        }
+        
+        return earnedBadges;
+    }
+    
+    function calculateStats() {
+        const attempted = Object.keys(answerState).length;
+        const correct = Object.values(answerState).filter(a => a.correct).length;
+        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        
+        // Calculate category stats
+        const categoryStats = {};
+        Object.entries(answerState).forEach(([qId, state]) => {
+            const question = quizData[qId];
+            if (question) {
+                const category = categorizeQuestion(question);
+                if (!categoryStats[category]) {
+                    categoryStats[category] = { attempted: 0, correct: 0 };
+                }
+                categoryStats[category].attempted++;
+                if (state.correct) {
+                    categoryStats[category].correct++;
+                }
+            }
+        });
+        
+        const categoriesAttempted = Object.keys(categoryStats).length;
+        const perfectCategories = Object.values(categoryStats).filter(
+            cat => cat.attempted >= 5 && cat.correct === cat.attempted
+        ).length;
+        
+        return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
+    }
+    
+    // ==================== TOAST NOTIFICATIONS ====================
+    function showToast(message, duration = 3000) {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        container.appendChild(toast);
+        
+        // Trigger animation
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    
+    // ==================== BACK TO TOP ====================
+    function setupBackToTop() {
+        const btn = document.getElementById('back-to-top');
+        if (!btn) return;
+        
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                btn.classList.add('show');
+            } else {
+                btn.classList.remove('show');
+            }
+        }, { passive: true });
+        
+        btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+    
+    // ==================== OFFLINE DETECTION ====================
+    function setupOfflineDetection() {
+        const indicator = document.getElementById('offline-indicator');
+        if (!indicator) return;
+        
+        function updateOnlineStatus() {
+            if (navigator.onLine) {
+                indicator.classList.remove('show');
+            } else {
+                indicator.classList.add('show');
+            }
+        }
+        
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    }
+    
+    // ==================== SERVICE WORKER REGISTRATION ====================
+    function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/CREST/sw.js')
+                .then(reg => console.log('Service Worker registered:', reg.scope))
+                .catch(err => console.log('Service Worker registration failed:', err));
+        }
+    }
+    
+    // ==================== FILTER FUNCTIONALITY ====================
+    function setupFilters() {
+        const filterSelect = document.getElementById('filter-select');
+        if (!filterSelect) return;
+        
+        filterSelect.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+    
+    function applyFilters() {
+        const filterSelect = document.getElementById('filter-select');
+        const searchInput = document.getElementById('search-input');
+        const filterValue = filterSelect?.value || 'all';
+        const searchQuery = searchInput?.value?.toLowerCase() || '';
+        
+        document.querySelectorAll('.question-container').forEach(container => {
+            const qId = container.dataset.questionId;
+            const state = answerState[qId];
+            const isFlagged = flaggedQuestions.has(qId);
+            const questionText = container.querySelector('h3')?.textContent?.toLowerCase() || '';
+            
+            let showByFilter = true;
+            switch (filterValue) {
+                case 'unanswered':
+                    showByFilter = !state;
+                    break;
+                case 'correct':
+                    showByFilter = state?.correct === true;
+                    break;
+                case 'incorrect':
+                    showByFilter = state?.correct === false;
+                    break;
+                case 'flagged':
+                    showByFilter = isFlagged;
+                    break;
+                default:
+                    showByFilter = true;
+            }
+            
+            const showBySearch = !searchQuery || questionText.includes(searchQuery);
+            container.style.display = (showByFilter && showBySearch) ? '' : 'none';
+        });
+        
+        // Update category visibility
+        document.querySelectorAll('.category-section').forEach(section => {
+            const visibleQuestions = section.querySelectorAll('.question-container:not([style*="display: none"])');
+            section.style.display = visibleQuestions.length > 0 ? '' : 'none';
+        });
+        
+        updateCounts();
+    }
+    
+    // ==================== DEBOUNCED SEARCH ====================
+    function setupDebouncedSearch() {
+        const searchInput = document.getElementById('search-input');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                applyFilters();
+            }, 300);
+        });
+    }
+    
+    // ==================== CATEGORY PROGRESS OVERVIEW ====================
+    function renderCategoryProgress() {
+        const grid = document.getElementById('progress-grid');
+        if (!grid) return;
+        
+        const stats = calculateStats();
+        const categorizedQuestions = {};
+        
+        // Group questions by category
+        Object.entries(quizData).forEach(([id, q]) => {
+            const category = categorizeQuestion(q);
+            if (!categorizedQuestions[category]) {
+                categorizedQuestions[category] = [];
+            }
+            categorizedQuestions[category].push(id);
+        });
+        
+        grid.innerHTML = '';
+        
+        Object.entries(categorizedQuestions).forEach(([category, questions]) => {
+            const catStats = stats.categoryStats[category] || { attempted: 0, correct: 0 };
+            const total = questions.length;
+            const percentage = total > 0 ? Math.round((catStats.correct / total) * 100) : 0;
+            
+            const item = document.createElement('div');
+            item.className = 'progress-item';
+            item.innerHTML = `
+                <div class="progress-item-header">
+                    <span class="progress-item-name" title="${category}">${category}</span>
+                    <span class="progress-item-stats">${catStats.correct}/${total}</span>
+                </div>
+                <div class="progress-item-bar">
+                    <div class="progress-item-fill" style="width: ${percentage}%"></div>
+                </div>
+            `;
+            grid.appendChild(item);
+        });
+    }
+    
+    // ==================== FLAG FOR REVIEW ====================
+    function toggleFlag(questionId) {
+        if (flaggedQuestions.has(questionId)) {
+            flaggedQuestions.delete(questionId);
+        } else {
+            flaggedQuestions.add(questionId);
+        }
+        saveProgress();
+        
+        // Update UI
+        const container = document.querySelector(`.question-container[data-question-id="${questionId}"]`);
+        if (container) {
+            container.classList.toggle('flagged', flaggedQuestions.has(questionId));
+            const flagBtn = container.querySelector('.flag-button');
+            if (flagBtn) {
+                flagBtn.classList.toggle('flagged', flaggedQuestions.has(questionId));
+                flagBtn.textContent = flaggedQuestions.has(questionId) ? '🚩 Flagged' : '🏳️ Flag';
+            }
+        }
+    }
+    
+    // ==================== SHARE PROGRESS ====================
+    function generateShareText() {
+        const stats = calculateStats();
+        const streak = loadStreak();
+        const badges = loadBadges();
+        
+        return `📊 CPSA Quiz Progress
+✅ Score: ${stats.correct}/${stats.attempted} (${stats.accuracy}% accuracy)
+🔥 Streak: ${streak.count} days
+🏆 Badges: ${badges.length}/${BADGE_DEFINITIONS.length}
+
+Practice at: https://sudosuraj.github.io/CREST/`;
+    }
+    
+    function shareProgress() {
+        const text = generateShareText();
+        
+        if (navigator.share) {
+            navigator.share({
+                title: 'My CPSA Quiz Progress',
+                text: text,
+                url: 'https://sudosuraj.github.io/CREST/'
+            }).catch(() => {
+                copyToClipboard(text);
+            });
+        } else {
+            copyToClipboard(text);
+        }
+    }
+    
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Progress copied to clipboard!');
+        }).catch(() => {
+            showToast('Could not copy to clipboard');
+        });
+    }
+    
+    // ==================== RESET PROGRESS ====================
+    function resetProgress() {
+        if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+            return;
+        }
+        
+        // Clear state
+        score = 0;
+        Object.keys(answerState).forEach(key => delete answerState[key]);
+        flaggedQuestions.clear();
+        
+        // Clear localStorage
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STREAK_KEY);
+        localStorage.removeItem(BADGES_KEY);
+        
+        // Reload page to reset UI
+        location.reload();
+    }
+    
+    // ==================== UPDATE COUNTS ====================
+    function updateCounts() {
+        const visibleCategories = document.querySelectorAll('.category-section:not([style*="display: none"])').length;
+        const visibleQuestions = document.querySelectorAll('.question-container:not([style*="display: none"])').length;
+        
+        const categoryChip = document.getElementById('category-count-chip');
+        const questionChip = document.getElementById('question-count-chip');
+        
+        if (categoryChip) categoryChip.textContent = `Categories: ${visibleCategories}`;
+        if (questionChip) questionChip.textContent = `Questions: ${visibleQuestions}`;
+    }
 
     const sanitizeUserMessage = (input) => (input || "")
         .replace(/[\u0000-\u001F\u007F]/g, " ")
@@ -9195,6 +10273,7 @@ const quizData = {
             categorizedQuestions[categoryName].forEach(({ key, questionObj }) => {
                 const questionContainer = document.createElement("div");
                 questionContainer.classList.add("question-container");
+                questionContainer.dataset.questionId = key; // Add data attribute for filtering
 
                 // Question header with AI button
                 const questionHeader = document.createElement("div");
@@ -9205,6 +10284,16 @@ const quizData = {
 
                 const questionActions = document.createElement("div");
                 questionActions.classList.add("question-actions");
+
+                // Flag button for review
+                const flagBtn = document.createElement("button");
+                flagBtn.classList.add("flag-button");
+                flagBtn.textContent = flaggedQuestions.has(key) ? "🚩 Flagged" : "🏳️ Flag";
+                if (flaggedQuestions.has(key)) {
+                    flagBtn.classList.add("flagged");
+                    questionContainer.classList.add("flagged");
+                }
+                flagBtn.onclick = () => toggleFlag(key);
 
                 const explainQuestionBtn = document.createElement("button");
                 explainQuestionBtn.classList.add("ai-button");
@@ -9219,6 +10308,7 @@ const quizData = {
                 explainAnswerBtn.disabled = true;
                 explainAnswerBtn.onclick = () => explainAnswer(key);
 
+                questionActions.appendChild(flagBtn);
                 questionActions.appendChild(explainQuestionBtn);
                 questionActions.appendChild(explainAnswerBtn);
                 questionHeader.appendChild(questionTitle);
@@ -9282,8 +10372,26 @@ const quizData = {
                             questionText: questionObj.question,
                             selectedAnswer: option,
                             correctAnswer: questionObj.answer,
-                            isCorrect
+                            isCorrect,
+                            correct: isCorrect // Alias for badge calculations
                         };
+                        
+                        // Update question container status
+                        questionContainer.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+                        
+                        // Save progress and update streak
+                        saveProgress();
+                        updateStreak();
+                        renderStreak();
+                        checkAndAwardBadges();
+                        renderCategoryProgress();
+                        
+                        // Update attempted count
+                        const attemptedEl = document.getElementById('attempted-count');
+                        if (attemptedEl) {
+                            attemptedEl.textContent = Object.keys(answerState).length;
+                        }
+                        
                         const explainAnswerBtnEl = document.getElementById(`explain-answer-btn-${key}`);
                         const answerExplanationEl = document.getElementById(`answer-explanation-${key}`);
                         if (explainAnswerBtnEl) {
@@ -9395,23 +10503,31 @@ const quizData = {
     }
 
     function setupUtilities() {
-        const searchInput = document.getElementById("search-input");
         const expandBtn = document.getElementById("expand-all-btn");
         const collapseBtn = document.getElementById("collapse-all-btn");
-        const resetBtn = document.getElementById("reset-filters-btn");
+        const resetProgressBtn = document.getElementById("reset-progress-btn");
 
-        if (searchInput) {
-            searchInput.addEventListener("input", (e) => filterCategories(e.target.value));
-        }
         if (expandBtn) {
             expandBtn.addEventListener("click", expandAllCategories);
         }
         if (collapseBtn) {
             collapseBtn.addEventListener("click", collapseAllCategories);
         }
-        if (resetBtn) {
-            resetBtn.addEventListener("click", resetFilters);
+        if (resetProgressBtn) {
+            resetProgressBtn.addEventListener("click", resetProgress);
         }
+        
+        // Setup debounced search
+        setupDebouncedSearch();
+        
+        // Setup filter dropdown
+        setupFilters();
+        
+        // Setup back to top button
+        setupBackToTop();
+        
+        // Setup offline detection
+        setupOfflineDetection();
     }
 
     function appendChatMessage(role, text) {
@@ -9509,10 +10625,111 @@ const quizData = {
     }
 	
 	document.addEventListener("DOMContentLoaded", () => {
+        // Load saved progress first
+        loadProgress();
+        
+        // Initialize quiz
         loadQuiz();
         setupUtilities();
         setupChatbot();
+        
+        // Restore UI state from saved progress
+        restoreUIState();
+        
+        // Render category progress overview
+        renderCategoryProgress();
+        
+        // Render streak indicator
+        renderStreak();
+        
+        // Register service worker for PWA
+        registerServiceWorker();
+        
+        // Update counts
+        updateCounts();
     });
+    
+    // Restore UI state from saved progress
+    function restoreUIState() {
+        const scoreElement = document.getElementById("score");
+        const percentageElement = document.getElementById("percentage");
+        const accuracyBar = document.getElementById("accuracy-bar");
+        const attemptedEl = document.getElementById("attempted-count");
+        
+        // Restore score display
+        if (scoreElement) {
+            scoreElement.textContent = score;
+        }
+        
+        // Calculate and restore percentage
+        const attempted = Object.keys(answerState).length;
+        if (attempted > 0) {
+            const percentage = ((score / totalQuestions) * 100).toFixed(2);
+            if (percentageElement) {
+                percentageElement.textContent = percentage;
+            }
+            if (accuracyBar) {
+                const pctNumber = Math.min(parseFloat(percentage), 100);
+                accuracyBar.style.width = `${pctNumber}%`;
+            }
+        }
+        
+        // Restore attempted count
+        if (attemptedEl) {
+            attemptedEl.textContent = attempted;
+        }
+        
+        // Restore answered questions UI
+        Object.entries(answerState).forEach(([qId, state]) => {
+            const container = document.querySelector(`.question-container[data-question-id="${qId}"]`);
+            if (!container) return;
+            
+            // Mark container as answered
+            container.classList.add(state.correct ? 'answered-correct' : 'answered-incorrect');
+            
+            // Find and select the answered option
+            const options = container.querySelectorAll('.option');
+            options.forEach(optionDiv => {
+                const input = optionDiv.querySelector('input');
+                if (!input) return;
+                
+                // Disable all inputs
+                input.disabled = true;
+                
+                // Mark correct answer
+                if (input.value === state.correctAnswer) {
+                    optionDiv.classList.add('correct');
+                }
+                
+                // Mark selected answer
+                if (input.value === state.selectedAnswer) {
+                    input.checked = true;
+                    if (!state.correct) {
+                        optionDiv.classList.add('incorrect');
+                    }
+                }
+            });
+            
+            // Enable explain answer button
+            const explainBtn = document.getElementById(`explain-answer-btn-${qId}`);
+            if (explainBtn) {
+                explainBtn.disabled = false;
+            }
+        });
+        
+        // Restore flagged questions UI
+        flaggedQuestions.forEach(qId => {
+            const container = document.querySelector(`.question-container[data-question-id="${qId}"]`);
+            if (container) {
+                container.classList.add('flagged');
+                const flagBtn = container.querySelector('.flag-button');
+                if (flagBtn) {
+                    flagBtn.classList.add('flagged');
+                    flagBtn.textContent = '🚩 Flagged';
+                }
+            }
+        });
+    }
 	
 	</script>
 </body>
