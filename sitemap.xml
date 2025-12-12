@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+    
+    <!-- Main Quiz Page -->
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+        <image:image>
+            <image:loc>https://sudosuraj.github.io/CREST/og-image.png</image:loc>
+            <image:title>CREST CPSA Practice Quiz - 803 Free Questions</image:title>
+            <image:caption>Free CPSA certification practice quiz with AI-powered explanations</image:caption>
+        </image:image>
+    </url>
+    
+    <!-- Category Deep Links -->
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#network-protocols</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#cryptography</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#windows-security</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#linux-security</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#web-security</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#authentication</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#firewalls-ids</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#wireless-security</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#malware-threats</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#vpn-remote-access</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <url>
+        <loc>https://sudosuraj.github.io/CREST/#risk-governance</loc>
+        <lastmod>2024-12-12</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+</urlset>
