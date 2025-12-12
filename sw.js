@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v1';
+const CACHE_NAME = 'cpsa-quiz-v2';
 const urlsToCache = [
     '/CREST/',
     '/CREST/index.html',
@@ -37,32 +37,55 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network-first for HTML, cache-first for other assets
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Return cached version or fetch from network
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request).then((response) => {
-                    // Don't cache non-successful responses or non-GET requests
-                    if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
-                        return response;
-                    }
-                    // Clone the response
-                    const responseToCache = response.clone();
-                    caches.open(CACHE_NAME)
-                        .then((cache) => {
+    const url = new URL(event.request.url);
+    const isHTML = event.request.destination === 'document' || 
+                   url.pathname.endsWith('.html') || 
+                   url.pathname.endsWith('/');
+    
+    if (isHTML) {
+        // Network-first for HTML - always try to get fresh content
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
                             cache.put(event.request, responseToCache);
                         });
+                    }
                     return response;
-                });
-            })
-            .catch(() => {
-                // Return offline fallback if available
-                return caches.match('/CREST/index.html');
-            })
-    );
+                })
+                .catch(() => {
+                    // Fallback to cache if offline
+                    return caches.match(event.request).then((response) => {
+                        return response || caches.match('/CREST/index.html');
+                    });
+                })
+        );
+    } else {
+        // Cache-first for other assets (images, CSS, JS, etc.)
+        event.respondWith(
+            caches.match(event.request)
+                .then((response) => {
+                    if (response) {
+                        return response;
+                    }
+                    return fetch(event.request).then((response) => {
+                        if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
+                            return response;
+                        }
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                        return response;
+                    });
+                })
+                .catch(() => {
+                    return caches.match('/CREST/index.html');
+                })
+        );
+    }
 });
