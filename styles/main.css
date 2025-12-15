@@ -2411,6 +2411,12 @@
             }
         }
 
+        /* Hide mobile-specific elements on desktop by default */
+        .mobile-sidebar,
+        .mobile-nav-toggle {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .top-nav-inner {
                 flex-wrap: wrap;
