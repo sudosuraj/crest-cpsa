@@ -526,6 +526,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             return;
         }
         
+        const categorizedQuestions = {};
+        Object.keys(quizData).forEach(key => {
+            const questionObj = quizData[key];
+            const category = categorizeQuestion(questionObj);
+            if (!categorizedQuestions[category]) {
+                categorizedQuestions[category] = [];
+            }
+            categorizedQuestions[category].push({ key, questionObj });
+        });
+        
         const questions = categorizedQuestions[categoryName];
         if (!questions) return;
         
@@ -585,6 +595,10 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         });
         
         // Update score display
+        const scoreElement = document.getElementById("score");
+        const percentageElement = document.getElementById("percentage");
+        const accuracyBar = document.getElementById("accuracy-bar");
+        
         if (scoreElement) {
             scoreElement.textContent = score;
         }
@@ -606,7 +620,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         
         // Save progress and update UI
         saveProgress();
-        updateReviewCounts();
+        updateReviewStats();
         
         showToast(`Reset ${resetCount} question${resetCount === 1 ? '' : 's'} in "${categoryName}"`);
     }
@@ -880,6 +894,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             categoryHeader.addEventListener("click", (e) => {
                 // Don't toggle if clicking the reset button
                 if (e.target.classList.contains('category-reset-btn')) return;
+                
+                // Accordion behavior: collapse all other categories first
+                document.querySelectorAll(".category-questions").forEach(otherQuestions => {
+                    if (otherQuestions !== categoryQuestions) {
+                        otherQuestions.classList.add("collapsed");
+                        const otherToggle = otherQuestions.previousElementSibling.querySelector(".category-toggle");
+                        if (otherToggle) otherToggle.textContent = "►";
+                    }
+                });
+                
                 const collapsed = categoryQuestions.classList.toggle("collapsed");
                 categoryToggle.textContent = collapsed ? "►" : "▼";
             });
@@ -1060,16 +1084,18 @@ Practice at: https://sudosuraj.github.io/CREST/`;
     }
 
     function expandAllCategories() {
-        document.querySelectorAll(".category-section").forEach(section => {
-            const questions = section.querySelector(".category-questions");
-            const toggle = section.querySelector(".category-toggle");
-            if (questions && questions.classList.contains("collapsed")) {
+        collapseAllCategories();
+        const firstSection = document.querySelector(".category-section");
+        if (firstSection) {
+            const questions = firstSection.querySelector(".category-questions");
+            const toggle = firstSection.querySelector(".category-toggle");
+            if (questions) {
                 questions.classList.remove("collapsed");
             }
             if (toggle) {
                 toggle.textContent = "▼";
             }
-        });
+        }
     }
 
     function collapseAllCategories() {
