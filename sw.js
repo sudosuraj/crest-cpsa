@@ -1,10 +1,11 @@
-const CACHE_NAME = 'cpsa-quiz-v4';
+const CACHE_NAME = 'cpsa-quiz-v5';
 const urlsToCache = [
     '/CREST/',
     '/CREST/index.html',
     '/CREST/manifest.json',
-    '/CREST/sitemap.xml',
-    '/CREST/robots.txt'
+    '/CREST/icon-192.svg',
+    '/CREST/icon-512.svg',
+    '/CREST/og-image.svg'
 ];
 
 // Install event - cache resources

@@ -38,7 +38,7 @@
     <meta property="og:url" content="https://sudosuraj.github.io/CREST/">
     <meta property="og:title" content="CREST CPSA Practice Quiz | 803 Free Questions | AI-Powered">
     <meta property="og:description" content="Master CPSA certification with 803 free practice questions. AI explanations, progress tracking, badges, and offline support. Open-source cybersecurity study tool.">
-    <meta property="og:image" content="https://sudosuraj.github.io/CREST/og-image.png">
+    <meta property="og:image" content="https://sudosuraj.github.io/CREST/og-image.svg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="CREST CPSA Practice Quiz - 803 Free Cybersecurity Questions">
@@ -55,7 +55,7 @@
     <meta name="twitter:url" content="https://sudosuraj.github.io/CREST/">
     <meta name="twitter:title" content="CREST CPSA Practice Quiz | 803 Free Questions">
     <meta name="twitter:description" content="Master CPSA certification with 803 free practice questions. AI-powered explanations, progress tracking, and gamification. Open-source cybersecurity study tool.">
-    <meta name="twitter:image" content="https://sudosuraj.github.io/CREST/og-image.png">
+    <meta name="twitter:image" content="https://sudosuraj.github.io/CREST/og-image.svg">
     <meta name="twitter:image:alt" content="CREST CPSA Practice Quiz - Free Cybersecurity Study Tool">
     <meta name="twitter:label1" content="Questions">
     <meta name="twitter:data1" content="803">
@@ -74,10 +74,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="CPSA Quiz">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.svg">
     <meta name="application-name" content="CPSA Quiz">
     <meta name="msapplication-TileColor" content="#2563eb">
-    <meta name="msapplication-config" content="browserconfig.xml">
     
     <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,8 +88,6 @@
     <!-- Sitemap Reference -->
     <link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml">
     
-    <!-- RSS/Atom Feed (for future updates) -->
-    <link rel="alternate" type="application/rss+xml" title="CPSA Quiz Updates" href="feed.xml">
     
     <!-- Structured Data - WebApplication -->
     <script type="application/ld+json">
@@ -100,7 +97,7 @@
         "@id": "https://sudosuraj.github.io/CREST/#webapp",
         "name": "CREST CPSA Practice Quiz",
         "alternateName": ["CPSA Quiz", "CREST Quiz", "CPSA Practice Test", "CREST Exam Prep"],
-        "description": "Free, open-source CPSA certification practice quiz with 803 multiple-choice questions. Features AI-powered explanations, progress tracking, gamification with badges and XP, spaced repetition, and offline support. The ultimate study tool for CREST Practitioner Security Analyst exam preparation.",
+        "description": "Free, open-source CPSA certification practice quiz with 803 multiple-choice questions. Features AI-powered explanations, progress tracking, gamification with badges and XP, review mode for missed questions, and offline support. The ultimate study tool for CREST Practitioner Security Analyst exam preparation.",
         "url": "https://sudosuraj.github.io/CREST/",
         "applicationCategory": "EducationalApplication",
         "applicationSubCategory": "Cybersecurity Training",
@@ -115,7 +112,7 @@
             "AI-powered explanations",
             "Progress tracking with localStorage",
             "Gamification with badges and XP",
-            "Spaced repetition review mode",
+            "Review mode for missed questions",
             "Timed practice exams",
             "Offline support via PWA",
             "Mobile responsive design",
@@ -129,13 +126,6 @@
             "priceCurrency": "USD",
             "availability": "https://schema.org/InStock",
             "priceValidUntil": "2030-12-31"
-        },
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.8",
-            "ratingCount": "150",
-            "bestRating": "5",
-            "worstRating": "1"
         },
         "author": {
             "@type": "Person",
@@ -3509,8 +3499,7 @@
     </div>
     
     <script>
-	// JSON data in the given format
-	    // Created by Kislay
+	// Quiz data - 803 CPSA practice questions
 const quizData = {
     "0": {
         "question": "Why can remote access VPNs not use Main Mode for IKE Phase-1 if the authentication method is pre-shared key?",
@@ -11575,6 +11564,8 @@ const quizData = {
     const STORAGE_KEY = 'cpsa_quiz_progress';
     const STREAK_KEY = 'cpsa_quiz_streak';
     const BADGES_KEY = 'cpsa_quiz_badges';
+    const STUDY_TIME_KEY = 'cpsa_study_time';
+    let sessionStartTime = Date.now();
     
     // Load saved progress from localStorage
     function loadProgress() {
@@ -11607,6 +11598,33 @@ const quizData = {
             console.error('Error saving progress:', e);
         }
     }
+    
+    // ==================== STUDY TIME TRACKING ====================
+    function getStudyTime() {
+        try {
+            return parseInt(localStorage.getItem(STUDY_TIME_KEY) || '0');
+        } catch (e) {
+            return 0;
+        }
+    }
+    
+    function saveStudyTime() {
+        try {
+            const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const totalTime = getStudyTime() + currentSession;
+            localStorage.setItem(STUDY_TIME_KEY, totalTime.toString());
+            sessionStartTime = Date.now();
+        } catch (e) {
+            console.error('Error saving study time:', e);
+        }
+    }
+    
+    // Save study time periodically and on page unload
+    setInterval(saveStudyTime, 60000);
+    window.addEventListener('beforeunload', saveStudyTime);
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') saveStudyTime();
+    });
     
     // ==================== STREAK TRACKING ====================
     function loadStreak() {
@@ -13586,10 +13604,20 @@ Try it yourself: ${url}`,
         examTimeLimit = parseInt(document.getElementById('exam-time').value);
         const category = document.getElementById('exam-categories').value;
         
-        // Get random questions
-        const allIds = Object.keys(quizData);
-        const shuffled = allIds.sort(() => Math.random() - 0.5);
-        examQuestions = shuffled.slice(0, Math.min(numQuestions, allIds.length));
+        // Get questions, filtered by category if specified
+        let eligibleIds = Object.keys(quizData);
+        if (category && category !== 'all') {
+            eligibleIds = eligibleIds.filter(id => {
+                const q = quizData[id];
+                const qCategory = categorizeQuestion(q);
+                return qCategory.toLowerCase().includes(category.toLowerCase());
+            });
+        }
+        
+        // Use Fisher-Yates shuffle (unbiased)
+        const shuffled = [...eligibleIds];
+        shuffleArray(shuffled);
+        examQuestions = shuffled.slice(0, Math.min(numQuestions, shuffled.length));
         examAnswers = {};
         examStartTime = Date.now();
         
@@ -13754,10 +13782,12 @@ Try it yourself: ${url}`,
         document.getElementById('total-correct').textContent = correct;
         document.getElementById('overall-accuracy').textContent = `${accuracy}%`;
         
-        // Calculate study time (estimate based on answers)
-        const studyMins = attempted * 1.5; // Assume 1.5 min per question
+        // Calculate study time from actual tracked time
+        const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
+        const totalSeconds = getStudyTime() + currentSession;
+        const studyMins = Math.floor(totalSeconds / 60);
         const hours = Math.floor(studyMins / 60);
-        const mins = Math.round(studyMins % 60);
+        const mins = studyMins % 60;
         document.getElementById('study-time').textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
         
         // Render category stats
@@ -13902,7 +13932,7 @@ Try it yourself: ${url}`,
     }
     
     // ==========================================
-    // SPACED REPETITION SYSTEM
+    // REVIEW MISSED QUESTIONS SYSTEM
     // ==========================================
     function setupSpacedRepetition() {
         const reviewBtn = document.getElementById('spaced-review-btn');
@@ -14052,11 +14082,17 @@ Try it yourself: ${url}`,
         }
         
         if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
+            copyBtn.addEventListener('click', async () => {
                 const linkInput = document.getElementById('challenge-link');
-                linkInput.select();
-                document.execCommand('copy');
-                showToast('Challenge link copied!');
+                const textToCopy = linkInput.value;
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    showToast('Challenge link copied!');
+                } catch (err) {
+                    linkInput.select();
+                    document.execCommand('copy');
+                    showToast('Challenge link copied!');
+                }
             });
         }
         
@@ -14078,18 +14114,18 @@ Try it yourself: ${url}`,
         let questionIds;
         
         if (category === 'missed') {
-            // Get missed questions
-            questionIds = Object.entries(answerState)
+            // Get missed questions using Fisher-Yates shuffle
+            const missedIds = Object.entries(answerState)
                 .filter(([_, state]) => !state.correct)
-                .map(([id, _]) => id)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, numQuestions);
+                .map(([id, _]) => id);
+            shuffleArray(missedIds);
+            questionIds = missedIds.slice(0, numQuestions);
         } else {
-            // Get random questions
+            // Get random questions using Fisher-Yates shuffle
             const allIds = Object.keys(quizData);
-            questionIds = allIds
-                .sort(() => Math.random() - 0.5)
-                .slice(0, numQuestions);
+            const shuffled = [...allIds];
+            shuffleArray(shuffled);
+            questionIds = shuffled.slice(0, numQuestions);
         }
         
         // Create challenge URL
