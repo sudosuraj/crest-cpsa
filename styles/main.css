@@ -1892,18 +1892,25 @@
             gap: 12px;
         }
 
+        /* ============================================
+           CATEGORY EXPANSION - COMPLETE CSS REWRITE
+           ============================================ */
+        
         .category-section {
-            margin-top: 6px;
+            margin-bottom: 16px;
+            max-width: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         .category-title {
-            padding: 14px 14px;
+            padding: 14px;
             border-radius: 12px;
             border: 1px solid var(--border);
             background: linear-gradient(120deg, #ffffff, #f5f7ff);
             box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-            display: grid;
-            grid-template-columns: 1fr auto auto auto;
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 10px;
             cursor: pointer;
@@ -1911,6 +1918,8 @@
             font-weight: 800;
             color: #111827;
             transition: transform 0.08s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .category-title:hover {
@@ -1920,13 +1929,19 @@
         }
 
         .category-title span:first-child {
+            flex: 1;
+            min-width: 0;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            overflow: hidden;
         }
 
         .category-title span:first-child strong {
             font-size: 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .category-badge {
@@ -1937,15 +1952,16 @@
             padding: 6px 12px;
             font-size: 12px;
             font-weight: 700;
-            min-width: 120px;
+            min-width: 100px;
             text-align: center;
-            justify-self: end;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .category-toggle {
             font-size: 14px;
             color: #6b7280;
-            justify-self: end;
+            flex-shrink: 0;
         }
         
         .category-reset-btn {
@@ -1958,6 +1974,8 @@
             color: #6b7280;
             cursor: pointer;
             transition: all 0.15s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         
         .category-reset-btn:hover {
@@ -1968,8 +1986,12 @@
 
         .category-questions {
             margin-top: 10px;
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         .category-questions.collapsed {
@@ -1977,11 +1999,16 @@
         }
 
         .question-container {
-            padding: 16px 16px 14px;
+            padding: 16px;
             border: 1px solid var(--border);
             border-radius: 14px;
             background: var(--card);
             box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .question-header {
@@ -1991,27 +2018,34 @@
             gap: 10px;
             flex-wrap: wrap;
             margin-bottom: 8px;
+            max-width: 100%;
         }
 
         .question-header h3 {
             flex: 1;
             margin: 0;
-            min-width: 200px;
+            min-width: 150px;
+            max-width: 100%;
             font-size: 17px;
             line-height: 1.35;
             color: #0f172a;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .question-actions {
             display: flex;
             gap: 6px;
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
 
         .options {
             margin-top: 12px;
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
+            max-width: 100%;
         }
 
         .option {
@@ -2021,9 +2055,14 @@
             border-radius: 12px;
             background: var(--card-muted);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
             transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.08s ease, background 0.16s ease;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .option:hover {
@@ -2035,13 +2074,18 @@
 
         .option input {
             margin: 0;
+            margin-top: 2px;
             width: 18px;
             height: 18px;
+            flex-shrink: 0;
         }
 
         .option label {
             flex: 1;
             cursor: pointer;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: calc(100% - 28px);
         }
 
         .correct {
@@ -2073,6 +2117,9 @@
             letter-spacing: 0.2px;
             box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
             transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            white-space: nowrap;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .ai-button:hover {
@@ -2095,6 +2142,10 @@
             border-radius: 10px;
             display: none;
             animation: slideDown 0.3s ease-out;
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .ai-explanation.show {
@@ -2733,30 +2784,124 @@
                 background: var(--card-muted);
             }
             
-            .category-questions {
-                max-width: 100%;
-                overflow-x: hidden;
-            }
-            
-            .question-container {
-                max-width: 100%;
-                overflow-wrap: break-word;
-                word-wrap: break-word;
-            }
-            
-            .option {
-                max-width: 100%;
-                overflow-wrap: break-word;
-                word-wrap: break-word;
-            }
+            /* ============================================
+               MOBILE CATEGORY EXPANSION - COMPLETE CSS REWRITE
+               ============================================ */
             
             .app-shell {
                 padding: 8px;
+                max-width: 100%;
+                overflow-x: hidden;
+                box-sizing: border-box;
             }
             
             .content {
                 max-width: 100%;
                 overflow-x: hidden;
+                box-sizing: border-box;
+            }
+            
+            .category-section {
+                margin-bottom: 12px;
+                max-width: 100%;
+                overflow: hidden;
+                box-sizing: border-box;
+            }
+            
+            .category-title {
+                padding: 12px;
+                gap: 8px;
+                font-size: 14px;
+            }
+            
+            .category-title span:first-child strong {
+                font-size: 13px;
+            }
+            
+            .category-badge {
+                padding: 4px 8px;
+                font-size: 11px;
+                min-width: 80px;
+            }
+            
+            .category-reset-btn {
+                padding: 3px 6px;
+                font-size: 10px;
+            }
+            
+            .category-questions {
+                margin-top: 8px;
+                gap: 8px;
+                max-width: 100%;
+                overflow-x: hidden;
+                box-sizing: border-box;
+            }
+            
+            .question-container {
+                padding: 12px;
+                border-radius: 10px;
+                max-width: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            .question-header {
+                gap: 8px;
+            }
+            
+            .question-header h3 {
+                font-size: 15px;
+                min-width: 100px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            .question-actions {
+                gap: 4px;
+            }
+            
+            .options {
+                margin-top: 10px;
+                gap: 8px;
+            }
+            
+            .option {
+                padding: 10px 12px;
+                gap: 8px;
+                max-width: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            .option input {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .option label {
+                font-size: 14px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                max-width: calc(100% - 24px);
+            }
+            
+            .ai-button {
+                padding: 8px 12px;
+                font-size: 13px;
+                margin: 8px 4px;
+            }
+            
+            .ai-explanation {
+                padding: 12px;
+                font-size: 14px;
+                max-width: 100%;
+                box-sizing: border-box;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
         }
 
