@@ -2034,6 +2034,69 @@
             min-width: 0;
         }
 
+        /* Mobile toolbar toggle button - hidden on desktop */
+        .mobile-toolbar-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            background: var(--card-muted);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text);
+            gap: 6px;
+        }
+        
+        .mobile-toolbar-toggle:hover {
+            background: var(--border);
+        }
+        
+        .mobile-toolbar-toggle svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Mobile nav toggle button - hidden on desktop */
+        .mobile-nav-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+        }
+        
+        .mobile-nav-toggle svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        /* Mobile nav drawer - hidden by default */
+        .mobile-nav-drawer {
+            display: none;
+        }
+        
+        .mobile-nav-close {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+            width: 100%;
+        }
+        
+        .mobile-nav-close svg {
+            width: 24px;
+            height: 24px;
+        }
+
         /* Mobile responsive for toolbar */
         @media (max-width: 768px) {
             .toolbar-tab span {
@@ -2769,15 +2832,60 @@
                 max-width: calc(100vw - 32px);
             }
             
-            #start-sprint-btn,
-            #search-input,
-            #more-actions-btn,
-            .toolbar-footer {
-                display: none !important;
+            .panel-row.secondary {
+                display: none;
+            }
+            
+            .panel-row.secondary.mobile-expanded {
+                display: flex;
+            }
+            
+            .mobile-toolbar-toggle {
+                display: flex;
             }
             
             .nav-links {
-                display: none !important;
+                display: none;
+            }
+            
+            .mobile-nav-toggle {
+                display: flex;
+            }
+            
+            .mobile-nav-drawer {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+            
+            .mobile-nav-drawer.open {
+                display: flex;
+            }
+            
+            .mobile-nav-content {
+                background: var(--card);
+                width: 280px;
+                height: 100%;
+                padding: 20px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+            
+            .mobile-nav-content a {
+                display: block;
+                padding: 12px 16px;
+                color: var(--text);
+                text-decoration: none;
+                border-radius: 8px;
+                margin-bottom: 4px;
+            }
+            
+            .mobile-nav-content a:hover {
+                background: var(--card-muted);
             }
         }
 
@@ -3012,6 +3120,13 @@
                 </div>
             </div>
             
+            <!-- Mobile nav toggle button (hamburger) -->
+            <button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-label="Open navigation menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                </svg>
+            </button>
+            
             <div class="nav-links">
                 <span class="follow-label">Follow:</span>
                 <a class="nav-link-icon" href="https://www.linkedin.com/in/sudosuraj/" target="_blank" rel="noopener" title="LinkedIn" aria-label="Follow on LinkedIn">
@@ -3026,6 +3141,31 @@
             </div>
         </div>
     </nav>
+    
+    <!-- Mobile navigation drawer -->
+    <div class="mobile-nav-drawer" id="mobile-nav-drawer">
+        <div class="mobile-nav-content">
+            <button class="mobile-nav-close" id="mobile-nav-close" aria-label="Close navigation menu">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+            <nav class="mobile-nav-links">
+                <a href="https://www.linkedin.com/in/sudosuraj/" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                    LinkedIn
+                </a>
+                <a href="https://github.com/sudosuraj" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+                    GitHub
+                </a>
+                <a href="https://sudosuraj.medium.com" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M4.285 7.269a.733.733 0 0 0-.24-.619l-1.77-2.133v-.32h5.498l4.25 9.32 3.736-9.32H21v.319l-1.515 1.451a.45.45 0 0 0-.168.425v10.666a.448.448 0 0 0 .168.425l1.479 1.451v.319h-7.436v-.319l1.529-1.487c.152-.15.152-.195.152-.424V8.401L10.95 19.218h-.575L5.417 8.401v7.249c-.041.305.06.612.275.833L7.684 18.9v.319H2.036V18.9l1.992-2.417a.971.971 0 0 0 .257-.833V7.269z"/></svg>
+                    Medium Blog
+                </a>
+            </nav>
+        </div>
+    </div>
     
     <!-- Hidden accuracy bar for progress tracking -->
     <div style="display:none">
@@ -3098,6 +3238,14 @@
                                 <button class="action-btn" id="start-sprint-btn" aria-label="10-min sprint">
                                     <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                                     Sprint
+                                </button>
+                            </div>
+                            <div class="panel-group">
+                                <button class="mobile-toolbar-toggle" id="mobile-toolbar-toggle" aria-label="Show more options" aria-expanded="false">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                    </svg>
+                                    More
                                 </button>
                             </div>
                         </div>
@@ -14115,6 +14263,50 @@ Try it yourself: ${url}`,
     }
     
     // ==========================================
+    // MOBILE NAVIGATION SETUP
+    // ==========================================
+    function setupMobileNavigation() {
+        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        const mobileNavDrawer = document.getElementById('mobile-nav-drawer');
+        const mobileNavClose = document.getElementById('mobile-nav-close');
+        const mobileToolbarToggle = document.getElementById('mobile-toolbar-toggle');
+        const secondaryPanelRow = document.querySelector('.panel-row.secondary');
+
+        if (mobileNavToggle && mobileNavDrawer && mobileNavClose) {
+            mobileNavToggle.addEventListener('click', () => {
+                mobileNavDrawer.classList.add('open');
+                mobileNavToggle.setAttribute('aria-expanded', 'true');
+            });
+            
+            mobileNavClose.addEventListener('click', () => {
+                mobileNavDrawer.classList.remove('open');
+                mobileNavToggle.setAttribute('aria-expanded', 'false');
+            });
+            
+            mobileNavDrawer.addEventListener('click', (e) => {
+                if (e.target === mobileNavDrawer) {
+                    mobileNavDrawer.classList.remove('open');
+                    mobileNavToggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        if (mobileToolbarToggle && secondaryPanelRow) {
+            mobileToolbarToggle.addEventListener('click', () => {
+                const isExpanded = secondaryPanelRow.classList.contains('mobile-expanded');
+                
+                if (isExpanded) {
+                    secondaryPanelRow.classList.remove('mobile-expanded');
+                    mobileToolbarToggle.setAttribute('aria-expanded', 'false');
+                } else {
+                    secondaryPanelRow.classList.add('mobile-expanded');
+                    mobileToolbarToggle.setAttribute('aria-expanded', 'true');
+                }
+            });
+        }
+    }
+
+    // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
@@ -14129,6 +14321,7 @@ Try it yourself: ${url}`,
         setupViewToggle();
         setupXPSystem();
         setupShareDropdown();
+        setupMobileNavigation();
     });
 	
 	</script>
