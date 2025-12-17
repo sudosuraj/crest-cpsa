@@ -90,6 +90,10 @@ Created by [Suraj Sharma (sudosuraj)](https://www.linkedin.com/in/sudosuraj/)
 
 ## Credits
 
+### Contributors
+- **[Ravi Solanki](https://www.linkedin.com/in/ravi-solanki-876089132/)** - Document and study materials
+- **[Suraj Sharma](https://www.linkedin.com/in/sudosuraj)** - Platform development
+
 ### Development Assistance
 - UI improvements, concurrent processing implementation, and background preloading features developed with assistance from [Devin AI](https://devin.ai)
 
@@ -98,6 +102,3 @@ Created by [Suraj Sharma (sudosuraj)](https://www.linkedin.com/in/sudosuraj/)
 - **Search Algorithm**: BM25 (Best Matching 25) for client-side document retrieval
 - **Storage**: IndexedDB for caching questions and RAG index data
 - **PWA**: Service Worker for offline functionality
-
-### Study Materials
-- Based on CREST CPSA examination syllabus and community study resources
