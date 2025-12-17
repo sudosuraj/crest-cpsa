@@ -1,10 +1,12 @@
-const CACHE_NAME = 'cpsa-quiz-v7';
+const CACHE_NAME = 'cpsa-quiz-v8';
 const urlsToCache = [
     '/CREST/',
     '/CREST/index.html',
     '/CREST/styles/main.css',
     '/CREST/js/config.js',
     '/CREST/js/db-utils.js',
+    '/CREST/js/llm-client.js',
+    '/CREST/js/question-cache.js',
     '/CREST/js/app.js',
     '/CREST/js/quiz-data.js',
     '/CREST/js/rag.js',
