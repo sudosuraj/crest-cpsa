@@ -1,0 +1,376 @@
+{
+  "appendices": {
+    "A": {
+      "title": "Appendix A: Soft Skills and Assessment Management",
+      "sections": [
+        {
+          "id": "A1",
+          "title": "A1 Engagement Lifecycle"
+        },
+        {
+          "id": "A2",
+          "title": "A2 Law & Compliance"
+        },
+        {
+          "id": "A3",
+          "title": "A3 Scoping"
+        },
+        {
+          "id": "A4",
+          "title": "A4 Understanding Explaining and Managing Risk"
+        },
+        {
+          "id": "A5",
+          "title": "A5 Record Keeping, Interim Reporting & Final Results"
+        }
+      ]
+    },
+    "B": {
+      "title": "Appendix B: Core Technical Skills",
+      "sections": [
+        {
+          "id": "B1",
+          "title": "B1 IP Protocols"
+        },
+        {
+          "id": "B2",
+          "title": "B2 Network Architectures"
+        },
+        {
+          "id": "B4",
+          "title": "B4 Network Mapping & Target Identification"
+        },
+        {
+          "id": "B5",
+          "title": "B5 Interpreting Tool Output"
+        },
+        {
+          "id": "B6",
+          "title": "B6 Filtering Avoidance Techniques"
+        },
+        {
+          "id": "B8",
+          "title": "B8 OS Fingerprinting"
+        },
+        {
+          "id": "B9",
+          "title": "B9 Application Fingerprinting and Evaluating Unknown Services"
+        },
+        {
+          "id": "B10",
+          "title": "B10 Network Access Control Analysis"
+        },
+        {
+          "id": "B11",
+          "title": "B11 Cryptography"
+        },
+        {
+          "id": "B3",
+          "title": "B3 MD5 hashes start with $H$."
+        },
+        {
+          "id": "B12",
+          "title": "B12 Applications of Cryptography"
+        },
+        {
+          "id": "B13",
+          "title": "B13 File System Permissions"
+        },
+        {
+          "id": "B14",
+          "title": "B14 Audit Techniques"
+        }
+      ]
+    },
+    "C": {
+      "title": "Appendix C: Background Information Gathering and Open Source",
+      "sections": [
+        {
+          "id": "C1",
+          "title": "C1 Registration Records"
+        },
+        {
+          "id": "C2",
+          "title": "C2 Domain Name Server (DNS)"
+        },
+        {
+          "id": "C3",
+          "title": "C3 Customer Web Site Analysis"
+        },
+        {
+          "id": "C4",
+          "title": "C4 Google Hacking and Web Enumeration"
+        },
+        {
+          "id": "C5",
+          "title": "C5 NNTP Newsgroups and Mailing Lists"
+        },
+        {
+          "id": "C6",
+          "title": "C6 Information Leakage from Mail & News Headers"
+        },
+        {
+          "id": "C123",
+          "title": "C123\nfor <recipient@example.net>; Tue, 23 Nov 2023 10:00:00 -0500 (EST)"
+        }
+      ]
+    },
+    "D": {
+      "title": "Appendix D: Networking Equipment",
+      "sections": [
+        {
+          "id": "D1",
+          "title": "D1 Management Protocols"
+        },
+        {
+          "id": "D2",
+          "title": "D2 Network Traffic Analysis"
+        },
+        {
+          "id": "D3",
+          "title": "D3 Networking Protocols"
+        },
+        {
+          "id": "D4",
+          "title": "D4 IPSec"
+        },
+        {
+          "id": "D5",
+          "title": "D5 VoIP"
+        },
+        {
+          "id": "D6",
+          "title": "D6 Wireless"
+        },
+        {
+          "id": "D7",
+          "title": "D7 Configuration Analysis"
+        }
+      ]
+    },
+    "E": {
+      "title": "Appendix E: Microsoft Windows Security Assessment",
+      "sections": [
+        {
+          "id": "E1",
+          "title": "E1 Domain Reconnaissance"
+        },
+        {
+          "id": "E2",
+          "title": "E2 User Enumeration"
+        },
+        {
+          "id": "E3",
+          "title": "E3 Active Directory"
+        },
+        {
+          "id": "E4",
+          "title": "E4 Windows Passwords"
+        },
+        {
+          "id": "E5",
+          "title": "E5 Windows Vulnerabilities"
+        },
+        {
+          "id": "E6",
+          "title": "E6 Windows Patch Management Strategies"
+        },
+        {
+          "id": "E7",
+          "title": "E7 Desktop Lockdown breakout"
+        },
+        {
+          "id": "E8",
+          "title": "E8 Exchange"
+        },
+        {
+          "id": "E9",
+          "title": "E9 Common Windows Applications"
+        }
+      ]
+    },
+    "H": {
+      "title": "Appendix H: Web Testing Methodologies",
+      "sections": [
+        {
+          "id": "H1",
+          "title": "H1 Web Application Reconnaissance"
+        },
+        {
+          "id": "H2",
+          "title": "H2 Threat Modelling and Attack Vectors"
+        },
+        {
+          "id": "H3",
+          "title": "H3 Information Gathering from Web Mark-up"
+        },
+        {
+          "id": "H4",
+          "title": "H4 Authentication Mechanisms"
+        },
+        {
+          "id": "H5",
+          "title": "H5 Authorisation Mechanisms"
+        },
+        {
+          "id": "H6",
+          "title": "H6 Input Validation"
+        },
+        {
+          "id": "H7",
+          "title": "H7 Missing from the official CREST CPSA syllabus document."
+        },
+        {
+          "id": "H8",
+          "title": "H8 Information Disclosure in Error Messages"
+        },
+        {
+          "id": "H9",
+          "title": "H9 Use of Cross Site Scripting Attacks"
+        },
+        {
+          "id": "H10",
+          "title": "H10 Use of Injection Attacks"
+        },
+        {
+          "id": "H11",
+          "title": "H11 Session Handling"
+        },
+        {
+          "id": "H12",
+          "title": "H12 Encryption"
+        }
+      ]
+    },
+    "F": {
+      "title": "Appendix F: Unix Security Assessment",
+      "sections": [
+        {
+          "id": "F1",
+          "title": "F1 User enumeration"
+        },
+        {
+          "id": "F2",
+          "title": "F2 Unix vulnerabilities"
+        },
+        {
+          "id": "F3",
+          "title": "F3 File Transfer Protocol(FTP)"
+        },
+        {
+          "id": "F4",
+          "title": "F4 Sendmail/ SMTP"
+        },
+        {
+          "id": "F5",
+          "title": "F5 Network File System(NFS)"
+        },
+        {
+          "id": "F6",
+          "title": "F6 Berkeley R* Service (Berkeley r-commands)"
+        },
+        {
+          "id": "F7",
+          "title": "F7 X11 - X Windowing systom common in Unix-like OSes"
+        },
+        {
+          "id": "F8",
+          "title": "F8 Remote Procedure Call(RPC) Services"
+        },
+        {
+          "id": "F9",
+          "title": "F9 Secure Shell(SSH)"
+        }
+      ]
+    },
+    "G": {
+      "title": "Appendix G: Web Technologies",
+      "sections": [
+        {
+          "id": "G1",
+          "title": "G1 Web Server Operations"
+        },
+        {
+          "id": "G2",
+          "title": "G2 Web Servers and their flaws"
+        },
+        {
+          "id": "G3",
+          "title": "G3 Web Enterprise Architecture"
+        },
+        {
+          "id": "G4",
+          "title": "G4 Web Protocols"
+        },
+        {
+          "id": "G5",
+          "title": "G5 Web Markup Languages"
+        },
+        {
+          "id": "G6",
+          "title": "G6 Web programming Languages"
+        },
+        {
+          "id": "G7",
+          "title": "G7 Web Application Server Vulnerabilities"
+        },
+        {
+          "id": "G8",
+          "title": "G8 Web APIs"
+        },
+        {
+          "id": "G9",
+          "title": "G9 Web Subcomponents"
+        }
+      ]
+    },
+    "I": {
+      "title": "Appendix I: Web Testing Techniques",
+      "sections": [
+        {
+          "id": "I1",
+          "title": "I1 Web Site Structure Discovery"
+        },
+        {
+          "id": "I2",
+          "title": "I2 Cross-Site Scripting Attacks"
+        },
+        {
+          "id": "I3",
+          "title": "I3 SQL Injection"
+        },
+        {
+          "id": "I4",
+          "title": "I4 Missing from the official CREST CPSA syllabus document."
+        },
+        {
+          "id": "I5",
+          "title": "I5 Missing from the official CREST CPSA syllabus document."
+        },
+        {
+          "id": "I6",
+          "title": "I6 Parameter Manipulation"
+        }
+      ]
+    },
+    "J": {
+      "title": "Appendix J: Databases",
+      "sections": [
+        {
+          "id": "J1",
+          "title": "J1 Microsoft SQL Server"
+        },
+        {
+          "id": "J2",
+          "title": "J2 Oracle RDBMS"
+        },
+        {
+          "id": "J3",
+          "title": "J3 Web / App / Database Connectivity"
+        }
+      ]
+    }
+  },
+  "total_chunks": 230,
+  "source": "CREST CPSA Exam Notes by Solanki Ravikumar"
+}
