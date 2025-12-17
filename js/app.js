@@ -4,6 +4,14 @@
     let chatGreeted = false; // Only show the welcome bubble once per load
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
+    
+    // HTML escape helper to prevent XSS when inserting untrusted content
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return str;
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
     const blockedPhrases = [
         /ignore (all )?previous/i,
         /forget (all )?prior/i,
@@ -702,33 +710,38 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 }
             }
             
-            const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
+            let data;
+            if (typeof LLMClient !== 'undefined') {
+                data = await LLMClient.requestHighPriority({
                     messages: [
-                        {
-                            role: 'system',
-                            content: systemContent
-                        },
-                        {
-                            role: 'user',
-                            content: userContent
-                        }
+                        { role: 'system', content: systemContent },
+                        { role: 'user', content: userContent }
                     ],
                     max_tokens: 400,
                     temperature: 0.7
-                })
-            });
+                });
+            } else {
+                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemContent },
+                            { role: 'user', content: userContent }
+                        ],
+                        max_tokens: 400,
+                        temperature: 0.7
+                    })
+                });
 
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                data = await response.json();
             }
 
-            const data = await response.json();
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No explanation available.';
             
             // Return with sources if RAG was used
@@ -784,27 +797,41 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         // Add conversation messages
         payload.push(...messages);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
-
         try {
-            const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
+            let data;
+            if (typeof LLMClient !== 'undefined') {
+                data = await LLMClient.requestHighPriority({
                     messages: payload,
                     max_tokens: 400,
                     temperature: 0.5
-                }),
-                signal: controller.signal
-            });
+                });
+            } else {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
+                
+                try {
+                    const response = await fetch('https://api.llm7.io/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: payload,
+                            max_tokens: 400,
+                            temperature: 0.5
+                        }),
+                        signal: controller.signal
+                    });
 
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+                    data = await response.json();
+                } finally {
+                    clearTimeout(timeoutId);
+                }
             }
 
-            const data = await response.json();
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
             
             // Return with sources if RAG was used
@@ -818,8 +845,6 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             }
             console.error('Chatbot API Error:', error);
             return `Sorry, I could not fetch a reply. ${error.message}`;
-        } finally {
-            clearTimeout(timeoutId);
         }
     }
 
@@ -2541,7 +2566,7 @@ Try it yourself: ${url}`,
                 const accuracy = Math.round((stats.correct / stats.total) * 100);
                 return `
                     <div class="category-stat-item">
-                        <span class="category-stat-name">${cat}</span>
+                        <span class="category-stat-name">${escapeHtml(cat)}</span>
                         <span class="category-stat-value">${accuracy}% (${stats.correct}/${stats.total})</span>
                     </div>
                 `;
@@ -2639,7 +2664,7 @@ Try it yourself: ${url}`,
         
         container.innerHTML = missed.map(q => `
             <div class="missed-question-item">
-                <div class="missed-question-text">${q.question.substring(0, 100)}${q.question.length > 100 ? '...' : ''}</div>
+                <div class="missed-question-text">${escapeHtml(q.question.substring(0, 100))}${q.question.length > 100 ? '...' : ''}</div>
                 <div class="missed-question-stats">Missed ${q.attempts} time(s)</div>
             </div>
         `).join('');

@@ -319,12 +319,58 @@ async function clearQuestionsCache() {
 // Preloading state
 let preloadingInProgress = false;
 let preloadedAppendices = new Set();
+let preloadingPaused = false;
+let lastRateLimitTime = 0;
 
-// Concurrency limit for parallel preloading
-const PRELOAD_CONCURRENCY = 3;
+// Concurrency limit for parallel preloading - reduced to 1 to avoid competing with foreground
+const PRELOAD_CONCURRENCY = 1;
+
+// Delay before starting preload after first page loads (ms)
+const PRELOAD_DELAY_MS = 3000;
+
+// Cooldown after rate limit before resuming preload (ms)
+const RATE_LIMIT_COOLDOWN_MS = 30000;
+
+/**
+ * Check if preloading should be paused
+ * @returns {boolean}
+ */
+function shouldPausePreloading() {
+    // Pause if explicitly paused
+    if (preloadingPaused) return true;
+    
+    // Pause if we hit a rate limit recently
+    if (Date.now() - lastRateLimitTime < RATE_LIMIT_COOLDOWN_MS) {
+        console.log('Preloading paused due to recent rate limit');
+        return true;
+    }
+    
+    // Pause if LLMClient queue has pending requests (foreground work)
+    if (typeof LLMClient !== 'undefined') {
+        const status = LLMClient.getStatus();
+        if (status.queueLength > 0 || status.activeRequests > 0) {
+            console.log('Preloading paused - foreground requests in progress');
+            return true;
+        }
+        if (status.isCircuitOpen) {
+            console.log('Preloading paused - circuit breaker open');
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Record a rate limit event to pause preloading
+ */
+function recordRateLimit() {
+    lastRateLimitTime = Date.now();
+}
 
 /**
  * Process a single appendix for preloading
+ * Uses low priority to not compete with foreground requests
  * @param {Object} appendix - The appendix object with letter and title
  * @param {function} onAppendixLoaded - Callback when appendix finishes loading
  * @returns {Promise<void>}
@@ -335,8 +381,15 @@ async function preloadSingleAppendix(appendix, onAppendixLoaded) {
         return;
     }
     
+    // Check if we should pause before starting
+    while (shouldPausePreloading()) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Check if preloading was cancelled
+        if (!preloadingInProgress) return;
+    }
+    
     try {
-        console.log(`Preloading Appendix ${appendix.letter}...`);
+        console.log(`Preloading Appendix ${appendix.letter} (low priority)...`);
         
         // Initialize state for this appendix
         const state = getAppendixState(appendix.letter);
@@ -347,13 +400,14 @@ async function preloadSingleAppendix(appendix, onAppendixLoaded) {
         state.exhausted = false;
         state.totalChunks = RAG.getAppendixChunkCount(appendix.letter);
 
-        // Generate first batch silently (no progress callback)
+        // Generate first batch with LOW priority and background flag
         const result = await RAG.generateQuestionsBatch(
             appendix.letter,
             state.nextChunkIdx,
             PAGE_SIZE,
             state.questionHashes,
-            null // No progress callback for background loading
+            null, // No progress callback for background loading
+            { priority: 'low', isBackground: true }
         );
 
         // Update state
@@ -372,7 +426,8 @@ async function preloadSingleAppendix(appendix, onAppendixLoaded) {
         state.currentPage = 1;
         preloadedAppendices.add(appendix.letter);
         
-        console.log(`Preloaded ${result.questions.length} questions for Appendix ${appendix.letter}`);
+        const stats = result.stats || { cacheHits: 0, apiCalls: 0 };
+        console.log(`Preloaded ${result.questions.length} questions for Appendix ${appendix.letter} (cache: ${stats.cacheHits}, api: ${stats.apiCalls})`);
         
         if (onAppendixLoaded) {
             onAppendixLoaded(appendix.letter, result.questions.length);
@@ -380,6 +435,10 @@ async function preloadSingleAppendix(appendix, onAppendixLoaded) {
         
     } catch (error) {
         console.error(`Error preloading Appendix ${appendix.letter}:`, error);
+        // Check if this was a rate limit error
+        if (error.message && error.message.includes('429')) {
+            recordRateLimit();
+        }
         // Don't throw - allow other appendixes to continue
     }
 }
@@ -414,11 +473,13 @@ async function processConcurrentQueue(items, concurrency, processor) {
 
 /**
  * Preload first batch of questions for all appendixes in the background
- * Uses concurrent queue pattern for optimal performance
+ * Waits for delay after first page loads to not compete with foreground
+ * Uses sequential processing (concurrency=1) to minimize API pressure
  * @param {function} onAppendixLoaded - Callback when an appendix finishes loading
+ * @param {Object} options - Options (skipDelay: boolean, excludeAppendix: string)
  * @returns {Promise<void>}
  */
-async function preloadAllAppendixes(onAppendixLoaded = null) {
+async function preloadAllAppendixes(onAppendixLoaded = null, options = {}) {
     if (preloadingInProgress) {
         console.log('Preloading already in progress');
         return;
@@ -429,14 +490,34 @@ async function preloadAllAppendixes(onAppendixLoaded = null) {
         return;
     }
 
+    const { skipDelay = false, excludeAppendix = null } = options;
+
     preloadingInProgress = true;
-    console.log(`Starting background preload of all appendixes (concurrency: ${PRELOAD_CONCURRENCY})...`);
+    
+    // Wait before starting preload to let foreground requests complete
+    if (!skipDelay) {
+        console.log(`Waiting ${PRELOAD_DELAY_MS}ms before starting background preload...`);
+        await new Promise(resolve => setTimeout(resolve, PRELOAD_DELAY_MS));
+    }
+    
+    // Check if preloading was cancelled during delay
+    if (!preloadingInProgress) {
+        console.log('Preloading cancelled during delay');
+        return;
+    }
+    
+    console.log(`Starting background preload (concurrency: ${PRELOAD_CONCURRENCY})...`);
 
     try {
         await RAG.initialize();
-        const appendices = RAG.getAppendices();
+        let appendices = RAG.getAppendices();
         
-        // Process appendixes with limited concurrency for optimal performance
+        // Exclude the currently active appendix (already loaded)
+        if (excludeAppendix) {
+            appendices = appendices.filter(a => a.letter !== excludeAppendix);
+        }
+        
+        // Process appendixes sequentially to minimize API pressure
         await processConcurrentQueue(
             appendices,
             PRELOAD_CONCURRENCY,
@@ -450,6 +531,24 @@ async function preloadAllAppendixes(onAppendixLoaded = null) {
     } finally {
         preloadingInProgress = false;
     }
+}
+
+/**
+ * Stop any in-progress preloading
+ */
+function stopPreloading() {
+    if (preloadingInProgress) {
+        console.log('Stopping preloading...');
+        preloadingInProgress = false;
+        preloadingPaused = true;
+    }
+}
+
+/**
+ * Resume preloading after it was paused
+ */
+function resumePreloading() {
+    preloadingPaused = false;
 }
 
 /**
@@ -484,6 +583,10 @@ window.QuizDataLoader = {
     preloadAllAppendixes,
     isAppendixPreloaded,
     getPreloadStatus,
+    stopPreloading,
+    resumePreloading,
+    // Rate limit handling
+    recordRateLimit,
     // Legacy/utility functions
     getAvailableAppendices,
     isAppendixStarted,

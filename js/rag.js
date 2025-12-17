@@ -475,8 +475,36 @@ const RAG = (function() {
     /**
      * Generate MCQ questions from a chunk using LLM API
      * With token budgeting to stay under 8000 token limit
+     * Now uses LLMClient for rate limiting and QuestionCache for persistence
+     * @param {Object} chunk - The chunk to generate questions from
+     * @param {number} questionsPerChunk - Number of questions to generate
+     * @param {Object} options - Options (priority: 'high'|'low', skipCache: boolean)
      */
-    async function generateQuestionsFromChunk(chunk, questionsPerChunk = 2) {
+    async function generateQuestionsFromChunk(chunk, questionsPerChunk = 5, options = {}) {
+        const { priority = 'normal', skipCache = false } = options;
+        
+        // Check cache first (unless skipCache is true)
+        if (!skipCache && typeof QuestionCache !== 'undefined') {
+            try {
+                const cached = await QuestionCache.get(chunk.id, { questionsPerChunk });
+                if (cached && cached.length > 0) {
+                    console.log(`Cache hit for chunk ${chunk.id}: ${cached.length} questions`);
+                    // Enrich cached questions with source info
+                    return cached.map(q => ({
+                        ...q,
+                        source_chunk_id: chunk.id,
+                        appendix: chunk.appendix,
+                        appendix_title: chunk.appendix_title,
+                        section_id: chunk.section_id,
+                        section_title: chunk.section_title,
+                        cached: true
+                    }));
+                }
+            } catch (cacheError) {
+                console.warn('Cache read error:', cacheError);
+            }
+        }
+        
         const systemPrompt = `You are a CPSA exam question generator. Generate exactly ${questionsPerChunk} multiple-choice questions based on the provided study material.
 
 Output ONLY valid JSON array with this exact structure:
@@ -503,25 +531,42 @@ ${truncatedText}
 Output ONLY the JSON array.`;
 
         try {
-            const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+            // Use LLMClient if available, otherwise fall back to direct fetch
+            let data;
+            if (typeof LLMClient !== 'undefined') {
+                const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
+                                  priority === 'low' ? LLMClient.requestLowPriority :
+                                  LLMClient.request;
+                data = await requestFn({
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
                     ],
-                    max_tokens: 600,
+                    max_tokens: 800,
                     temperature: 0.7
-                })
-            });
+                });
+            } else {
+                // Fallback to direct fetch (for backwards compatibility)
+                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        max_tokens: 800,
+                        temperature: 0.7
+                    })
+                });
 
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                data = await response.json();
             }
 
-            const data = await response.json();
             let content = data.choices?.[0]?.message?.content?.trim() || '';
 
             // Parse JSON from response
@@ -532,17 +577,31 @@ Output ONLY the JSON array.`;
 
             const questions = JSON.parse(content);
 
-            // Validate and enrich questions with source info
-            return questions
-                .filter(q => validateQuestion(q))
-                .map(q => ({
-                    ...q,
-                    source_chunk_id: chunk.id,
-                    appendix: chunk.appendix,
-                    appendix_title: chunk.appendix_title,
-                    section_id: chunk.section_id,
-                    section_title: chunk.section_title
-                }));
+            // Validate questions
+            const validQuestions = questions.filter(q => validateQuestion(q));
+            
+            // Cache the valid questions
+            if (validQuestions.length > 0 && typeof QuestionCache !== 'undefined') {
+                try {
+                    await QuestionCache.set(chunk.id, validQuestions, {
+                        appendix: chunk.appendix,
+                        sectionId: chunk.section_id
+                    }, { questionsPerChunk });
+                    console.log(`Cached ${validQuestions.length} questions for chunk ${chunk.id}`);
+                } catch (cacheError) {
+                    console.warn('Cache write error:', cacheError);
+                }
+            }
+
+            // Enrich questions with source info
+            return validQuestions.map(q => ({
+                ...q,
+                source_chunk_id: chunk.id,
+                appendix: chunk.appendix,
+                appendix_title: chunk.appendix_title,
+                section_id: chunk.section_id,
+                section_title: chunk.section_title
+            }));
         } catch (error) {
             console.error('Question generation error:', error);
             return [];
@@ -575,19 +634,20 @@ Output ONLY the JSON array.`;
         return hash.toString(16);
     }
 
-    // Concurrency configuration for batch processing
-    const BATCH_CONCURRENCY = 5; // Process up to 5 chunks concurrently
-    const MIN_DELAY_BETWEEN_BATCHES = 500; // Minimum delay between concurrent batches
+    // Concurrency configuration - reduced to work with LLMClient queue
+    // LLMClient handles actual concurrency, this just controls how many we queue at once
+    const BATCH_SIZE = 2; // Process 2 chunks at a time (LLMClient will serialize them)
 
     /**
      * Process a single chunk and return questions with metadata
      * @param {Object} chunk - The chunk to process
      * @param {number} questionsPerChunk - Number of questions to generate
+     * @param {Object} options - Options to pass to generateQuestionsFromChunk
      * @returns {Promise<Array>} - Generated questions
      */
-    async function processChunkForQuestions(chunk, questionsPerChunk) {
+    async function processChunkForQuestions(chunk, questionsPerChunk, options = {}) {
         try {
-            return await generateQuestionsFromChunk(chunk, questionsPerChunk);
+            return await generateQuestionsFromChunk(chunk, questionsPerChunk, options);
         } catch (error) {
             console.error(`Error processing chunk ${chunk.section_id}:`, error);
             return [];
@@ -595,21 +655,22 @@ Output ONLY the JSON array.`;
     }
 
     /**
-     * Generate a batch of questions for pagination using concurrent processing
-     * Starts from a specific chunk index and generates until target count is reached
-     * Uses concurrent queue pattern for optimal performance
+     * Generate a batch of questions for pagination
+     * Uses cache-first approach: loads cached questions first, then generates missing ones
      * @param {string} appendixLetter - The appendix letter
      * @param {number} startChunkIdx - Starting chunk index
      * @param {number} targetCount - Target number of questions to generate (default 20)
      * @param {Set} existingHashes - Set of existing question hashes to avoid duplicates
      * @param {function} onProgress - Progress callback
+     * @param {Object} options - Options (priority: 'high'|'low'|'normal', isBackground: boolean)
      * @returns {Promise<{questions: Array, nextChunkIdx: number, newHashes: Array, exhausted: boolean}>}
      */
-    async function generateQuestionsBatch(appendixLetter, startChunkIdx = 0, targetCount = 20, existingHashes = new Set(), onProgress = null) {
+    async function generateQuestionsBatch(appendixLetter, startChunkIdx = 0, targetCount = 20, existingHashes = new Set(), onProgress = null, options = {}) {
         if (!isInitialized) {
             await initialize();
         }
 
+        const { priority = 'normal', isBackground = false } = options;
         const appendixChunks = getChunksForAppendix(appendixLetter);
         if (appendixChunks.length === 0) {
             return { questions: [], nextChunkIdx: 0, newHashes: [], exhausted: true };
@@ -619,67 +680,85 @@ Output ONLY the JSON array.`;
         const newHashes = [];
         let currentChunkIdx = startChunkIdx;
         const questionsPerChunk = 5; // Generate 5 questions per chunk for better yield
+        
+        // Track cache hits for progress reporting
+        let cacheHits = 0;
+        let apiCalls = 0;
 
-        // Process chunks in concurrent batches
+        // Process chunks one at a time (LLMClient handles rate limiting)
         while (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
-            // Determine how many chunks to process in this batch
-            const remainingChunks = appendixChunks.length - currentChunkIdx;
-            const batchSize = Math.min(BATCH_CONCURRENCY, remainingChunks);
-            const chunksToProcess = appendixChunks.slice(currentChunkIdx, currentChunkIdx + batchSize);
+            const chunk = appendixChunks[currentChunkIdx];
             
             if (onProgress) {
                 onProgress({
                     currentChunk: currentChunkIdx + 1,
                     totalChunks: appendixChunks.length,
-                    section: chunksToProcess[0]?.section_id,
+                    section: chunk.section_id,
                     questionsGenerated: questions.length,
                     targetCount: targetCount,
-                    processingBatch: batchSize
+                    cacheHits,
+                    apiCalls,
+                    status: 'processing'
                 });
             }
 
-            // Process all chunks in this batch concurrently
-            const batchPromises = chunksToProcess.map(chunk => 
-                processChunkForQuestions(chunk, questionsPerChunk)
-            );
+            // Generate questions for this chunk (cache-first via generateQuestionsFromChunk)
+            const generatedQuestions = await processChunkForQuestions(chunk, questionsPerChunk, { priority });
             
-            const batchResults = await Promise.all(batchPromises);
+            // Track if this was a cache hit
+            if (generatedQuestions.length > 0 && generatedQuestions[0].cached) {
+                cacheHits++;
+            } else if (generatedQuestions.length > 0) {
+                apiCalls++;
+            }
             
-            // Collect questions from all chunks in this batch
-            for (const generatedQuestions of batchResults) {
-                for (const q of generatedQuestions) {
-                    const hash = hashQuestion(q.question);
-                    if (!existingHashes.has(hash)) {
-                        questions.push(q);
-                        newHashes.push(hash);
-                        existingHashes.add(hash);
-                        
-                        if (questions.length >= targetCount) {
-                            break;
-                        }
-                    } else {
-                        console.log('Skipping duplicate question:', q.question.substring(0, 50));
+            // Collect questions, deduplicating by hash
+            for (const q of generatedQuestions) {
+                const hash = hashQuestion(q.question);
+                if (!existingHashes.has(hash)) {
+                    questions.push(q);
+                    newHashes.push(hash);
+                    existingHashes.add(hash);
+                    
+                    if (questions.length >= targetCount) {
+                        break;
                     }
-                }
-                
-                if (questions.length >= targetCount) {
-                    break;
+                } else {
+                    console.log('Skipping duplicate question:', q.question.substring(0, 50));
                 }
             }
 
-            currentChunkIdx += batchSize;
+            currentChunkIdx++;
 
-            // Small delay between concurrent batches to avoid rate limiting
-            if (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
-                await new Promise(resolve => setTimeout(resolve, MIN_DELAY_BETWEEN_BATCHES));
+            // For background tasks, check if we should yield to foreground
+            if (isBackground && typeof LLMClient !== 'undefined') {
+                const status = LLMClient.getStatus();
+                // If there are high-priority requests waiting, pause background work
+                if (status.queueLength > 0) {
+                    console.log('Background task yielding to foreground requests');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
             }
+        }
+
+        if (onProgress) {
+            onProgress({
+                currentChunk: currentChunkIdx,
+                totalChunks: appendixChunks.length,
+                questionsGenerated: questions.length,
+                targetCount: targetCount,
+                cacheHits,
+                apiCalls,
+                status: 'complete'
+            });
         }
 
         return {
             questions,
             nextChunkIdx: currentChunkIdx,
             newHashes,
-            exhausted: currentChunkIdx >= appendixChunks.length
+            exhausted: currentChunkIdx >= appendixChunks.length,
+            stats: { cacheHits, apiCalls }
         };
     }
 
@@ -689,83 +768,6 @@ Output ONLY the JSON array.`;
     function getAppendixChunkCount(appendixLetter) {
         if (!isInitialized) return 0;
         return getChunksForAppendix(appendixLetter).length;
-    }
-
-    /**
-     * Load questions from IndexedDB cache
-     */
-    async function loadQuestionsFromCache(key) {
-        try {
-            return new Promise((resolve) => {
-                const request = indexedDB.open('cpsa_questions_cache', 1);
-                
-                request.onerror = () => resolve(null);
-                
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('questions')) {
-                        db.createObjectStore('questions', { keyPath: 'id' });
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    const transaction = db.transaction(['questions'], 'readonly');
-                    const store = transaction.objectStore('questions');
-                    const getRequest = store.get(key);
-
-                    getRequest.onsuccess = () => {
-                        const result = getRequest.result;
-                        if (result && result.questions) {
-                            resolve(result.questions);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-
-                    getRequest.onerror = () => resolve(null);
-                };
-            });
-        } catch (e) {
-            return null;
-        }
-    }
-
-    /**
-     * Save questions to IndexedDB cache
-     */
-    async function saveQuestionsToCache(key, questions) {
-        try {
-            return new Promise((resolve) => {
-                const request = indexedDB.open('cpsa_questions_cache', 1);
-                
-                request.onerror = () => resolve(false);
-                
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('questions')) {
-                        db.createObjectStore('questions', { keyPath: 'id' });
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    const transaction = db.transaction(['questions'], 'readwrite');
-                    const store = transaction.objectStore('questions');
-                    
-                    store.put({
-                        id: key,
-                        questions: questions,
-                        timestamp: Date.now()
-                    });
-
-                    transaction.oncomplete = () => resolve(true);
-                    transaction.onerror = () => resolve(false);
-                };
-            });
-        } catch (e) {
-            return false;
-        }
     }
 
     /**
