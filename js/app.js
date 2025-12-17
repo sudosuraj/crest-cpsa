@@ -943,11 +943,42 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         // Show appendix selection screen
         quizContainer.innerHTML = '';
         
+        // Add toolbar-collapsed class to hide toolbar by default
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+            mainContent.classList.add('toolbar-collapsed');
+        }
+        
+        // Remove active state from all tabs
+        document.querySelectorAll('.toolbar-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.toolbar-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        
         const selectionScreen = document.createElement('div');
         selectionScreen.className = 'appendix-selection';
         selectionScreen.innerHTML = `
-            <h2>Select an Appendix to Practice</h2>
-            <p>Questions are generated dynamically from the CPSA study notes using RAG (Retrieval-Augmented Generation).</p>
+            <div class="appendix-hero">
+                <h1>CREST CPSA Practice Quiz</h1>
+                <p>Master penetration testing concepts with AI-generated questions from the official study notes</p>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">10</span>
+                        <span class="hero-stat-label">Appendices</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">230</span>
+                        <span class="hero-stat-label">Topics</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">1000+</span>
+                        <span class="hero-stat-label">Questions</span>
+                    </div>
+                </div>
+            </div>
             <div class="appendix-grid" id="appendix-grid">
                 <div class="loading-appendices">Loading appendices...</div>
             </div>
@@ -969,11 +1000,44 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 const chunkCount = RAG.getAppendixChunkCount(appendix.letter);
                 const estimatedQuestions = chunkCount * 5; // ~5 questions per chunk
                 
+                // Get appendix icon class
+                const iconClass = `appendix-${appendix.letter.toLowerCase()}`;
+                
                 card.innerHTML = `
-                    <div class="appendix-letter">Appendix ${appendix.letter}</div>
-                    <div class="appendix-title">${appendix.title}</div>
-                    <div class="appendix-meta">${chunkCount} topics | ~${estimatedQuestions} questions</div>
-                    <div class="appendix-status">Click to start practice</div>
+                    <div class="appendix-card-header">
+                        <div class="appendix-icon ${iconClass}">${appendix.letter}</div>
+                        <div class="appendix-card-info">
+                            <div class="appendix-letter">Appendix ${appendix.letter}</div>
+                            <div class="appendix-title">${appendix.title}</div>
+                        </div>
+                    </div>
+                    <div class="appendix-card-body">
+                        <div class="appendix-stats">
+                            <div class="appendix-stat">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                </svg>
+                                ${chunkCount} topics
+                            </div>
+                            <div class="appendix-stat">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                ~${estimatedQuestions} questions
+                            </div>
+                        </div>
+                        <div class="appendix-progress">
+                            <div class="appendix-progress-bar" style="width: 0%"></div>
+                        </div>
+                        <div class="appendix-cta">
+                            <span class="appendix-status">Start Practice</span>
+                            <div class="appendix-arrow">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                 `;
                 
                 card.addEventListener('click', () => loadAppendixQuiz(appendix.letter, appendix.title));
@@ -1733,11 +1797,24 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         const moreBtn = document.getElementById('more-actions-btn');
         const moreMenu = document.getElementById('more-menu');
         const reviewFlaggedBtn = document.getElementById('review-flagged-btn');
+        const mainContent = document.getElementById('main-content');
         
         // Tab switching
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
+                const isCurrentlyActive = tab.classList.contains('active');
+                
+                // If clicking the active tab, toggle toolbar visibility
+                if (isCurrentlyActive && mainContent) {
+                    mainContent.classList.toggle('toolbar-collapsed');
+                    return;
+                }
+                
+                // Show toolbar (remove collapsed class)
+                if (mainContent) {
+                    mainContent.classList.remove('toolbar-collapsed');
+                }
                 
                 // Update tabs
                 tabs.forEach(t => {
