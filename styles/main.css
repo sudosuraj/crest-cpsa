@@ -3059,3 +3059,183 @@
                 font-size: 14px;
             }
         }
+
+/* ==================== APPENDIX SELECTION UI ==================== */
+.appendix-selection {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.appendix-selection h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 12px;
+}
+
+.appendix-selection p {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 32px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.appendix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.loading-appendices {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 16px;
+}
+
+.appendix-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.appendix-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+    transform: translateY(-2px);
+}
+
+.appendix-letter {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.appendix-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
+    line-height: 1.3;
+}
+
+.appendix-status {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.load-all-btn {
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.load-all-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+}
+
+/* Question Generation Progress */
+.generation-progress {
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.generation-progress h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.generation-progress p {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 24px;
+}
+
+.progress-bar-container {
+    background: var(--bg-strong);
+    border-radius: 999px;
+    height: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #3b82f6);
+    border-radius: 999px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#generation-status {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+/* Back to Selection Button */
+.back-to-selection {
+    background: var(--bg-strong);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.15s ease;
+}
+
+.back-to-selection:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Error Message */
+.error {
+    color: var(--danger);
+    font-size: 16px;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Responsive Appendix Grid */
+@media (max-width: 768px) {
+    .appendix-selection {
+        padding: 24px 16px;
+    }
+    
+    .appendix-selection h2 {
+        font-size: 22px;
+    }
+    
+    .appendix-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .appendix-card {
+        padding: 20px;
+    }
+}

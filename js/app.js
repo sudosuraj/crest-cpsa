@@ -1,5 +1,5 @@
     let score = 0; // Initialize the score
-    const totalQuestions = Object.keys(quizData).length; // Total number of questions
+    let totalQuestions = 0; // Will be updated dynamically as questions are generated
     const chatHistory = []; // Chatbot conversation
     let chatGreeted = false; // Only show the welcome bubble once per load
     const CHAT_MAX_LENGTH = 400;
@@ -927,7 +927,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         button.textContent = '[AI+RAG] Hide Answer Explanation';
     }
 
-    function loadQuiz() {
+    async function loadQuiz() {
         const quizContainer = document.getElementById("quiz-container");
         const scoreElement = document.getElementById("score");
         const percentageElement = document.getElementById("percentage");
@@ -936,18 +936,190 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         const categoryCountChip = document.getElementById("category-count-chip");
         const questionCountChip = document.getElementById("question-count-chip");
 
-        if (totalElement) {
-            totalElement.textContent = totalQuestions;
-        }
         if (accuracyBar) {
             accuracyBar.style.width = "0%";
         }
 
+        // Show appendix selection screen
+        quizContainer.innerHTML = '';
+        
+        const selectionScreen = document.createElement('div');
+        selectionScreen.className = 'appendix-selection';
+        selectionScreen.innerHTML = `
+            <h2>Select an Appendix to Practice</h2>
+            <p>Questions are generated dynamically from the CPSA study notes using RAG (Retrieval-Augmented Generation).</p>
+            <div class="appendix-grid" id="appendix-grid">
+                <div class="loading-appendices">Loading appendices...</div>
+            </div>
+        `;
+        quizContainer.appendChild(selectionScreen);
+
+        // Load appendices from RAG
+        try {
+            const appendices = await QuizDataLoader.getAvailableAppendices();
+            const grid = document.getElementById('appendix-grid');
+            grid.innerHTML = '';
+
+            appendices.forEach(appendix => {
+                const card = document.createElement('div');
+                card.className = 'appendix-card';
+                card.dataset.appendix = appendix.letter;
+                
+                const isLoaded = QuizDataLoader.isAppendixLoaded(appendix.letter);
+                const questions = isLoaded ? QuizDataLoader.getAppendixQuestions(appendix.letter) : {};
+                const questionCount = Object.keys(questions).length;
+                
+                card.innerHTML = `
+                    <div class="appendix-letter">Appendix ${appendix.letter}</div>
+                    <div class="appendix-title">${appendix.title}</div>
+                    <div class="appendix-status">${isLoaded ? `${questionCount} questions loaded` : 'Click to generate questions'}</div>
+                `;
+                
+                card.addEventListener('click', () => loadAppendixQuiz(appendix.letter, appendix.title));
+                grid.appendChild(card);
+            });
+
+            // Add "Load All" button
+            const loadAllBtn = document.createElement('button');
+            loadAllBtn.className = 'load-all-btn';
+            loadAllBtn.textContent = 'Generate Questions for All Appendices';
+            loadAllBtn.addEventListener('click', loadAllAppendices);
+            selectionScreen.appendChild(loadAllBtn);
+
+        } catch (error) {
+            console.error('Error loading appendices:', error);
+            quizContainer.innerHTML = '<p class="error">Error loading appendices. Please refresh the page.</p>';
+        }
+    }
+
+    async function loadAppendixQuiz(appendixLetter, appendixTitle) {
+        const quizContainer = document.getElementById("quiz-container");
+        
+        // Show loading screen
+        quizContainer.innerHTML = `
+            <div class="generation-progress">
+                <h2>Generating Questions for Appendix ${appendixLetter}</h2>
+                <p>${appendixTitle}</p>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="generation-progress-bar"></div>
+                </div>
+                <p id="generation-status">Initializing...</p>
+            </div>
+        `;
+
+        try {
+            const questions = await QuizDataLoader.loadAppendixQuestions(appendixLetter, (progress) => {
+                const progressBar = document.getElementById('generation-progress-bar');
+                const statusEl = document.getElementById('generation-status');
+                if (progressBar) {
+                    const pct = (progress.current / progress.total) * 100;
+                    progressBar.style.width = `${pct}%`;
+                }
+                if (statusEl) {
+                    statusEl.textContent = `Processing chunk ${progress.current}/${progress.total} (${progress.questionsGenerated} questions generated)`;
+                }
+            });
+
+            // Update total questions count
+            totalQuestions = QuizDataLoader.getTotalQuestionCount();
+            const totalElement = document.getElementById("total-questions");
+            if (totalElement) {
+                totalElement.textContent = totalQuestions;
+            }
+
+            // Display the questions
+            displayQuestions(questions, `Appendix ${appendixLetter}: ${appendixTitle}`);
+            
+        } catch (error) {
+            console.error('Error generating questions:', error);
+            quizContainer.innerHTML = `
+                <p class="error">Error generating questions. Please try again.</p>
+                <button onclick="loadQuiz()">Back to Appendix Selection</button>
+            `;
+        }
+    }
+
+    async function loadAllAppendices() {
+        const quizContainer = document.getElementById("quiz-container");
+        
+        quizContainer.innerHTML = `
+            <div class="generation-progress">
+                <h2>Generating Questions for All Appendices</h2>
+                <p id="current-appendix">Starting...</p>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="generation-progress-bar"></div>
+                </div>
+                <p id="generation-status">Initializing...</p>
+            </div>
+        `;
+
+        try {
+            const appendices = await QuizDataLoader.getAvailableAppendices();
+            
+            for (let i = 0; i < appendices.length; i++) {
+                const appendix = appendices[i];
+                const currentEl = document.getElementById('current-appendix');
+                if (currentEl) {
+                    currentEl.textContent = `Appendix ${appendix.letter}: ${appendix.title}`;
+                }
+
+                await QuizDataLoader.loadAppendixQuestions(appendix.letter, (progress) => {
+                    const progressBar = document.getElementById('generation-progress-bar');
+                    const statusEl = document.getElementById('generation-status');
+                    
+                    // Calculate overall progress
+                    const appendixProgress = (i / appendices.length) + (progress.current / progress.total / appendices.length);
+                    
+                    if (progressBar) {
+                        progressBar.style.width = `${appendixProgress * 100}%`;
+                    }
+                    if (statusEl) {
+                        statusEl.textContent = `Appendix ${i + 1}/${appendices.length} - Chunk ${progress.current}/${progress.total} (${QuizDataLoader.getTotalQuestionCount()} total questions)`;
+                    }
+                });
+            }
+
+            // Update total questions count
+            totalQuestions = QuizDataLoader.getTotalQuestionCount();
+            const totalElement = document.getElementById("total-questions");
+            if (totalElement) {
+                totalElement.textContent = totalQuestions;
+            }
+
+            // Display all questions
+            displayQuestions(quizData, 'All Appendices');
+            
+        } catch (error) {
+            console.error('Error generating questions:', error);
+            quizContainer.innerHTML = `
+                <p class="error">Error generating questions. Please try again.</p>
+                <button onclick="loadQuiz()">Back to Appendix Selection</button>
+            `;
+        }
+    }
+
+    function displayQuestions(questions, categoryTitle) {
+        const quizContainer = document.getElementById("quiz-container");
+        const scoreElement = document.getElementById("score");
+        const percentageElement = document.getElementById("percentage");
+        const accuracyBar = document.getElementById("accuracy-bar");
+        const categoryCountChip = document.getElementById("category-count-chip");
+        const questionCountChip = document.getElementById("question-count-chip");
+
+        quizContainer.innerHTML = '';
+
+        // Add back button
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-to-selection';
+        backBtn.textContent = 'Back to Appendix Selection';
+        backBtn.addEventListener('click', loadQuiz);
+        quizContainer.appendChild(backBtn);
+
         const categorizedQuestions = {};
 
-        Object.keys(quizData).forEach(key => {
-            const questionObj = quizData[key];
-            const category = categorizeQuestion(questionObj);
+        Object.keys(questions).forEach(key => {
+            const questionObj = questions[key];
+            const category = questionObj.section_title || categorizeQuestion(questionObj);
             if (!categorizedQuestions[category]) {
                 categorizedQuestions[category] = [];
             }

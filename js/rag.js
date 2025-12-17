@@ -464,6 +464,253 @@ const RAG = (function() {
         return { ...TOKEN_CONFIG };
     }
 
+    /**
+     * Get chunks for a specific appendix
+     */
+    function getChunksForAppendix(appendixLetter) {
+        if (!isInitialized) return [];
+        return chunks.filter(chunk => chunk.appendix === appendixLetter);
+    }
+
+    /**
+     * Generate MCQ questions from a chunk using LLM API
+     * With token budgeting to stay under 8000 token limit
+     */
+    async function generateQuestionsFromChunk(chunk, questionsPerChunk = 2) {
+        const systemPrompt = `You are a CPSA exam question generator. Generate exactly ${questionsPerChunk} multiple-choice questions based on the provided study material.
+
+Output ONLY valid JSON array with this exact structure:
+[{"question":"Question text?","options":["A) Option 1","B) Option 2","C) Option 3","D) Option 4"],"correct":0,"explanation":"Brief explanation"}]
+
+Rules:
+- Each question must have exactly 4 options (A, B, C, D)
+- "correct" is the 0-based index of the correct answer (0-3)
+- Questions must be directly answerable from the provided material
+- Keep questions clear and concise`;
+
+        // Truncate chunk text to fit within token budget
+        const maxChunkChars = 2500 * TOKEN_CONFIG.charsPerToken; // ~2500 tokens for context
+        const truncatedText = chunk.text.substring(0, maxChunkChars);
+
+        const userPrompt = `Generate ${questionsPerChunk} MCQ questions from this CPSA study material:
+
+Section: ${chunk.section_id} - ${chunk.section_title}
+Appendix: ${chunk.appendix} - ${chunk.appendix_title}
+
+Content:
+${truncatedText}
+
+Output ONLY the JSON array.`;
+
+        try {
+            const response = await fetch('https://api.llm7.io/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    max_tokens: 600,
+                    temperature: 0.7
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            let content = data.choices?.[0]?.message?.content?.trim() || '';
+
+            // Parse JSON from response
+            if (content.startsWith('```json')) content = content.slice(7);
+            if (content.startsWith('```')) content = content.slice(3);
+            if (content.endsWith('```')) content = content.slice(0, -3);
+            content = content.trim();
+
+            const questions = JSON.parse(content);
+
+            // Validate and enrich questions with source info
+            return questions
+                .filter(q => validateQuestion(q))
+                .map(q => ({
+                    ...q,
+                    source_chunk_id: chunk.id,
+                    appendix: chunk.appendix,
+                    appendix_title: chunk.appendix_title,
+                    section_id: chunk.section_id,
+                    section_title: chunk.section_title
+                }));
+        } catch (error) {
+            console.error('Question generation error:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Validate a question has required fields
+     */
+    function validateQuestion(q) {
+        if (!q.question || !q.options || !Array.isArray(q.options)) return false;
+        if (q.options.length !== 4) return false;
+        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) return false;
+        return true;
+    }
+
+    /**
+     * Generate questions for an entire appendix with batching
+     * Generates questions chunk by chunk with progress callback
+     */
+    async function generateQuestionsForAppendix(appendixLetter, options = {}) {
+        const { 
+            questionsPerChunk = 2, 
+            onProgress = null,
+            delayBetweenCalls = 1000 
+        } = options;
+
+        if (!isInitialized) {
+            await initialize();
+        }
+
+        // Check cache first
+        const cacheKey = `questions_${appendixLetter}`;
+        const cached = await loadQuestionsFromCache(cacheKey);
+        if (cached && cached.length > 0) {
+            console.log(`Loaded ${cached.length} cached questions for Appendix ${appendixLetter}`);
+            return cached;
+        }
+
+        const appendixChunks = getChunksForAppendix(appendixLetter);
+        if (appendixChunks.length === 0) {
+            console.warn(`No chunks found for Appendix ${appendixLetter}`);
+            return [];
+        }
+
+        const allQuestions = [];
+        
+        for (let i = 0; i < appendixChunks.length; i++) {
+            const chunk = appendixChunks[i];
+            
+            if (onProgress) {
+                onProgress({
+                    current: i + 1,
+                    total: appendixChunks.length,
+                    section: chunk.section_id,
+                    questionsGenerated: allQuestions.length
+                });
+            }
+
+            const questions = await generateQuestionsFromChunk(chunk, questionsPerChunk);
+            allQuestions.push(...questions);
+
+            // Delay between API calls to avoid rate limiting
+            if (i < appendixChunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, delayBetweenCalls));
+            }
+        }
+
+        // Cache the generated questions
+        if (allQuestions.length > 0) {
+            await saveQuestionsToCache(cacheKey, allQuestions);
+        }
+
+        return allQuestions;
+    }
+
+    /**
+     * Load questions from IndexedDB cache
+     */
+    async function loadQuestionsFromCache(key) {
+        try {
+            return new Promise((resolve) => {
+                const request = indexedDB.open('cpsa_questions_cache', 1);
+                
+                request.onerror = () => resolve(null);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('questions')) {
+                        db.createObjectStore('questions', { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['questions'], 'readonly');
+                    const store = transaction.objectStore('questions');
+                    const getRequest = store.get(key);
+
+                    getRequest.onsuccess = () => {
+                        const result = getRequest.result;
+                        if (result && result.questions) {
+                            resolve(result.questions);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+
+                    getRequest.onerror = () => resolve(null);
+                };
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Save questions to IndexedDB cache
+     */
+    async function saveQuestionsToCache(key, questions) {
+        try {
+            return new Promise((resolve) => {
+                const request = indexedDB.open('cpsa_questions_cache', 1);
+                
+                request.onerror = () => resolve(false);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('questions')) {
+                        db.createObjectStore('questions', { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['questions'], 'readwrite');
+                    const store = transaction.objectStore('questions');
+                    
+                    store.put({
+                        id: key,
+                        questions: questions,
+                        timestamp: Date.now()
+                    });
+
+                    transaction.oncomplete = () => resolve(true);
+                    transaction.onerror = () => resolve(false);
+                };
+            });
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Clear questions cache
+     */
+    async function clearQuestionsCache() {
+        try {
+            return new Promise((resolve) => {
+                const request = indexedDB.deleteDatabase('cpsa_questions_cache');
+                request.onsuccess = () => resolve(true);
+                request.onerror = () => resolve(false);
+            });
+        } catch (e) {
+            return false;
+        }
+    }
+
     // Public API
     return {
         initialize,
@@ -477,7 +724,12 @@ const RAG = (function() {
         isReady,
         clearCache,
         estimateTokens,
-        getTokenConfig
+        getTokenConfig,
+        // Question generation
+        getChunksForAppendix,
+        generateQuestionsFromChunk,
+        generateQuestionsForAppendix,
+        clearQuestionsCache
     };
 })();
 
