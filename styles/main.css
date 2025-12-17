@@ -339,6 +339,51 @@
             backdrop-filter: blur(8px);
             border-bottom: 1px solid var(--border);
         }
+        
+        /* Navigation Tabs Row (moved from main content) */
+        .nav-tabs-row {
+            background: var(--bg-strong);
+            border-top: 1px solid var(--border);
+            padding: 0;
+        }
+        
+        .nav-tabs-row .toolbar-tabs {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 8px 18px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .nav-tabs-row .toolbar-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tabs-row .toolbar-tab:hover {
+            background: var(--card);
+            color: var(--text);
+        }
+        
+        .nav-tabs-row .toolbar-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .nav-tabs-row .toolbar-tab svg {
+            flex-shrink: 0;
+        }
 
         .top-nav-inner {
             max-width: 1080px;
@@ -2475,6 +2520,31 @@
                 padding: 10px 14px;
             }
             
+            /* Mobile navbar tabs - horizontal scroll */
+            .nav-tabs-row .toolbar-tabs {
+                padding: 6px 12px;
+                gap: 4px;
+                justify-content: flex-start;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            
+            .nav-tabs-row .toolbar-tabs::-webkit-scrollbar {
+                display: none;
+            }
+            
+            .nav-tabs-row .toolbar-tab {
+                padding: 6px 12px;
+                font-size: 13px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            
+            .nav-tabs-row .toolbar-tab span {
+                display: none;
+            }
+            
             .nav-stats {
                 order: 3;
                 width: 100%;
@@ -3130,6 +3200,13 @@
     line-height: 1.3;
 }
 
+.appendix-meta {
+    font-size: 13px;
+    color: var(--primary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
 .appendix-status {
     font-size: 13px;
     color: var(--muted);
@@ -3237,5 +3314,145 @@
     
     .appendix-card {
         padding: 20px;
+    }
+}
+
+/* ==================== PAGINATION UI ==================== */
+.quiz-header-pagination {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.appendix-quiz-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    margin: 16px 0;
+}
+
+.pagination-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.page-counter {
+    background: var(--primary);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.chunk-progress {
+    background: var(--bg-strong);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+.exhausted-badge {
+    background: var(--success);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.questions-container {
+    margin-bottom: 32px;
+}
+
+/* Next Page Button */
+.next-page-container {
+    text-align: center;
+    padding: 32px 20px;
+    background: var(--bg-strong);
+    border-radius: 16px;
+    margin-top: 24px;
+}
+
+.next-page-btn {
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.next-page-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+}
+
+.next-page-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.progress-note {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+/* Completion Message */
+.completion-message {
+    text-align: center;
+    padding: 32px 20px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+    border: 1px solid var(--success);
+    border-radius: 16px;
+    margin-top: 24px;
+}
+
+.completion-message p {
+    color: var(--text);
+    font-size: 16px;
+    margin: 8px 0;
+}
+
+.completion-message p:first-child {
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Generation Info */
+.generation-info {
+    font-size: 14px;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Responsive Pagination */
+@media (max-width: 768px) {
+    .quiz-header-pagination {
+        padding-bottom: 16px;
+    }
+    
+    .appendix-quiz-title {
+        font-size: 20px;
+    }
+    
+    .pagination-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .next-page-btn {
+        width: 100%;
+        padding: 14px 24px;
     }
 }

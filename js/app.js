@@ -965,26 +965,22 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 card.className = 'appendix-card';
                 card.dataset.appendix = appendix.letter;
                 
-                const isLoaded = QuizDataLoader.isAppendixLoaded(appendix.letter);
-                const questions = isLoaded ? QuizDataLoader.getAppendixQuestions(appendix.letter) : {};
-                const questionCount = Object.keys(questions).length;
+                // Get chunk count for this appendix
+                const chunkCount = RAG.getAppendixChunkCount(appendix.letter);
+                const estimatedQuestions = chunkCount * 5; // ~5 questions per chunk
                 
                 card.innerHTML = `
                     <div class="appendix-letter">Appendix ${appendix.letter}</div>
                     <div class="appendix-title">${appendix.title}</div>
-                    <div class="appendix-status">${isLoaded ? `${questionCount} questions loaded` : 'Click to generate questions'}</div>
+                    <div class="appendix-meta">${chunkCount} topics | ~${estimatedQuestions} questions</div>
+                    <div class="appendix-status">Click to start practice</div>
                 `;
                 
                 card.addEventListener('click', () => loadAppendixQuiz(appendix.letter, appendix.title));
                 grid.appendChild(card);
             });
 
-            // Add "Load All" button
-            const loadAllBtn = document.createElement('button');
-            loadAllBtn.className = 'load-all-btn';
-            loadAllBtn.textContent = 'Generate Questions for All Appendices';
-            loadAllBtn.addEventListener('click', loadAllAppendices);
-            selectionScreen.appendChild(loadAllBtn);
+            // Note: "Load All" button removed - now processing one appendix at a time with pagination
 
         } catch (error) {
             console.error('Error loading appendices:', error);
@@ -992,14 +988,19 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         }
     }
 
+    // Store current appendix info for pagination
+    let currentAppendix = { letter: null, title: null };
+
     async function loadAppendixQuiz(appendixLetter, appendixTitle) {
         const quizContainer = document.getElementById("quiz-container");
+        currentAppendix = { letter: appendixLetter, title: appendixTitle };
         
         // Show loading screen
         quizContainer.innerHTML = `
             <div class="generation-progress">
                 <h2>Generating Questions for Appendix ${appendixLetter}</h2>
                 <p>${appendixTitle}</p>
+                <p class="generation-info">Generating first batch of 20 questions...</p>
                 <div class="progress-bar-container">
                     <div class="progress-bar" id="generation-progress-bar"></div>
                 </div>
@@ -1008,15 +1009,15 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         `;
 
         try {
-            const questions = await QuizDataLoader.loadAppendixQuestions(appendixLetter, (progress) => {
+            const result = await QuizDataLoader.loadAppendixFirstPage(appendixLetter, (progress) => {
                 const progressBar = document.getElementById('generation-progress-bar');
                 const statusEl = document.getElementById('generation-status');
                 if (progressBar) {
-                    const pct = (progress.current / progress.total) * 100;
+                    const pct = (progress.currentChunk / progress.totalChunks) * 100;
                     progressBar.style.width = `${pct}%`;
                 }
                 if (statusEl) {
-                    statusEl.textContent = `Processing chunk ${progress.current}/${progress.total} (${progress.questionsGenerated} questions generated)`;
+                    statusEl.textContent = `Processing chunk ${progress.currentChunk}/${progress.totalChunks} (${progress.questionsGenerated}/${progress.targetCount} questions)`;
                 }
             });
 
@@ -1027,8 +1028,8 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 totalElement.textContent = totalQuestions;
             }
 
-            // Display the questions
-            displayQuestions(questions, `Appendix ${appendixLetter}: ${appendixTitle}`);
+            // Display the questions with pagination
+            displayQuestionsWithPagination(result.questions, appendixLetter, appendixTitle, result);
             
         } catch (error) {
             console.error('Error generating questions:', error);
@@ -1037,6 +1038,254 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 <button onclick="loadQuiz()">Back to Appendix Selection</button>
             `;
         }
+    }
+
+    async function loadNextPage() {
+        const quizContainer = document.getElementById("quiz-container");
+        const { letter, title } = currentAppendix;
+        
+        if (!letter) {
+            console.error('No appendix selected');
+            return;
+        }
+
+        // Show loading indicator
+        const nextPageBtn = document.getElementById('next-page-btn');
+        if (nextPageBtn) {
+            nextPageBtn.disabled = true;
+            nextPageBtn.textContent = 'Generating next batch...';
+        }
+
+        try {
+            const result = await QuizDataLoader.loadAppendixNextPage(letter, (progress) => {
+                if (nextPageBtn) {
+                    nextPageBtn.textContent = `Generating... (${progress.questionsGenerated}/${progress.targetCount})`;
+                }
+            });
+
+            // Update total questions count
+            totalQuestions = QuizDataLoader.getTotalQuestionCount();
+            const totalElement = document.getElementById("total-questions");
+            if (totalElement) {
+                totalElement.textContent = totalQuestions;
+            }
+
+            // Re-display all questions with updated pagination
+            const allQuestions = QuizDataLoader.getAllAppendixQuestions(letter);
+            displayQuestionsWithPagination(allQuestions, letter, title, result);
+            
+        } catch (error) {
+            console.error('Error generating next page:', error);
+            if (nextPageBtn) {
+                nextPageBtn.disabled = false;
+                nextPageBtn.textContent = 'Next Page (Generate More)';
+            }
+        }
+    }
+
+    function displayQuestionsWithPagination(questions, appendixLetter, appendixTitle, paginationResult) {
+        const quizContainer = document.getElementById("quiz-container");
+        const scoreElement = document.getElementById("score");
+        const percentageElement = document.getElementById("percentage");
+        const accuracyBar = document.getElementById("accuracy-bar");
+
+        quizContainer.innerHTML = '';
+
+        // Add header with back button and pagination info
+        const header = document.createElement('div');
+        header.className = 'quiz-header-pagination';
+        
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-to-selection';
+        backBtn.textContent = 'Back to Appendix Selection';
+        backBtn.addEventListener('click', loadQuiz);
+        header.appendChild(backBtn);
+
+        const titleEl = document.createElement('h2');
+        titleEl.className = 'appendix-quiz-title';
+        // appendixTitle already contains "Appendix X: ..." so just use it directly
+        titleEl.textContent = appendixTitle;
+        header.appendChild(titleEl);
+
+        // Pagination info
+        const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
+        const infoEl = document.createElement('div');
+        infoEl.className = 'pagination-info';
+        infoEl.innerHTML = `
+            <span class="page-counter">Page ${paginationInfo.currentPage} | ${paginationInfo.totalQuestions} questions loaded</span>
+            <span class="chunk-progress">Chunks: ${paginationInfo.chunksProcessed}/${paginationInfo.totalChunks}</span>
+            ${paginationInfo.exhausted ? '<span class="exhausted-badge">All content processed</span>' : ''}
+        `;
+        header.appendChild(infoEl);
+
+        quizContainer.appendChild(header);
+
+        // Create questions container
+        const questionsContainer = document.createElement('div');
+        questionsContainer.className = 'questions-container';
+
+        // Group questions by section
+        const categorizedQuestions = {};
+        Object.keys(questions).forEach(key => {
+            const questionObj = questions[key];
+            const category = questionObj.section_title || 'General';
+            if (!categorizedQuestions[category]) {
+                categorizedQuestions[category] = [];
+            }
+            categorizedQuestions[category].push({ key, questionObj });
+        });
+
+        // Render questions grouped by section
+        Object.keys(categorizedQuestions).sort().forEach(categoryName => {
+            const count = categorizedQuestions[categoryName].length;
+
+            const categorySection = document.createElement("div");
+            categorySection.classList.add("category-section");
+
+            const categoryHeader = document.createElement("div");
+            categoryHeader.classList.add("category-title");
+
+            const categoryTitleText = document.createElement("span");
+            const categoryNameLabel = document.createElement("strong");
+            categoryNameLabel.textContent = categoryName;
+            categoryTitleText.appendChild(categoryNameLabel);
+
+            const categoryCount = document.createElement("span");
+            categoryCount.classList.add("category-badge");
+            categoryCount.textContent = `${count} question${count === 1 ? "" : "s"}`;
+
+            const categoryToggle = document.createElement("span");
+            categoryToggle.classList.add("category-toggle");
+            categoryToggle.textContent = "►";
+
+            categoryHeader.appendChild(categoryTitleText);
+            categoryHeader.appendChild(categoryCount);
+            categoryHeader.appendChild(categoryToggle);
+
+            const categoryQuestions = document.createElement("div");
+            categoryQuestions.classList.add("category-questions", "collapsed");
+
+            categoryHeader.addEventListener("click", () => {
+                const isCollapsed = categoryQuestions.classList.contains("collapsed");
+                
+                // Accordion behavior
+                document.querySelectorAll(".category-questions").forEach(otherQuestions => {
+                    if (otherQuestions !== categoryQuestions) {
+                        otherQuestions.classList.add("collapsed");
+                        const otherToggle = otherQuestions.previousElementSibling?.querySelector(".category-toggle");
+                        if (otherToggle) otherToggle.textContent = "►";
+                    }
+                });
+
+                categoryQuestions.classList.toggle("collapsed");
+                categoryToggle.textContent = isCollapsed ? "▼" : "►";
+            });
+
+            // Add questions to category
+            categorizedQuestions[categoryName].forEach(({ key, questionObj }) => {
+                const questionDiv = document.createElement("div");
+                questionDiv.classList.add("question");
+                questionDiv.dataset.questionId = key;
+
+                const questionText = document.createElement("p");
+                questionText.classList.add("question-text");
+                questionText.innerHTML = `<strong>Q${parseInt(key) + 1}:</strong> ${questionObj.question}`;
+                questionDiv.appendChild(questionText);
+
+                const optionsDiv = document.createElement("div");
+                optionsDiv.classList.add("options");
+
+                const allAnswers = [questionObj.answer, ...questionObj.incorrect];
+                shuffleArray(allAnswers);
+
+                allAnswers.forEach((answer, index) => {
+                    const optionDiv = document.createElement("div");
+                    optionDiv.classList.add("option");
+                    optionDiv.textContent = answer;
+                    optionDiv.dataset.correct = answer === questionObj.answer ? "true" : "false";
+
+                    optionDiv.addEventListener("click", function() {
+                        if (this.classList.contains("selected") || this.classList.contains("correct") || this.classList.contains("incorrect")) {
+                            return;
+                        }
+
+                        const isCorrect = this.dataset.correct === "true";
+                        
+                        // Mark all options
+                        optionsDiv.querySelectorAll(".option").forEach(opt => {
+                            if (opt.dataset.correct === "true") {
+                                opt.classList.add("correct");
+                            } else if (opt === this) {
+                                opt.classList.add("incorrect");
+                            }
+                            opt.classList.add("selected");
+                        });
+
+                        // Update score
+                        if (isCorrect) {
+                            correctAnswers++;
+                            addXP(10);
+                        }
+                        answeredQuestions++;
+                        
+                        updateCounts();
+                        saveProgress();
+                        checkAndAwardBadges();
+                    });
+
+                    optionsDiv.appendChild(optionDiv);
+                });
+
+                questionDiv.appendChild(optionsDiv);
+
+                // Add explanation button
+                const explainBtn = document.createElement("button");
+                explainBtn.classList.add("explain-btn");
+                explainBtn.textContent = "[AI+RAG] Explain Answer";
+                explainBtn.addEventListener("click", () => explainAnswer(key, questionObj, explainBtn));
+                questionDiv.appendChild(explainBtn);
+
+                categoryQuestions.appendChild(questionDiv);
+            });
+
+            categorySection.appendChild(categoryHeader);
+            categorySection.appendChild(categoryQuestions);
+            questionsContainer.appendChild(categorySection);
+        });
+
+        quizContainer.appendChild(questionsContainer);
+
+        // Add Next Page button if more questions available
+        if (paginationInfo.hasMore || !paginationInfo.exhausted) {
+            const nextPageContainer = document.createElement('div');
+            nextPageContainer.className = 'next-page-container';
+            
+            const nextPageBtn = document.createElement('button');
+            nextPageBtn.id = 'next-page-btn';
+            nextPageBtn.className = 'next-page-btn';
+            nextPageBtn.textContent = 'Next Page (Generate 20 More Questions)';
+            nextPageBtn.addEventListener('click', loadNextPage);
+            
+            const progressNote = document.createElement('p');
+            progressNote.className = 'progress-note';
+            progressNote.textContent = `Target: ${paginationInfo.minTarget} questions minimum | Currently: ${paginationInfo.totalQuestions} questions`;
+            
+            nextPageContainer.appendChild(nextPageBtn);
+            nextPageContainer.appendChild(progressNote);
+            quizContainer.appendChild(nextPageContainer);
+        } else {
+            // Show completion message
+            const completionMsg = document.createElement('div');
+            completionMsg.className = 'completion-message';
+            completionMsg.innerHTML = `
+                <p>All available content for Appendix ${appendixLetter} has been processed.</p>
+                <p>Total questions generated: ${paginationInfo.totalQuestions}</p>
+            `;
+            quizContainer.appendChild(completionMsg);
+        }
+
+        // Update stats
+        updateCounts();
     }
 
     async function loadAllAppendices() {

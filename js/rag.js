@@ -562,10 +562,11 @@ Output ONLY the JSON array.`;
     /**
      * Generate questions for an entire appendix with batching
      * Generates questions chunk by chunk with progress callback
+     * @deprecated Use generateQuestionsBatch for pagination
      */
     async function generateQuestionsForAppendix(appendixLetter, options = {}) {
         const { 
-            questionsPerChunk = 2, 
+            questionsPerChunk = 5, 
             onProgress = null,
             delayBetweenCalls = 1000 
         } = options;
@@ -617,6 +618,101 @@ Output ONLY the JSON array.`;
         }
 
         return allQuestions;
+    }
+
+    /**
+     * Generate a simple hash for question deduplication
+     */
+    function hashQuestion(questionText) {
+        const normalized = questionText.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+        // Simple FNV-1a hash
+        let hash = 2166136261;
+        for (let i = 0; i < normalized.length; i++) {
+            hash ^= normalized.charCodeAt(i);
+            hash = (hash * 16777619) >>> 0;
+        }
+        return hash.toString(16);
+    }
+
+    /**
+     * Generate a batch of questions for pagination
+     * Starts from a specific chunk index and generates until target count is reached
+     * @param {string} appendixLetter - The appendix letter
+     * @param {number} startChunkIdx - Starting chunk index
+     * @param {number} targetCount - Target number of questions to generate (default 20)
+     * @param {Set} existingHashes - Set of existing question hashes to avoid duplicates
+     * @param {function} onProgress - Progress callback
+     * @returns {Promise<{questions: Array, nextChunkIdx: number, newHashes: Array, exhausted: boolean}>}
+     */
+    async function generateQuestionsBatch(appendixLetter, startChunkIdx = 0, targetCount = 20, existingHashes = new Set(), onProgress = null) {
+        if (!isInitialized) {
+            await initialize();
+        }
+
+        const appendixChunks = getChunksForAppendix(appendixLetter);
+        if (appendixChunks.length === 0) {
+            return { questions: [], nextChunkIdx: 0, newHashes: [], exhausted: true };
+        }
+
+        const questions = [];
+        const newHashes = [];
+        let currentChunkIdx = startChunkIdx;
+        const questionsPerChunk = 5; // Generate 5 questions per chunk for better yield
+        const delayBetweenCalls = 1200;
+
+        while (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
+            const chunk = appendixChunks[currentChunkIdx];
+            
+            if (onProgress) {
+                onProgress({
+                    currentChunk: currentChunkIdx + 1,
+                    totalChunks: appendixChunks.length,
+                    section: chunk.section_id,
+                    questionsGenerated: questions.length,
+                    targetCount: targetCount
+                });
+            }
+
+            const generatedQuestions = await generateQuestionsFromChunk(chunk, questionsPerChunk);
+            
+            // Filter out duplicates using hash
+            for (const q of generatedQuestions) {
+                const hash = hashQuestion(q.question);
+                if (!existingHashes.has(hash)) {
+                    questions.push(q);
+                    newHashes.push(hash);
+                    existingHashes.add(hash); // Add to set for this batch too
+                    
+                    if (questions.length >= targetCount) {
+                        break;
+                    }
+                } else {
+                    console.log('Skipping duplicate question:', q.question.substring(0, 50));
+                }
+            }
+
+            currentChunkIdx++;
+
+            // Delay between API calls
+            if (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
+                await new Promise(resolve => setTimeout(resolve, delayBetweenCalls));
+            }
+        }
+
+        return {
+            questions,
+            nextChunkIdx: currentChunkIdx,
+            newHashes,
+            exhausted: currentChunkIdx >= appendixChunks.length
+        };
+    }
+
+    /**
+     * Get total chunk count for an appendix
+     */
+    function getAppendixChunkCount(appendixLetter) {
+        if (!isInitialized) return 0;
+        return getChunksForAppendix(appendixLetter).length;
     }
 
     /**
@@ -729,7 +825,11 @@ Output ONLY the JSON array.`;
         getChunksForAppendix,
         generateQuestionsFromChunk,
         generateQuestionsForAppendix,
-        clearQuestionsCache
+        clearQuestionsCache,
+        // Pagination support
+        generateQuestionsBatch,
+        getAppendixChunkCount,
+        hashQuestion
     };
 })();
 
