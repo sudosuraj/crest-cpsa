@@ -1153,6 +1153,21 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         const percentageElement = document.getElementById("percentage");
         const accuracyBar = document.getElementById("accuracy-bar");
 
+        // Keep toolbar hidden when viewing questions
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+            mainContent.classList.add('toolbar-collapsed');
+        }
+        
+        // Remove active state from all tabs
+        document.querySelectorAll('.toolbar-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.toolbar-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
         quizContainer.innerHTML = '';
 
         // Add header with back button and pagination info
@@ -1184,137 +1199,133 @@ Practice at: https://sudosuraj.github.io/CREST/`;
 
         quizContainer.appendChild(header);
 
-        // Create questions container
+        // Create questions container - flat list without categories
         const questionsContainer = document.createElement('div');
-        questionsContainer.className = 'questions-container';
+        questionsContainer.className = 'questions-container flat-list';
 
-        // Group questions by section
-        const categorizedQuestions = {};
+        // Render questions as flat list (no category grouping)
+        let questionNumber = 1;
         Object.keys(questions).forEach(key => {
             const questionObj = questions[key];
-            const category = questionObj.section_title || 'General';
-            if (!categorizedQuestions[category]) {
-                categorizedQuestions[category] = [];
-            }
-            categorizedQuestions[category].push({ key, questionObj });
-        });
+            
+            // Create modern question card
+            const questionCard = document.createElement("div");
+            questionCard.classList.add("question-card");
+            questionCard.dataset.questionId = key;
 
-        // Render questions grouped by section
-        Object.keys(categorizedQuestions).sort().forEach(categoryName => {
-            const count = categorizedQuestions[categoryName].length;
+            // Question header with number badge and actions
+            const questionHeader = document.createElement("div");
+            questionHeader.classList.add("question-card-header");
 
-            const categorySection = document.createElement("div");
-            categorySection.classList.add("category-section");
+            const questionBadge = document.createElement("span");
+            questionBadge.classList.add("question-number-badge");
+            questionBadge.textContent = questionNumber;
 
-            const categoryHeader = document.createElement("div");
-            categoryHeader.classList.add("category-title");
+            const questionActions = document.createElement("div");
+            questionActions.classList.add("question-card-actions");
 
-            const categoryTitleText = document.createElement("span");
-            const categoryNameLabel = document.createElement("strong");
-            categoryNameLabel.textContent = categoryName;
-            categoryTitleText.appendChild(categoryNameLabel);
+            // Flag button
+            const flagBtn = document.createElement("button");
+            flagBtn.classList.add("flag-btn");
+            flagBtn.title = "Flag for review";
+            flagBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`;
+            flagBtn.addEventListener("click", () => toggleFlag(key));
 
-            const categoryCount = document.createElement("span");
-            categoryCount.classList.add("category-badge");
-            categoryCount.textContent = `${count} question${count === 1 ? "" : "s"}`;
+            // Gemini explain button
+            const explainBtn = document.createElement("button");
+            explainBtn.classList.add("gemini-btn");
+            explainBtn.id = `explain-answer-btn-${key}`;
+            explainBtn.title = "Explain Answer";
+            explainBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <defs>
+                    <linearGradient id="gemini-grad-${key}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4285f4"/>
+                        <stop offset="25%" style="stop-color:#9b72cb"/>
+                        <stop offset="50%" style="stop-color:#d96570"/>
+                        <stop offset="75%" style="stop-color:#d96570"/>
+                        <stop offset="100%" style="stop-color:#9b72cb"/>
+                    </linearGradient>
+                </defs>
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-${key})"/>
+            </svg>`;
+            explainBtn.addEventListener("click", () => explainAnswer(key, questionObj, explainBtn));
 
-            const categoryToggle = document.createElement("span");
-            categoryToggle.classList.add("category-toggle");
-            categoryToggle.textContent = "►";
+            questionActions.appendChild(flagBtn);
+            questionActions.appendChild(explainBtn);
 
-            categoryHeader.appendChild(categoryTitleText);
-            categoryHeader.appendChild(categoryCount);
-            categoryHeader.appendChild(categoryToggle);
+            questionHeader.appendChild(questionBadge);
+            questionHeader.appendChild(questionActions);
 
-            const categoryQuestions = document.createElement("div");
-            categoryQuestions.classList.add("category-questions", "collapsed");
+            // Question text
+            const questionText = document.createElement("div");
+            questionText.classList.add("question-card-text");
+            questionText.textContent = questionObj.question;
 
-            categoryHeader.addEventListener("click", () => {
-                const isCollapsed = categoryQuestions.classList.contains("collapsed");
+            // Options container
+            const optionsDiv = document.createElement("div");
+            optionsDiv.classList.add("question-card-options");
+
+            const allAnswers = [questionObj.answer, ...questionObj.incorrect];
+            shuffleArray(allAnswers);
+
+            allAnswers.forEach((answer, index) => {
+                const optionDiv = document.createElement("div");
+                optionDiv.classList.add("option-tile");
                 
-                // Accordion behavior
-                document.querySelectorAll(".category-questions").forEach(otherQuestions => {
-                    if (otherQuestions !== categoryQuestions) {
-                        otherQuestions.classList.add("collapsed");
-                        const otherToggle = otherQuestions.previousElementSibling?.querySelector(".category-toggle");
-                        if (otherToggle) otherToggle.textContent = "►";
+                const optionLetter = document.createElement("span");
+                optionLetter.classList.add("option-letter");
+                optionLetter.textContent = String.fromCharCode(65 + index); // A, B, C, D
+                
+                const optionText = document.createElement("span");
+                optionText.classList.add("option-text");
+                optionText.textContent = answer;
+                
+                optionDiv.appendChild(optionLetter);
+                optionDiv.appendChild(optionText);
+                optionDiv.dataset.correct = answer === questionObj.answer ? "true" : "false";
+
+                optionDiv.addEventListener("click", function() {
+                    if (this.classList.contains("answered")) {
+                        return;
                     }
-                });
 
-                categoryQuestions.classList.toggle("collapsed");
-                categoryToggle.textContent = isCollapsed ? "▼" : "►";
-            });
-
-            // Add questions to category
-            categorizedQuestions[categoryName].forEach(({ key, questionObj }) => {
-                const questionDiv = document.createElement("div");
-                questionDiv.classList.add("question");
-                questionDiv.dataset.questionId = key;
-
-                const questionText = document.createElement("p");
-                questionText.classList.add("question-text");
-                questionText.innerHTML = `<strong>Q${parseInt(key) + 1}:</strong> ${questionObj.question}`;
-                questionDiv.appendChild(questionText);
-
-                const optionsDiv = document.createElement("div");
-                optionsDiv.classList.add("options");
-
-                const allAnswers = [questionObj.answer, ...questionObj.incorrect];
-                shuffleArray(allAnswers);
-
-                allAnswers.forEach((answer, index) => {
-                    const optionDiv = document.createElement("div");
-                    optionDiv.classList.add("option");
-                    optionDiv.textContent = answer;
-                    optionDiv.dataset.correct = answer === questionObj.answer ? "true" : "false";
-
-                    optionDiv.addEventListener("click", function() {
-                        if (this.classList.contains("selected") || this.classList.contains("correct") || this.classList.contains("incorrect")) {
-                            return;
+                    const isCorrect = this.dataset.correct === "true";
+                    
+                    // Mark all options as answered
+                    optionsDiv.querySelectorAll(".option-tile").forEach(opt => {
+                        opt.classList.add("answered");
+                        if (opt.dataset.correct === "true") {
+                            opt.classList.add("correct");
+                        } else if (opt === this && !isCorrect) {
+                            opt.classList.add("incorrect");
                         }
-
-                        const isCorrect = this.dataset.correct === "true";
-                        
-                        // Mark all options
-                        optionsDiv.querySelectorAll(".option").forEach(opt => {
-                            if (opt.dataset.correct === "true") {
-                                opt.classList.add("correct");
-                            } else if (opt === this) {
-                                opt.classList.add("incorrect");
-                            }
-                            opt.classList.add("selected");
-                        });
-
-                        // Update score
-                        if (isCorrect) {
-                            correctAnswers++;
-                            addXP(10);
-                        }
-                        answeredQuestions++;
-                        
-                        updateCounts();
-                        saveProgress();
-                        checkAndAwardBadges();
                     });
 
-                    optionsDiv.appendChild(optionDiv);
+                    // Add feedback to card
+                    questionCard.classList.add(isCorrect ? "answered-correct" : "answered-incorrect");
+
+                    // Update score
+                    if (isCorrect) {
+                        correctAnswers++;
+                        addXP(10);
+                    }
+                    answeredQuestions++;
+                    
+                    updateCounts();
+                    saveProgress();
+                    checkAndAwardBadges();
                 });
 
-                questionDiv.appendChild(optionsDiv);
-
-                // Add explanation button
-                const explainBtn = document.createElement("button");
-                explainBtn.classList.add("explain-btn");
-                explainBtn.textContent = "[AI+RAG] Explain Answer";
-                explainBtn.addEventListener("click", () => explainAnswer(key, questionObj, explainBtn));
-                questionDiv.appendChild(explainBtn);
-
-                categoryQuestions.appendChild(questionDiv);
+                optionsDiv.appendChild(optionDiv);
             });
 
-            categorySection.appendChild(categoryHeader);
-            categorySection.appendChild(categoryQuestions);
-            questionsContainer.appendChild(categorySection);
+            // Assemble the card
+            questionCard.appendChild(questionHeader);
+            questionCard.appendChild(questionText);
+            questionCard.appendChild(optionsDiv);
+
+            questionsContainer.appendChild(questionCard);
+            questionNumber++;
         });
 
         quizContainer.appendChild(questionsContainer);
@@ -1526,21 +1537,26 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 }
                 flagBtn.onclick = () => toggleFlag(key);
 
-                const explainQuestionBtn = document.createElement("button");
-                explainQuestionBtn.classList.add("ai-button");
-                explainQuestionBtn.id = `explain-question-btn-${key}`;
-                explainQuestionBtn.textContent = "[AI] Explain Question";
-                explainQuestionBtn.onclick = () => explainQuestion(questionObj.question, key);
-
                 const explainAnswerBtn = document.createElement("button");
-                explainAnswerBtn.classList.add("ai-button");
+                explainAnswerBtn.classList.add("ai-button", "gemini-btn");
                 explainAnswerBtn.id = `explain-answer-btn-${key}`;
-                explainAnswerBtn.textContent = "[AI] Explain Answer";
+                explainAnswerBtn.title = "Explain Answer";
+                explainAnswerBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                    <defs>
+                        <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#4285f4"/>
+                            <stop offset="25%" style="stop-color:#9b72cb"/>
+                            <stop offset="50%" style="stop-color:#d96570"/>
+                            <stop offset="75%" style="stop-color:#d96570"/>
+                            <stop offset="100%" style="stop-color:#9b72cb"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-gradient)"/>
+                </svg>`;
                 explainAnswerBtn.disabled = true;
                 explainAnswerBtn.onclick = () => explainAnswer(key);
 
                 questionActions.appendChild(flagBtn);
-                questionActions.appendChild(explainQuestionBtn);
                 questionActions.appendChild(explainAnswerBtn);
                 questionHeader.appendChild(questionTitle);
                 questionHeader.appendChild(questionActions);
