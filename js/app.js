@@ -4,6 +4,14 @@
     let chatGreeted = false; // Only show the welcome bubble once per load
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
+    
+    // HTML escape helper to prevent XSS when inserting untrusted content
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return str;
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
     const blockedPhrases = [
         /ignore (all )?previous/i,
         /forget (all )?prior/i,
@@ -2541,7 +2549,7 @@ Try it yourself: ${url}`,
                 const accuracy = Math.round((stats.correct / stats.total) * 100);
                 return `
                     <div class="category-stat-item">
-                        <span class="category-stat-name">${cat}</span>
+                        <span class="category-stat-name">${escapeHtml(cat)}</span>
                         <span class="category-stat-value">${accuracy}% (${stats.correct}/${stats.total})</span>
                     </div>
                 `;
@@ -2639,7 +2647,7 @@ Try it yourself: ${url}`,
         
         container.innerHTML = missed.map(q => `
             <div class="missed-question-item">
-                <div class="missed-question-text">${q.question.substring(0, 100)}${q.question.length > 100 ? '...' : ''}</div>
+                <div class="missed-question-text">${escapeHtml(q.question.substring(0, 100))}${q.question.length > 100 ? '...' : ''}</div>
                 <div class="missed-question-stats">Missed ${q.attempts} time(s)</div>
             </div>
         `).join('');

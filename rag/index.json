@@ -66,7 +66,7 @@
         },
         {
           "id": "B3",
-          "title": "B3 MD5 hashes start with $H$."
+          "title": "B3 Hash Identification"
         },
         {
           "id": "B12",
@@ -110,8 +110,8 @@
           "title": "C6 Information Leakage from Mail & News Headers"
         },
         {
-          "id": "C123",
-          "title": "C123\nfor <recipient@example.net>; Tue, 23 Nov 2023 10:00:00 -0500 (EST)"
+          "id": "C7",
+          "title": "C7 Email Header Analysis"
         }
       ]
     },
@@ -218,7 +218,7 @@
         },
         {
           "id": "H7",
-          "title": "H7 Missing from the official CREST CPSA syllabus document."
+          "title": "H7 Session Management"
         },
         {
           "id": "H8",
@@ -341,11 +341,11 @@
         },
         {
           "id": "I4",
-          "title": "I4 Missing from the official CREST CPSA syllabus document."
+          "title": "I4 Command Injection"
         },
         {
           "id": "I5",
-          "title": "I5 Missing from the official CREST CPSA syllabus document."
+          "title": "I5 File Inclusion Attacks"
         },
         {
           "id": "I6",
