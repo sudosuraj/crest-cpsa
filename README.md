@@ -1,10 +1,10 @@
 # CREST CPSA Practice Quiz
 
-A free, open-source practice quiz application for CREST CPSA (Practitioner Security Analyst) certification preparation. Features dynamic AI-generated questions from official study materials using RAG (Retrieval-Augmented Generation).
+A free, open-source practice quiz application for CREST CPSA (Practitioner Security Analyst) certification preparation. Features dynamic AI-generated questions from study materials using RAG (Retrieval-Augmented Generation).
 
 ## Features
 
-- **Dynamic Question Generation**: AI-powered question generation from official CPSA study materials using RAG
+- **Dynamic Question Generation**: AI-powered question generation from CPSA study materials using RAG
 - **10 Appendix Categories**: Questions organized by CPSA exam appendices (A-J)
 - **Concurrent Processing**: Fast question loading with parallel batch processing (5 concurrent API calls)
 - **Background Preloading**: All appendixes preload questions in the background for instant access
@@ -37,7 +37,7 @@ The quiz covers all 10 CPSA exam appendices:
 ## Technical Architecture
 
 ### RAG-Based Question Generation
-The application uses Retrieval-Augmented Generation (RAG) to dynamically generate quiz questions from official CPSA study materials:
+The application uses Retrieval-Augmented Generation (RAG) to dynamically generate quiz questions from CPSA study materials:
 
 1. **BM25 Search**: Client-side BM25 algorithm indexes and searches study material chunks
 2. **LLM Integration**: Questions are generated via API calls to GPT-4o-mini
