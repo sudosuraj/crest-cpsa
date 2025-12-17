@@ -154,7 +154,3 @@ window.QuizDataLoader = {
     clearAllQuestions,
     clearQuestionsCache
 };
-    "3": {
-        "question": "Which is the least secure encryption cipher of those listed below?",
-        "answer": "DES",
-        "incorrect": [
