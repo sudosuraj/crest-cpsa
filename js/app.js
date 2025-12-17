@@ -1072,7 +1072,37 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         const quizContainer = document.getElementById("quiz-container");
         currentAppendix = { letter: appendixLetter, title: appendixTitle };
         
-        // Show loading screen
+        // Check if this appendix has been preloaded
+        const isPreloaded = QuizDataLoader.isAppendixPreloaded && QuizDataLoader.isAppendixPreloaded(appendixLetter);
+        
+        if (isPreloaded) {
+            // Use preloaded questions - instant display!
+            console.log(`Using preloaded questions for Appendix ${appendixLetter}`);
+            
+            const questions = QuizDataLoader.getAllAppendixQuestions(appendixLetter);
+            const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
+            
+            // Update total questions count
+            totalQuestions = QuizDataLoader.getTotalQuestionCount();
+            const totalElement = document.getElementById("total-questions");
+            if (totalElement) {
+                totalElement.textContent = totalQuestions;
+            }
+
+            // Display the questions immediately
+            displayQuestionsWithPagination(questions, appendixLetter, appendixTitle, paginationInfo);
+            
+            // Start loading next batch in background for when user clicks "Next"
+            setTimeout(() => {
+                QuizDataLoader.loadAppendixNextPage(appendixLetter, null).then(() => {
+                    console.log(`Background: Next batch ready for Appendix ${appendixLetter}`);
+                });
+            }, 500);
+            
+            return;
+        }
+        
+        // Not preloaded - show loading screen and generate questions
         quizContainer.innerHTML = `
             <div class="generation-progress">
                 <h2>Generating Questions for Appendix ${appendixLetter}</h2>
@@ -1107,6 +1137,13 @@ Practice at: https://sudosuraj.github.io/CREST/`;
 
             // Display the questions with pagination
             displayQuestionsWithPagination(result.questions, appendixLetter, appendixTitle, result);
+            
+            // Start loading next batch in background
+            setTimeout(() => {
+                QuizDataLoader.loadAppendixNextPage(appendixLetter, null).then(() => {
+                    console.log(`Background: Next batch ready for Appendix ${appendixLetter}`);
+                });
+            }, 500);
             
         } catch (error) {
             console.error('Error generating questions:', error);
@@ -3058,5 +3095,24 @@ Try it yourself: ${url}`,
         setupXPSystem();
         setupShareDropdown();
         setupMobileNavigation();
+        
+        // Start background preloading of all appendixes
+        // This runs silently in the background to improve UX
+        setTimeout(() => {
+            if (typeof QuizDataLoader !== 'undefined' && QuizDataLoader.preloadAllAppendixes) {
+                QuizDataLoader.preloadAllAppendixes((appendixLetter, questionCount) => {
+                    console.log(`Background: Appendix ${appendixLetter} ready with ${questionCount} questions`);
+                    // Update the appendix card to show it's ready
+                    const card = document.querySelector(`.appendix-card[data-appendix="${appendixLetter}"]`);
+                    if (card) {
+                        const statusEl = card.querySelector('.appendix-status');
+                        if (statusEl) {
+                            statusEl.textContent = `Ready (${questionCount} questions)`;
+                            statusEl.classList.add('preloaded');
+                        }
+                    }
+                });
+            }
+        }, 1000); // Start preloading 1 second after page load
     });
             

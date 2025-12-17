@@ -316,6 +316,163 @@ async function clearQuestionsCache() {
     clearAllQuestions();
 }
 
+// Preloading state
+let preloadingInProgress = false;
+let preloadedAppendices = new Set();
+
+// Concurrency limit for parallel preloading
+const PRELOAD_CONCURRENCY = 3;
+
+/**
+ * Process a single appendix for preloading
+ * @param {Object} appendix - The appendix object with letter and title
+ * @param {function} onAppendixLoaded - Callback when appendix finishes loading
+ * @returns {Promise<void>}
+ */
+async function preloadSingleAppendix(appendix, onAppendixLoaded) {
+    if (preloadedAppendices.has(appendix.letter)) {
+        console.log(`Appendix ${appendix.letter} already preloaded, skipping`);
+        return;
+    }
+    
+    try {
+        console.log(`Preloading Appendix ${appendix.letter}...`);
+        
+        // Initialize state for this appendix
+        const state = getAppendixState(appendix.letter);
+        state.nextChunkIdx = 0;
+        state.allQuestions = [];
+        state.questionHashes = new Set();
+        state.currentPage = 0;
+        state.exhausted = false;
+        state.totalChunks = RAG.getAppendixChunkCount(appendix.letter);
+
+        // Generate first batch silently (no progress callback)
+        const result = await RAG.generateQuestionsBatch(
+            appendix.letter,
+            state.nextChunkIdx,
+            PAGE_SIZE,
+            state.questionHashes,
+            null // No progress callback for background loading
+        );
+
+        // Update state
+        state.nextChunkIdx = result.nextChunkIdx;
+        state.exhausted = result.exhausted;
+        result.newHashes.forEach(h => state.questionHashes.add(h));
+
+        // Convert and store questions
+        result.questions.forEach(q => {
+            const id = String(questionIdCounter++);
+            const converted = convertToQuizFormat(q);
+            quizData[id] = converted;
+            state.allQuestions.push({ id, ...converted });
+        });
+
+        state.currentPage = 1;
+        preloadedAppendices.add(appendix.letter);
+        
+        console.log(`Preloaded ${result.questions.length} questions for Appendix ${appendix.letter}`);
+        
+        if (onAppendixLoaded) {
+            onAppendixLoaded(appendix.letter, result.questions.length);
+        }
+        
+    } catch (error) {
+        console.error(`Error preloading Appendix ${appendix.letter}:`, error);
+        // Don't throw - allow other appendixes to continue
+    }
+}
+
+/**
+ * Concurrent queue processor - processes items with limited parallelism
+ * @param {Array} items - Items to process
+ * @param {number} concurrency - Max concurrent operations
+ * @param {function} processor - Async function to process each item
+ * @returns {Promise<void>}
+ */
+async function processConcurrentQueue(items, concurrency, processor) {
+    const queue = [...items];
+    const activePromises = new Set();
+    
+    while (queue.length > 0 || activePromises.size > 0) {
+        // Fill up to concurrency limit
+        while (queue.length > 0 && activePromises.size < concurrency) {
+            const item = queue.shift();
+            const promise = processor(item).finally(() => {
+                activePromises.delete(promise);
+            });
+            activePromises.add(promise);
+        }
+        
+        // Wait for at least one to complete before continuing
+        if (activePromises.size > 0) {
+            await Promise.race(activePromises);
+        }
+    }
+}
+
+/**
+ * Preload first batch of questions for all appendixes in the background
+ * Uses concurrent queue pattern for optimal performance
+ * @param {function} onAppendixLoaded - Callback when an appendix finishes loading
+ * @returns {Promise<void>}
+ */
+async function preloadAllAppendixes(onAppendixLoaded = null) {
+    if (preloadingInProgress) {
+        console.log('Preloading already in progress');
+        return;
+    }
+    
+    if (typeof RAG === 'undefined') {
+        console.error('RAG module not loaded');
+        return;
+    }
+
+    preloadingInProgress = true;
+    console.log(`Starting background preload of all appendixes (concurrency: ${PRELOAD_CONCURRENCY})...`);
+
+    try {
+        await RAG.initialize();
+        const appendices = RAG.getAppendices();
+        
+        // Process appendixes with limited concurrency for optimal performance
+        await processConcurrentQueue(
+            appendices,
+            PRELOAD_CONCURRENCY,
+            (appendix) => preloadSingleAppendix(appendix, onAppendixLoaded)
+        );
+        
+        console.log('Background preload complete for all appendixes');
+        
+    } catch (error) {
+        console.error('Error during preload:', error);
+    } finally {
+        preloadingInProgress = false;
+    }
+}
+
+/**
+ * Check if an appendix has been preloaded
+ * @param {string} appendixLetter - The appendix letter
+ * @returns {boolean}
+ */
+function isAppendixPreloaded(appendixLetter) {
+    return preloadedAppendices.has(appendixLetter);
+}
+
+/**
+ * Get preloading status
+ * @returns {Object} - Preloading status info
+ */
+function getPreloadStatus() {
+    return {
+        inProgress: preloadingInProgress,
+        preloadedCount: preloadedAppendices.size,
+        preloadedAppendices: Array.from(preloadedAppendices)
+    };
+}
+
 // Export functions for use in app.js
 window.QuizDataLoader = {
     // Pagination functions
@@ -323,6 +480,10 @@ window.QuizDataLoader = {
     loadAppendixNextPage,
     getPageQuestions,
     getPaginationInfo,
+    // Preloading functions
+    preloadAllAppendixes,
+    isAppendixPreloaded,
+    getPreloadStatus,
     // Legacy/utility functions
     getAvailableAppendices,
     isAppendixStarted,

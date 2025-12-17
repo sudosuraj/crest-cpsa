@@ -575,9 +575,29 @@ Output ONLY the JSON array.`;
         return hash.toString(16);
     }
 
+    // Concurrency configuration for batch processing
+    const BATCH_CONCURRENCY = 5; // Process up to 5 chunks concurrently
+    const MIN_DELAY_BETWEEN_BATCHES = 500; // Minimum delay between concurrent batches
+
     /**
-     * Generate a batch of questions for pagination
+     * Process a single chunk and return questions with metadata
+     * @param {Object} chunk - The chunk to process
+     * @param {number} questionsPerChunk - Number of questions to generate
+     * @returns {Promise<Array>} - Generated questions
+     */
+    async function processChunkForQuestions(chunk, questionsPerChunk) {
+        try {
+            return await generateQuestionsFromChunk(chunk, questionsPerChunk);
+        } catch (error) {
+            console.error(`Error processing chunk ${chunk.section_id}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Generate a batch of questions for pagination using concurrent processing
      * Starts from a specific chunk index and generates until target count is reached
+     * Uses concurrent queue pattern for optimal performance
      * @param {string} appendixLetter - The appendix letter
      * @param {number} startChunkIdx - Starting chunk index
      * @param {number} targetCount - Target number of questions to generate (default 20)
@@ -599,44 +619,59 @@ Output ONLY the JSON array.`;
         const newHashes = [];
         let currentChunkIdx = startChunkIdx;
         const questionsPerChunk = 5; // Generate 5 questions per chunk for better yield
-        const delayBetweenCalls = 1200;
 
+        // Process chunks in concurrent batches
         while (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
-            const chunk = appendixChunks[currentChunkIdx];
+            // Determine how many chunks to process in this batch
+            const remainingChunks = appendixChunks.length - currentChunkIdx;
+            const batchSize = Math.min(BATCH_CONCURRENCY, remainingChunks);
+            const chunksToProcess = appendixChunks.slice(currentChunkIdx, currentChunkIdx + batchSize);
             
             if (onProgress) {
                 onProgress({
                     currentChunk: currentChunkIdx + 1,
                     totalChunks: appendixChunks.length,
-                    section: chunk.section_id,
+                    section: chunksToProcess[0]?.section_id,
                     questionsGenerated: questions.length,
-                    targetCount: targetCount
+                    targetCount: targetCount,
+                    processingBatch: batchSize
                 });
             }
 
-            const generatedQuestions = await generateQuestionsFromChunk(chunk, questionsPerChunk);
+            // Process all chunks in this batch concurrently
+            const batchPromises = chunksToProcess.map(chunk => 
+                processChunkForQuestions(chunk, questionsPerChunk)
+            );
             
-            // Filter out duplicates using hash
-            for (const q of generatedQuestions) {
-                const hash = hashQuestion(q.question);
-                if (!existingHashes.has(hash)) {
-                    questions.push(q);
-                    newHashes.push(hash);
-                    existingHashes.add(hash); // Add to set for this batch too
-                    
-                    if (questions.length >= targetCount) {
-                        break;
+            const batchResults = await Promise.all(batchPromises);
+            
+            // Collect questions from all chunks in this batch
+            for (const generatedQuestions of batchResults) {
+                for (const q of generatedQuestions) {
+                    const hash = hashQuestion(q.question);
+                    if (!existingHashes.has(hash)) {
+                        questions.push(q);
+                        newHashes.push(hash);
+                        existingHashes.add(hash);
+                        
+                        if (questions.length >= targetCount) {
+                            break;
+                        }
+                    } else {
+                        console.log('Skipping duplicate question:', q.question.substring(0, 50));
                     }
-                } else {
-                    console.log('Skipping duplicate question:', q.question.substring(0, 50));
+                }
+                
+                if (questions.length >= targetCount) {
+                    break;
                 }
             }
 
-            currentChunkIdx++;
+            currentChunkIdx += batchSize;
 
-            // Delay between API calls
+            // Small delay between concurrent batches to avoid rate limiting
             if (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
-                await new Promise(resolve => setTimeout(resolve, delayBetweenCalls));
+                await new Promise(resolve => setTimeout(resolve, MIN_DELAY_BETWEEN_BATCHES));
             }
         }
 
