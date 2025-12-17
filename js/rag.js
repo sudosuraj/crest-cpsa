@@ -559,66 +559,7 @@ Output ONLY the JSON array.`;
         return true;
     }
 
-    /**
-     * Generate questions for an entire appendix with batching
-     * Generates questions chunk by chunk with progress callback
-     * @deprecated Use generateQuestionsBatch for pagination
-     */
-    async function generateQuestionsForAppendix(appendixLetter, options = {}) {
-        const { 
-            questionsPerChunk = 5, 
-            onProgress = null,
-            delayBetweenCalls = 1000 
-        } = options;
-
-        if (!isInitialized) {
-            await initialize();
-        }
-
-        // Check cache first
-        const cacheKey = `questions_${appendixLetter}`;
-        const cached = await loadQuestionsFromCache(cacheKey);
-        if (cached && cached.length > 0) {
-            console.log(`Loaded ${cached.length} cached questions for Appendix ${appendixLetter}`);
-            return cached;
-        }
-
-        const appendixChunks = getChunksForAppendix(appendixLetter);
-        if (appendixChunks.length === 0) {
-            console.warn(`No chunks found for Appendix ${appendixLetter}`);
-            return [];
-        }
-
-        const allQuestions = [];
-        
-        for (let i = 0; i < appendixChunks.length; i++) {
-            const chunk = appendixChunks[i];
-            
-            if (onProgress) {
-                onProgress({
-                    current: i + 1,
-                    total: appendixChunks.length,
-                    section: chunk.section_id,
-                    questionsGenerated: allQuestions.length
-                });
-            }
-
-            const questions = await generateQuestionsFromChunk(chunk, questionsPerChunk);
-            allQuestions.push(...questions);
-
-            // Delay between API calls to avoid rate limiting
-            if (i < appendixChunks.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, delayBetweenCalls));
-            }
-        }
-
-        // Cache the generated questions
-        if (allQuestions.length > 0) {
-            await saveQuestionsToCache(cacheKey, allQuestions);
-        }
-
-        return allQuestions;
-    }
+    // Legacy generateQuestionsForAppendix function removed - use generateQuestionsBatch for pagination
 
     /**
      * Generate a simple hash for question deduplication
@@ -821,15 +762,13 @@ Output ONLY the JSON array.`;
         clearCache,
         estimateTokens,
         getTokenConfig,
-        // Question generation
+        // Question generation (pagination-based)
         getChunksForAppendix,
         generateQuestionsFromChunk,
-        generateQuestionsForAppendix,
-        clearQuestionsCache,
-        // Pagination support
         generateQuestionsBatch,
         getAppendixChunkCount,
-        hashQuestion
+        hashQuestion,
+        clearQuestionsCache
     };
 })();
 
