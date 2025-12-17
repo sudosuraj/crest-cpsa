@@ -1,10 +1,13 @@
 # CREST CPSA Practice Quiz
 
-A free, open-source practice quiz application for CREST CPSA (Practitioner Security Analyst) certification preparation. Features 803 multiple-choice questions covering all exam domains.
+A free, open-source practice quiz application for CREST CPSA (Practitioner Security Analyst) certification preparation. Features dynamic AI-generated questions from official study materials using RAG (Retrieval-Augmented Generation).
 
 ## Features
 
-- **803 Practice Questions**: Comprehensive coverage across 12 cybersecurity categories
+- **Dynamic Question Generation**: AI-powered question generation from official CPSA study materials using RAG
+- **10 Appendix Categories**: Questions organized by CPSA exam appendices (A-J)
+- **Concurrent Processing**: Fast question loading with parallel batch processing (5 concurrent API calls)
+- **Background Preloading**: All appendixes preload questions in the background for instant access
 - **AI-Powered Explanations**: Get detailed explanations for questions using AI
 - **Progress Tracking**: Your progress is automatically saved in your browser
 - **Practice Exams**: Timed exam simulations with configurable question count and category filters
@@ -13,20 +16,40 @@ A free, open-source practice quiz application for CREST CPSA (Practitioner Secur
 - **Offline Support**: Works offline as a Progressive Web App (PWA)
 - **Mobile Responsive**: Works on desktop and mobile devices
 - **Challenge Mode**: Share quiz challenges with friends via URL
+- **Compact UI**: Streamlined navbar design that doesn't dominate the screen
+- **Prominent Navigation**: Clear "Next" button with visual indicators for pagination
 
-## Categories Covered
+## Appendices Covered
 
-- Network Protocols & Ports
-- Cryptography & Hashing
-- Windows Security
-- Unix/Linux Security
-- VPN & Remote Access
-- Web & Application Security
-- Authentication & Access Control
-- Firewalls & IDS/IPS
-- Wireless & Mobility
-- Malware & Threats
-- Risk, Audit & Governance
+The quiz covers all 10 CPSA exam appendices:
+
+- **Appendix A**: Soft Skills and Assessment Management
+- **Appendix B**: Core Technical Skills
+- **Appendix C**: Background Information Gathering and Open Source Intelligence
+- **Appendix D**: Networking Equipment
+- **Appendix E**: Microsoft Windows Security Assessment
+- **Appendix F**: Unix Security Assessment
+- **Appendix G**: Web Technologies
+- **Appendix H**: Web Testing Techniques
+- **Appendix I**: Databases
+- **Appendix J**: Web Application Servers
+
+## Technical Architecture
+
+### RAG-Based Question Generation
+The application uses Retrieval-Augmented Generation (RAG) to dynamically generate quiz questions from official CPSA study materials:
+
+1. **BM25 Search**: Client-side BM25 algorithm indexes and searches study material chunks
+2. **LLM Integration**: Questions are generated via API calls to GPT-4o-mini
+3. **Deduplication**: FNV-1a hashing prevents duplicate questions
+4. **Token Budgeting**: Stays within 8000 token API limits
+
+### Concurrent Processing
+For optimal performance, the system uses concurrent queue patterns:
+
+- **Preloading**: 3 concurrent appendix preloads (`PRELOAD_CONCURRENCY = 3`)
+- **Question Generation**: 5 concurrent chunk API calls per batch (`BATCH_CONCURRENCY = 5`)
+- **Background Loading**: Next batch loads while user answers current questions
 
 ## Usage
 
@@ -64,3 +87,17 @@ Created by [Suraj Sharma (sudosuraj)](https://www.linkedin.com/in/sudosuraj/)
 - GitHub: [@sudosuraj](https://github.com/sudosuraj)
 - Blog: [sudosuraj.medium.com](https://sudosuraj.medium.com)
 - Twitter: [@sudosuraj](https://twitter.com/sudosuraj)
+
+## Credits
+
+### Development Assistance
+- UI improvements, concurrent processing implementation, and background preloading features developed with assistance from [Devin AI](https://devin.ai)
+
+### Technologies Used
+- **LLM API**: [llm7.io](https://llm7.io) - GPT-4o-mini for question generation and explanations
+- **Search Algorithm**: BM25 (Best Matching 25) for client-side document retrieval
+- **Storage**: IndexedDB for caching questions and RAG index data
+- **PWA**: Service Worker for offline functionality
+
+### Study Materials
+- Based on CREST CPSA examination syllabus and community study resources
