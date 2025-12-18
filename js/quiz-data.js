@@ -22,7 +22,9 @@ const appendixState = {};
 
 // Page size constant
 const PAGE_SIZE = 20;
-const MIN_QUESTIONS_TARGET = 120;
+// Reduced from 120 to 20 - generate only one page at a time
+// Additional questions are generated only on explicit user action (clicking "Load More")
+const MIN_QUESTIONS_TARGET = 20;
 
 /**
  * Initialize or get state for an appendix
@@ -480,6 +482,16 @@ async function processConcurrentQueue(items, concurrency, processor) {
  * @returns {Promise<void>}
  */
 async function preloadAllAppendixes(onAppendixLoaded = null, options = {}) {
+    // DISABLED: Background preloading is disabled to reduce API pressure and 429 errors
+    // Users can manually load more questions by clicking "Load More" button
+    // To re-enable, set options.forceEnable = true
+    const { skipDelay = false, excludeAppendix = null, forceEnable = false } = options;
+    
+    if (!forceEnable) {
+        console.log('Background preloading is disabled to reduce API pressure. Use "Load More" button for additional questions.');
+        return;
+    }
+    
     if (preloadingInProgress) {
         console.log('Preloading already in progress');
         return;
@@ -489,8 +501,6 @@ async function preloadAllAppendixes(onAppendixLoaded = null, options = {}) {
         console.error('RAG module not loaded');
         return;
     }
-
-    const { skipDelay = false, excludeAppendix = null } = options;
 
     preloadingInProgress = true;
     
