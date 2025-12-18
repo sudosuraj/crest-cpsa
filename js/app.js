@@ -3564,6 +3564,81 @@ Try it yourself: ${url}`,
     }
 
     // ==========================================
+    // DESKTOP SIDEBAR NAVIGATION
+    // ==========================================
+    function setupDesktopSidebar() {
+        const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
+        const toolbarTabs = document.querySelectorAll('.toolbar-tab');
+        
+        // Sync sidebar nav with toolbar tabs
+        sidebarNavItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const panel = item.dataset.panel;
+                
+                // Update sidebar nav active state
+                sidebarNavItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Sync with toolbar tabs
+                toolbarTabs.forEach(tab => {
+                    if (tab.dataset.tab === panel) {
+                        tab.click();
+                    }
+                });
+            });
+        });
+        
+        // Sync toolbar tabs with sidebar nav
+        toolbarTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const panel = tab.dataset.tab;
+                sidebarNavItems.forEach(nav => {
+                    nav.classList.toggle('active', nav.dataset.panel === panel);
+                });
+            });
+        });
+        
+        // Sidebar action buttons
+        const sidebarStartExam = document.getElementById('sidebar-start-exam');
+        const sidebarSprint = document.getElementById('sidebar-sprint');
+        const startExamBtn = document.getElementById('start-exam-btn');
+        const startSprintBtn = document.getElementById('start-sprint-btn');
+        
+        if (sidebarStartExam && startExamBtn) {
+            sidebarStartExam.addEventListener('click', () => startExamBtn.click());
+        }
+        
+        if (sidebarSprint && startSprintBtn) {
+            sidebarSprint.addEventListener('click', () => startSprintBtn.click());
+        }
+        
+        // Update sidebar stats when main stats update
+        function updateSidebarStats() {
+            const percentage = document.getElementById('percentage');
+            const streakCount = document.getElementById('streak-count');
+            const attemptedCount = document.getElementById('attempted-count');
+            
+            const sidebarAccuracy = document.getElementById('sidebar-accuracy');
+            const sidebarStreak = document.getElementById('sidebar-streak');
+            const sidebarAttempted = document.getElementById('sidebar-attempted');
+            
+            if (percentage && sidebarAccuracy) {
+                sidebarAccuracy.textContent = percentage.textContent + '%';
+            }
+            if (streakCount && sidebarStreak) {
+                sidebarStreak.textContent = streakCount.textContent;
+            }
+            if (attemptedCount && sidebarAttempted) {
+                sidebarAttempted.textContent = attemptedCount.textContent;
+            }
+        }
+        
+        // Update sidebar stats periodically
+        setInterval(updateSidebarStats, 1000);
+        updateSidebarStats();
+    }
+
+    // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
@@ -3580,6 +3655,7 @@ Try it yourself: ${url}`,
         setupShareDropdown();
         setupMobileNavigation();
         setupApiKeySettings();
+        setupDesktopSidebar();
         
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();

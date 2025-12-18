@@ -825,22 +825,187 @@ textarea:focus-visible {
    ============================================ */
 .app-shell {
     min-height: calc(100vh - 120px);
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 0;
+}
+
+/* Desktop Sidebar */
+.desktop-sidebar {
+    position: sticky;
+    top: 120px;
+    height: calc(100vh - 120px);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--bg-secondary) 100%);
+    border-right: 1px solid var(--border);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.sidebar-nav-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.sidebar-nav-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.sidebar-nav-item.active svg {
+    color: var(--primary);
+}
+
+.sidebar-nav-item svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+}
+
+.sidebar-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+}
+
+.sidebar-stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2);
+}
+
+.sidebar-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.sidebar-stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+}
+
+.sidebar-actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.sidebar-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.sidebar-action-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-strong);
+}
+
+.sidebar-action-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-inverse);
+}
+
+.sidebar-action-btn.primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.sidebar-action-btn svg {
+    flex-shrink: 0;
 }
 
 .content {
-    max-width: 1200px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: var(--space-5);
 }
 
 .content-header {
     margin-bottom: var(--space-5);
+    text-align: center;
 }
 
 .content-title {
-    font-size: 15px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.content-subtitle {
+    font-size: 14px;
     color: var(--text-secondary);
-    text-align: center;
+}
+
+/* Hide desktop sidebar on mobile */
+@media (max-width: 1024px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+    
+    .desktop-sidebar {
+        display: none;
+    }
 }
 
 /* ============================================
