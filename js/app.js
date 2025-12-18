@@ -713,37 +713,19 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 }
             }
             
-            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                data = await LLMClient.requestHighPriority({
-                    messages: [
-                        { role: 'system', content: systemContent },
-                        { role: 'user', content: userContent }
-                    ],
-                    max_tokens: 400,
-                    temperature: 0.7
-                });
-            } else {
-                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
-                            { role: 'system', content: systemContent },
-                            { role: 'user', content: userContent }
-                        ],
-                        max_tokens: 400,
-                        temperature: 0.7
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
-                data = await response.json();
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
+            
+            const data = await LLMClient.requestHighPriority({
+                messages: [
+                    { role: 'system', content: systemContent },
+                    { role: 'user', content: userContent }
+                ],
+                max_tokens: 400,
+                temperature: 0.7
+            });
 
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No explanation available.';
             
@@ -801,39 +783,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         payload.push(...messages);
 
         try {
-            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                data = await LLMClient.requestHighPriority({
-                    messages: payload,
-                    max_tokens: 400,
-                    temperature: 0.5
-                });
-            } else {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000);
-                
-                try {
-                    const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            model: 'gpt-4o-mini',
-                            messages: payload,
-                            max_tokens: 400,
-                            temperature: 0.5
-                        }),
-                        signal: controller.signal
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.status}`);
-                    }
-                    data = await response.json();
-                } finally {
-                    clearTimeout(timeoutId);
-                }
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
+            
+            const data = await LLMClient.requestHighPriority({
+                messages: payload,
+                max_tokens: 400,
+                temperature: 0.5
+            });
 
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
             
@@ -3426,6 +3385,77 @@ Try it yourself: ${url}`,
     }
 
     // ==========================================
+    // API KEY SETTINGS
+    // ==========================================
+    function setupApiKeySettings() {
+        const modal = document.getElementById('api-key-modal');
+        const btn = document.getElementById('api-key-btn');
+        const closeBtn = document.getElementById('api-key-modal-close');
+        const saveBtn = document.getElementById('save-api-key');
+        const clearBtn = document.getElementById('clear-api-key');
+        const input = document.getElementById('api-key-input');
+        const status = document.getElementById('api-key-status');
+        const indicator = document.getElementById('api-key-indicator');
+        
+        if (!modal || !btn) return;
+        
+        function updateStatus() {
+            if (typeof LLMClient !== 'undefined' && LLMClient.hasApiKey()) {
+                status.textContent = 'API key is set';
+                status.className = 'api-key-status success';
+                indicator.hidden = false;
+            } else {
+                status.textContent = 'No API key set (using shared quota)';
+                status.className = 'api-key-status';
+                indicator.hidden = true;
+            }
+        }
+        
+        function openModal() {
+            modal.setAttribute('aria-hidden', 'false');
+            modal.classList.add('active');
+            updateStatus();
+        }
+        
+        function closeModal() {
+            modal.setAttribute('aria-hidden', 'true');
+            modal.classList.remove('active');
+            input.value = '';
+        }
+        
+        btn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            const key = input.value.trim();
+            if (key) {
+                if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
+                    showToast('API key saved successfully');
+                    updateStatus();
+                    input.value = '';
+                } else {
+                    showToast('Failed to save API key', 'error');
+                }
+            } else {
+                showToast('Please enter an API key', 'error');
+            }
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            if (typeof LLMClient !== 'undefined') {
+                LLMClient.clearApiKey();
+                showToast('API key cleared');
+                updateStatus();
+            }
+        });
+        
+        updateStatus();
+    }
+
+    // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
@@ -3441,6 +3471,7 @@ Try it yourself: ${url}`,
         setupXPSystem();
         setupShareDropdown();
         setupMobileNavigation();
+        setupApiKeySettings();
         
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();

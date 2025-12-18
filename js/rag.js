@@ -539,41 +539,22 @@ ${truncatedText}
 Output ONLY the JSON array.`;
 
         try {
-            // Use LLMClient if available, otherwise fall back to direct fetch
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
-                                  priority === 'low' ? LLMClient.requestLowPriority :
-                                  LLMClient.request;
-                data = await requestFn({
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    max_tokens: 800,
-                    temperature: 0.7
-                });
-            } else {
-                // Fallback to direct fetch (for backwards compatibility)
-                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userPrompt }
-                        ],
-                        max_tokens: 800,
-                        temperature: 0.7
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
-                data = await response.json();
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before rag.js');
             }
+            
+            const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
+                              priority === 'low' ? LLMClient.requestLowPriority :
+                              LLMClient.request;
+            const data = await requestFn({
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                max_tokens: 800,
+                temperature: 0.7
+            });
 
             let content = data.choices?.[0]?.message?.content?.trim() || '';
 
@@ -731,39 +712,22 @@ ${combinedContent}
 Output ONLY the JSON array with ${questionsNeeded} questions distributed across all sections.`;
 
         try {
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
-                                  priority === 'low' ? LLMClient.requestLowPriority :
-                                  LLMClient.request;
-                data = await requestFn({
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    max_tokens: 1500,
-                    temperature: 0.7
-                });
-            } else {
-                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userPrompt }
-                        ],
-                        max_tokens: 1500,
-                        temperature: 0.7
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
-                data = await response.json();
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before rag.js');
             }
+            
+            const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
+                              priority === 'low' ? LLMClient.requestLowPriority :
+                              LLMClient.request;
+            const data = await requestFn({
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                max_tokens: 1500,
+                temperature: 0.7
+            });
 
             let content = data.choices?.[0]?.message?.content?.trim() || '';
 

@@ -345,6 +345,14 @@
                 </div>
             </div>
             
+            <!-- API Key Settings button -->
+            <button class="nav-icon-btn" id="api-key-btn" title="API Key Settings" aria-label="API Key Settings">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                </svg>
+                <span class="api-key-indicator" id="api-key-indicator" hidden></span>
+            </button>
+            
             <!-- Mobile nav toggle button (hamburger) -->
             <button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-label="Open navigation menu" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="24" height="24">
@@ -946,6 +954,29 @@
                         <button class="btn-copy" id="copy-challenge">Copy</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- API Key Settings Modal -->
+    <div class="modal-overlay" id="api-key-modal" aria-hidden="true">
+        <div class="modal" role="dialog" aria-labelledby="api-key-modal-title">
+            <div class="modal-header">
+                <h2 id="api-key-modal-title">API Key Settings</h2>
+                <button class="modal-close" id="api-key-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Add your own OpenAI-compatible API key to avoid rate limit (429) errors. Your key is stored locally and never sent to our servers.</p>
+                <div class="config-group">
+                    <label for="api-key-input">API Key</label>
+                    <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+                </div>
+                <div class="api-key-status" id="api-key-status"></div>
+                <div class="modal-actions">
+                    <button class="btn-primary" id="save-api-key">Save API Key</button>
+                    <button class="btn-secondary" id="clear-api-key">Clear Key</button>
+                </div>
+                <p class="api-key-note">Get an API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> or any compatible provider.</p>
             </div>
         </div>
     </div>
