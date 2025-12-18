@@ -23,25 +23,50 @@ const P2PSync = (function() {
     let syncEnabled = true;
     
     // App namespace to avoid conflicts with other Gun apps
-    const APP_NAMESPACE = 'cpsa-quiz-v1';
+    const APP_NAMESPACE = 'cpsa-quiz-v2';
+    
+    // Standard cache options - MUST match QuestionCache defaults for cache key compatibility
+    const STANDARD_CACHE_OPTIONS = {
+        model: 'gpt-4o-mini',
+        promptVersion: 1,
+        questionsPerChunk: 5
+    };
     
     // Track what we've already synced to avoid duplicates
     const syncedQuestionHashes = new Set();
     
+    // Current subscription (for lazy subscription)
+    let currentAppendix = null;
+    
     // Callbacks for when new questions arrive
     const questionListeners = [];
+    
+    // Presence tracking
+    let presenceInterval = null;
+    let onlineStudents = new Map();
+    const PRESENCE_TTL = 60000;
+    const PRESENCE_HEARTBEAT = 30000;
+    let myPeerId = null;
+    
+    // Flagged questions
+    const flaggedQuestions = new Map();
+    const FLAG_THRESHOLD = 3;
     
     // Stats for debugging
     const stats = {
         questionsSent: 0,
         questionsReceived: 0,
+        questionsUsedFromP2P: 0,
         peersConnected: 0,
         lastSync: null
     };
+    
+    function generatePeerId() {
+        return 'peer_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    }
 
     /**
      * Initialize Gun.js with public relay peers
-     * These are free public Gun relay servers that help with peer discovery
      */
     function initialize() {
         if (isInitialized) {
@@ -50,7 +75,6 @@ const P2PSync = (function() {
 
         return new Promise((resolve) => {
             try {
-                // Check if Gun is loaded
                 if (typeof Gun === 'undefined') {
                     console.warn('P2PSync: Gun.js not loaded, P2P sync disabled');
                     syncEnabled = false;
@@ -58,22 +82,23 @@ const P2PSync = (function() {
                     return;
                 }
 
-                // Initialize Gun with public relay peers for discovery
-                // These are free public relays that help peers find each other
+                myPeerId = generatePeerId();
+
                 gun = Gun({
                     peers: [
                         'https://gun-manhattan.herokuapp.com/gun',
                         'https://gun-us.herokuapp.com/gun'
                     ],
-                    localStorage: false,  // We use our own IndexedDB cache
-                    radisk: false         // Disable Gun's storage, use our cache
+                    localStorage: false,
+                    radisk: false
                 });
 
                 isInitialized = true;
-                console.log('P2PSync: Initialized with Gun.js');
+                console.log('P2PSync: Initialized with peer ID:', myPeerId);
                 
-                // Start listening for questions from other peers
-                startListening();
+                // Start presence heartbeat and flag listener
+                startPresenceHeartbeat();
+                startFlagListener();
                 
                 resolve(true);
             } catch (error) {
@@ -83,146 +108,323 @@ const P2PSync = (function() {
             }
         });
     }
-
+    
     /**
-     * Start listening for questions shared by other peers
+     * Subscribe to questions for a specific appendix (lazy subscription)
      */
-    function startListening() {
+    function subscribeToAppendix(appendixLetter) {
         if (!gun || !syncEnabled) return;
-
-        // Listen for questions for each appendix (A-J)
-        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        if (currentAppendix === appendixLetter) return;
         
-        appendices.forEach(appendix => {
-            const path = `${APP_NAMESPACE}/questions/${appendix}`;
-            
-            gun.get(path).map().on((data, key) => {
-                if (!data || !key) return;
-                
-                try {
-                    // Parse the question data
-                    const question = typeof data === 'string' ? JSON.parse(data) : data;
-                    
-                    // Skip if we've already seen this question
-                    const hash = hashQuestion(question.question || '');
-                    if (syncedQuestionHashes.has(hash)) return;
-                    
-                    syncedQuestionHashes.add(hash);
-                    stats.questionsReceived++;
-                    stats.lastSync = new Date().toISOString();
-                    
-                    // Notify listeners about the new question
-                    questionListeners.forEach(listener => {
-                        try {
-                            listener(question, appendix);
-                        } catch (e) {
-                            console.warn('P2PSync: Listener error', e);
-                        }
-                    });
-                    
-                    // Cache the question locally
-                    cacheReceivedQuestion(question, appendix);
-                    
-                    console.log(`P2PSync: Received question for Appendix ${appendix} from peer`);
-                } catch (e) {
-                    // Ignore parse errors from malformed data
-                }
-            });
+        if (currentAppendix) {
+            console.log('P2PSync: Switching from Appendix ' + currentAppendix + ' to ' + appendixLetter);
+        }
+        
+        currentAppendix = appendixLetter;
+        console.log('P2PSync: Subscribing to Appendix ' + appendixLetter);
+        
+        const path = APP_NAMESPACE + '/questions/' + appendixLetter;
+        
+        gun.get(path).map().on((data, chunkId) => {
+            if (!data || !chunkId || currentAppendix !== appendixLetter) return;
+            processReceivedChunk(data, chunkId, appendixLetter);
         });
         
-        console.log('P2PSync: Listening for questions from peers');
+        updatePresence();
+    }
+    
+    /**
+     * Process a received chunk of questions from P2P
+     */
+    async function processReceivedChunk(data, chunkId, appendixLetter) {
+        try {
+            const chunkData = typeof data === 'string' ? JSON.parse(data) : data;
+            
+            if (!chunkData || !chunkData.questions || !Array.isArray(chunkData.questions)) {
+                return;
+            }
+            
+            const validQuestions = chunkData.questions.filter(q => validateQuestion(q));
+            if (validQuestions.length === 0) return;
+            
+            // Check if we already have this chunk cached
+            if (typeof QuestionCache !== 'undefined') {
+                const existing = await QuestionCache.get(chunkId, STANDARD_CACHE_OPTIONS);
+                if (existing && existing.length >= validQuestions.length) {
+                    return;
+                }
+            }
+            
+            // Enrich and cache questions
+            const enrichedQuestions = validQuestions.map(q => ({
+                question: q.question,
+                options: q.options,
+                correct: q.correct,
+                explanation: q.explanation || '',
+                section_id: q.section_id || chunkData.sectionId || '',
+                section_title: q.section_title || '',
+                source_chunk_id: chunkId,
+                appendix: appendixLetter,
+                fromP2P: true
+            }));
+            
+            if (typeof QuestionCache !== 'undefined') {
+                await QuestionCache.set(chunkId, enrichedQuestions, {
+                    appendix: appendixLetter,
+                    sectionId: chunkData.sectionId || ''
+                }, STANDARD_CACHE_OPTIONS);
+                
+                stats.questionsReceived += enrichedQuestions.length;
+                stats.lastSync = new Date().toISOString();
+                console.log('P2PSync: Cached ' + enrichedQuestions.length + ' questions for chunk ' + chunkId);
+            }
+            
+            // Notify listeners
+            enrichedQuestions.forEach(q => {
+                const hash = hashQuestion(q.question);
+                if (!syncedQuestionHashes.has(hash)) {
+                    syncedQuestionHashes.add(hash);
+                    questionListeners.forEach(listener => {
+                        try { listener(q, appendixLetter); } catch (e) {}
+                    });
+                }
+            });
+        } catch (e) {
+            console.warn('P2PSync: Error processing chunk', e);
+        }
+    }
+    
+    /**
+     * Validate a question has required fields
+     */
+    function validateQuestion(q) {
+        if (!q || typeof q !== 'object') return false;
+        if (!q.question || typeof q.question !== 'string') return false;
+        if (!q.options || !Array.isArray(q.options) || q.options.length !== 4) return false;
+        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) return false;
+        if (q.question.length > 1000) return false;
+        if (q.options.some(opt => typeof opt !== 'string' || opt.length > 500)) return false;
+        return true;
+    }
+
+    // ==================== PRESENCE TRACKING ====================
+    
+    function startPresenceHeartbeat() {
+        if (!gun || presenceInterval) return;
+        
+        updatePresence();
+        presenceInterval = setInterval(updatePresence, PRESENCE_HEARTBEAT);
+        
+        gun.get(APP_NAMESPACE + '/presence').map().on((data, peerId) => {
+            if (!data || peerId === myPeerId) return;
+            try {
+                const presence = typeof data === 'string' ? JSON.parse(data) : data;
+                const now = Date.now();
+                if (presence.timestamp && (now - presence.timestamp) < PRESENCE_TTL) {
+                    onlineStudents.set(peerId, presence);
+                } else {
+                    onlineStudents.delete(peerId);
+                }
+                stats.peersConnected = onlineStudents.size;
+            } catch (e) {}
+        });
+        
+        setInterval(() => {
+            const now = Date.now();
+            onlineStudents.forEach((presence, peerId) => {
+                if (now - presence.timestamp > PRESENCE_TTL) {
+                    onlineStudents.delete(peerId);
+                }
+            });
+            stats.peersConnected = onlineStudents.size;
+        }, PRESENCE_TTL);
+        
+        console.log('P2PSync: Presence tracking started');
+    }
+    
+    function updatePresence() {
+        if (!gun || !myPeerId) return;
+        gun.get(APP_NAMESPACE + '/presence').get(myPeerId).put(JSON.stringify({
+            timestamp: Date.now(),
+            appendix: currentAppendix || null
+        }));
+    }
+    
+    function getOnlineCount() {
+        return onlineStudents.size + 1;
+    }
+    
+    function getOnlinePeers() {
+        const peers = [];
+        onlineStudents.forEach((presence, peerId) => {
+            peers.push({ peerId, appendix: presence.appendix, lastSeen: presence.timestamp });
+        });
+        return peers;
+    }
+    
+    function getPeersOnSameAppendix() {
+        if (!currentAppendix) return 0;
+        let count = 0;
+        onlineStudents.forEach(presence => {
+            if (presence.appendix === currentAppendix) count++;
+        });
+        return count;
+    }
+    
+    // ==================== COLLABORATIVE FLAGGING ====================
+    
+    function startFlagListener() {
+        if (!gun) return;
+        gun.get(APP_NAMESPACE + '/flags').map().on((data, questionHash) => {
+            if (!data || !questionHash) return;
+            try {
+                const flagData = typeof data === 'string' ? JSON.parse(data) : data;
+                if (flagData.reporters && Array.isArray(flagData.reporters)) {
+                    flaggedQuestions.set(questionHash, {
+                        count: flagData.reporters.length,
+                        reporters: new Set(flagData.reporters),
+                        reason: flagData.reason || 'Incorrect'
+                    });
+                }
+            } catch (e) {}
+        });
+    }
+    
+    function flagQuestion(questionText, reason = 'Incorrect') {
+        if (!gun || !myPeerId || !questionText) return false;
+        
+        const questionHash = hashQuestion(questionText);
+        const existing = flaggedQuestions.get(questionHash) || { count: 0, reporters: new Set() };
+        
+        if (existing.reporters.has(myPeerId)) {
+            console.log('P2PSync: Already flagged this question');
+            return false;
+        }
+        
+        existing.reporters.add(myPeerId);
+        existing.count = existing.reporters.size;
+        existing.reason = reason;
+        flaggedQuestions.set(questionHash, existing);
+        
+        gun.get(APP_NAMESPACE + '/flags').get(questionHash).put(JSON.stringify({
+            reporters: Array.from(existing.reporters),
+            reason: reason,
+            updatedAt: Date.now()
+        }));
+        
+        console.log('P2PSync: Flagged question (' + existing.count + ' total flags)');
+        return true;
+    }
+    
+    function isQuestionFlagged(questionText) {
+        const questionHash = hashQuestion(questionText);
+        const flagData = flaggedQuestions.get(questionHash);
+        return flagData && flagData.count >= FLAG_THRESHOLD;
+    }
+    
+    function getFlagCount(questionText) {
+        const questionHash = hashQuestion(questionText);
+        const flagData = flaggedQuestions.get(questionHash);
+        return flagData ? flagData.count : 0;
+    }
+    
+    // ==================== P2P-FIRST POLICY ====================
+    
+    async function getQuestionsFromPool(appendixLetter) {
+        if (!gun || !syncEnabled) return [];
+        
+        if (currentAppendix !== appendixLetter) {
+            subscribeToAppendix(appendixLetter);
+        }
+        
+        if (typeof QuestionCache !== 'undefined') {
+            try {
+                const cached = await QuestionCache.getAllQuestionsForAppendix(appendixLetter);
+                const p2pCount = cached.filter(q => q.fromP2P).length;
+                stats.questionsUsedFromP2P = p2pCount;
+                return cached;
+            } catch (e) {
+                console.warn('P2PSync: Error getting cached questions', e);
+            }
+        }
+        return [];
     }
 
     /**
-     * Share a question with other peers
-     * @param {Object} question - The question object to share
-     * @param {string} appendix - The appendix letter (A-J)
+     * Share questions by chunk (groups questions by source_chunk_id)
+     * This ensures P2P questions are stored under correct cache keys
      */
-    function shareQuestion(question, appendix) {
-        if (!gun || !syncEnabled || !question) return;
+    function shareChunkQuestions(questions, chunkId, appendixLetter, sectionId) {
+        if (!gun || !syncEnabled || !questions || !chunkId) return;
+        if (!Array.isArray(questions) || questions.length === 0) return;
         
         try {
-            const hash = hashQuestion(question.question || '');
+            // Filter out already-shared questions
+            const newQuestions = questions.filter(q => {
+                const hash = hashQuestion(q.question || '');
+                if (syncedQuestionHashes.has(hash)) return false;
+                syncedQuestionHashes.add(hash);
+                return true;
+            });
             
-            // Don't share if we've already shared this question
-            if (syncedQuestionHashes.has(hash)) return;
+            if (newQuestions.length === 0) return;
             
-            syncedQuestionHashes.add(hash);
-            
-            // Create a clean question object for sharing
-            const shareData = {
-                question: question.question,
-                options: question.options,
-                correct: question.correct,
-                explanation: question.explanation,
-                section_id: question.section_id,
-                section_title: question.section_title,
-                appendix: appendix,
+            // Create chunk data for sharing
+            const chunkData = {
+                questions: newQuestions.map(q => ({
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation || '',
+                    section_id: q.section_id || sectionId || '',
+                    section_title: q.section_title || ''
+                })),
+                sectionId: sectionId || '',
                 sharedAt: Date.now()
             };
             
-            // Store in Gun under the appendix path
-            const path = `${APP_NAMESPACE}/questions/${appendix}`;
-            gun.get(path).get(hash).put(JSON.stringify(shareData));
+            // Store in Gun under appendix/chunkId path
+            const path = APP_NAMESPACE + '/questions/' + appendixLetter;
+            gun.get(path).get(chunkId).put(JSON.stringify(chunkData));
             
-            stats.questionsSent++;
+            stats.questionsSent += newQuestions.length;
             stats.lastSync = new Date().toISOString();
             
-            console.log(`P2PSync: Shared question for Appendix ${appendix}`);
+            console.log('P2PSync: Shared ' + newQuestions.length + ' questions for chunk ' + chunkId);
         } catch (error) {
-            console.warn('P2PSync: Failed to share question', error);
+            console.warn('P2PSync: Failed to share chunk questions', error);
         }
     }
-
+    
     /**
-     * Share multiple questions at once
-     * @param {Array} questions - Array of question objects
-     * @param {string} appendix - The appendix letter
+     * Share multiple questions (groups by source_chunk_id automatically)
      */
-    function shareQuestions(questions, appendix) {
-        if (!Array.isArray(questions)) return;
+    function shareQuestions(questions, appendixLetter) {
+        if (!Array.isArray(questions) || questions.length === 0) return;
         
-        questions.forEach(q => shareQuestion(q, appendix));
-    }
-
-    /**
-     * Cache a received question locally using QuestionCache
-     */
-    async function cacheReceivedQuestion(question, appendix) {
-        if (typeof QuestionCache === 'undefined') return;
-        
-        try {
-            // Create a chunk ID for caching (use section_id if available)
-            const chunkId = question.source_chunk_id || 
-                           `${appendix}_${question.section_id || 'unknown'}_p2p`;
-            
-            // Get existing cached questions for this chunk
-            const existing = await QuestionCache.get(chunkId, {}) || [];
-            
-            // Check if question already exists
-            const hash = hashQuestion(question.question);
-            const exists = existing.some(q => hashQuestion(q.question) === hash);
-            
-            if (!exists) {
-                // Add the new question
-                existing.push({
-                    ...question,
-                    source_chunk_id: chunkId,
-                    appendix: appendix,
-                    fromP2P: true
-                });
-                
-                // Save back to cache
-                await QuestionCache.set(chunkId, existing, {
-                    appendix: appendix,
-                    sectionId: question.section_id
-                }, {});
-                
-                console.log(`P2PSync: Cached P2P question for ${chunkId}`);
+        // Group questions by source_chunk_id
+        const byChunk = new Map();
+        questions.forEach(q => {
+            const chunkId = q.source_chunk_id || (appendixLetter + '_unknown');
+            if (!byChunk.has(chunkId)) {
+                byChunk.set(chunkId, { questions: [], sectionId: q.section_id || '' });
             }
-        } catch (error) {
-            console.warn('P2PSync: Failed to cache received question', error);
-        }
+            byChunk.get(chunkId).questions.push(q);
+        });
+        
+        // Share each chunk
+        byChunk.forEach((data, chunkId) => {
+            shareChunkQuestions(data.questions, chunkId, appendixLetter, data.sectionId);
+        });
+    }
+    
+    /**
+     * Share a single question (wraps shareChunkQuestions)
+     */
+    function shareQuestion(question, appendixLetter) {
+        if (!question) return;
+        const chunkId = question.source_chunk_id || (appendixLetter + '_unknown');
+        shareChunkQuestions([question], chunkId, appendixLetter, question.section_id);
     }
 
     /**
@@ -284,13 +486,22 @@ const P2PSync = (function() {
     // Public API
     return {
         initialize,
+        subscribeToAppendix,
         shareQuestion,
         shareQuestions,
+        shareChunkQuestions,
+        getQuestionsFromPool,
         onQuestionReceived,
         offQuestionReceived,
         getStats,
         setEnabled,
-        isAvailable
+        isAvailable,
+        getOnlineCount,
+        getOnlinePeers,
+        getPeersOnSameAppendix,
+        flagQuestion,
+        isQuestionFlagged,
+        getFlagCount
     };
 })();
 

@@ -798,7 +798,7 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
                             await QuestionCache.set(chunkId, chunkQuestions, {
                                 appendix: chunk.appendix,
                                 sectionId: chunk.section_id
-                            }, { questionsPerChunk: chunkQuestions.length });
+                            }, { questionsPerChunk: 5 });
                             console.log(`Cached ${chunkQuestions.length} questions for chunk ${chunkId}`);
                         } catch (cacheError) {
                             console.warn('Cache write error:', cacheError);

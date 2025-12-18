@@ -3362,6 +3362,47 @@ Try it yourself: ${url}`,
 
         updateMobileSidebarStats();
     }
+    
+    // ==========================================
+    // P2P STATUS INDICATOR
+    // ==========================================
+    function setupP2PStatusIndicator() {
+        const statusEl = document.getElementById('p2p-status');
+        const countEl = document.getElementById('p2p-online-count');
+        
+        if (!statusEl || !countEl) return;
+        
+        function updateP2PStatus() {
+            if (typeof P2PSync === 'undefined' || !P2PSync.isAvailable()) {
+                statusEl.style.display = 'none';
+                return;
+            }
+            
+            statusEl.style.display = 'flex';
+            const onlineCount = P2PSync.getOnlineCount();
+            countEl.textContent = onlineCount;
+            
+            const stats = P2PSync.getStats();
+            if (stats.questionsReceived > 0 || stats.questionsSent > 0) {
+                statusEl.classList.add('syncing');
+                statusEl.title = 'P2P Sync: ' + stats.questionsSent + ' sent, ' + stats.questionsReceived + ' received';
+            } else {
+                statusEl.classList.remove('syncing');
+                statusEl.title = 'P2P Question Sync';
+            }
+        }
+        
+        updateP2PStatus();
+        setInterval(updateP2PStatus, 5000);
+        
+        if (typeof P2PSync !== 'undefined') {
+            P2PSync.onQuestionReceived(() => {
+                updateP2PStatus();
+                statusEl.classList.add('syncing');
+                setTimeout(() => statusEl.classList.remove('syncing'), 2000);
+            });
+        }
+    }
 
     function updateMobileSidebarStats() {
         const stats = calculateStats();
@@ -3397,6 +3438,9 @@ Try it yourself: ${url}`,
         setupXPSystem();
         setupShareDropdown();
         setupMobileNavigation();
+        
+        // Setup P2P status indicator updates
+        setupP2PStatusIndicator();
         
         // Start background preloading of all appendixes
         // This runs silently in the background to improve UX

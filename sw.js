@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v12';
+const CACHE_NAME = 'cpsa-quiz-v13';
 const urlsToCache = [
     '/CREST/',
     '/CREST/index.html',
