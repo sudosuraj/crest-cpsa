@@ -1008,6 +1008,24 @@ textarea:focus-visible {
     }
 }
 
+/* Hide duplicate navigation on desktop (when sidebar is visible) */
+@media (min-width: 1025px) {
+    /* Hide the tabs row - navigation is in sidebar */
+    .nav-tabs-row {
+        display: none;
+    }
+    
+    /* Hide the stats in navbar - stats are in sidebar */
+    .nav-stats {
+        display: none;
+    }
+    
+    /* Simplify top navbar on desktop */
+    .top-nav-inner {
+        justify-content: space-between;
+    }
+}
+
 /* ============================================
    TOOLBAR CONTAINER
    ============================================ */
