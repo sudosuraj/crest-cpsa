@@ -1239,48 +1239,131 @@ Practice at: https://sudosuraj.github.io/CREST/`;
     /**
      * Add a single streamed question to the display
      * Called when a new question arrives during streaming RAG
+     * Matches the structure used in displayQuestionsWithPagination
      */
     function addStreamedQuestion(question, id, questionNumber) {
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
         
-        // Create question element
-        const questionDiv = document.createElement('div');
-        questionDiv.className = 'question-card fade-in';
-        questionDiv.id = `question-${id}`;
-        questionDiv.setAttribute('data-question-id', id);
-        
-        // Build options HTML
-        const optionsHtml = [question.answer, ...question.incorrect]
-            .sort(() => Math.random() - 0.5)
-            .map((opt, i) => `
-                <div class="option" data-correct="${opt === question.answer}" tabindex="0" role="button">
-                    ${escapeHtml(opt)}
-                </div>
-            `).join('');
-        
-        questionDiv.innerHTML = `
-            <div class="question-header">
-                <span class="question-number">Q${questionNumber}</span>
-                <button class="flag-btn" onclick="toggleFlag('${id}')" title="Flag for review">
-                    <span class="flag-icon">&#9873;</span>
-                </button>
-            </div>
-            <p class="question-text">${escapeHtml(question.question)}</p>
-            <div class="options">${optionsHtml}</div>
-            <div class="explanation hidden">
-                <strong>Explanation:</strong> ${escapeHtml(question.explanation || 'No explanation available.')}
-            </div>
-        `;
-        
-        questionsContainer.appendChild(questionDiv);
-        
-        // Setup click handlers for options
-        questionDiv.querySelectorAll('.option').forEach(opt => {
-            opt.addEventListener('click', function() {
-                handleOptionClick(this, questionDiv, id);
+        // Create question card matching existing structure
+        const questionCard = document.createElement('div');
+        questionCard.classList.add('question-card', 'fade-in');
+        questionCard.dataset.questionId = id;
+
+        // Question header with number badge and actions
+        const questionHeader = document.createElement('div');
+        questionHeader.classList.add('question-card-header');
+
+        const questionBadge = document.createElement('span');
+        questionBadge.classList.add('question-number-badge');
+        questionBadge.textContent = questionNumber;
+
+        const questionActions = document.createElement('div');
+        questionActions.classList.add('question-card-actions');
+
+        // Flag button
+        const flagBtn = document.createElement('button');
+        flagBtn.classList.add('flag-btn');
+        flagBtn.title = 'Flag for review';
+        flagBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`;
+        flagBtn.addEventListener('click', () => toggleFlag(id));
+
+        // Gemini explain button (disabled until user selects an option)
+        const explainBtn = document.createElement('button');
+        explainBtn.classList.add('gemini-btn');
+        explainBtn.id = `explain-answer-btn-${id}`;
+        explainBtn.title = 'Select an answer first';
+        explainBtn.disabled = true;
+        explainBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <defs>
+                <linearGradient id="gemini-grad-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="url(#gemini-grad-${id})" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+        explainBtn.addEventListener('click', () => explainAnswer(id));
+
+        questionActions.appendChild(flagBtn);
+        questionActions.appendChild(explainBtn);
+        questionHeader.appendChild(questionBadge);
+        questionHeader.appendChild(questionActions);
+
+        // Question text
+        const questionText = document.createElement('p');
+        questionText.classList.add('question-card-text');
+        questionText.textContent = question.question;
+
+        // Options
+        const optionsDiv = document.createElement('div');
+        optionsDiv.classList.add('question-card-options');
+
+        const allAnswers = [question.answer, ...question.incorrect];
+        shuffleArray(allAnswers);
+
+        allAnswers.forEach((answer, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.classList.add('option-tile');
+            
+            const optionLetter = document.createElement('span');
+            optionLetter.classList.add('option-letter');
+            optionLetter.textContent = String.fromCharCode(65 + index); // A, B, C, D
+            
+            const optionText = document.createElement('span');
+            optionText.classList.add('option-text');
+            optionText.textContent = answer;
+            
+            optionDiv.appendChild(optionLetter);
+            optionDiv.appendChild(optionText);
+            optionDiv.dataset.correct = answer === question.answer ? 'true' : 'false';
+
+            optionDiv.addEventListener('click', function() {
+                if (this.classList.contains('answered')) {
+                    return;
+                }
+
+                const isCorrect = this.dataset.correct === 'true';
+                
+                // Mark all options as answered
+                optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
+                    opt.classList.add('answered');
+                    if (opt.dataset.correct === 'true') {
+                        opt.classList.add('correct');
+                    } else if (opt === this && !isCorrect) {
+                        opt.classList.add('incorrect');
+                    }
+                });
+
+                // Add feedback to card
+                questionCard.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+
+                // Enable the Gemini explain button now that user has answered
+                explainBtn.disabled = false;
+                explainBtn.title = 'Explain Answer';
+
+                // Update score
+                if (isCorrect) {
+                    addXP(10);
+                }
+                
+                updateCounts();
+                saveProgress();
+                checkAndAwardBadges();
             });
+
+            optionsDiv.appendChild(optionDiv);
         });
+
+        // Assemble the card
+        questionCard.appendChild(questionHeader);
+        questionCard.appendChild(questionText);
+        questionCard.appendChild(optionsDiv);
+
+        questionsContainer.appendChild(questionCard);
     }
 
     async function loadNextPage() {
