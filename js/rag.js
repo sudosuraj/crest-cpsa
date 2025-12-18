@@ -304,6 +304,9 @@ const RAG = (function() {
     function getBasePath() {
         // Handle both local development and GitHub Pages
         const path = window.location.pathname;
+        if (path.includes('/crest-cpsa/')) {
+            return '/crest-cpsa/';
+        }
         if (path.includes('/CREST/')) {
             return '/CREST/';
         }
