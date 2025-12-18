@@ -807,6 +807,14 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
                 }
             }
 
+            // Share questions via P2P for other students to use
+            if (enrichedQuestions.length > 0 && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+                const appendix = enrichedQuestions[0]?.appendix;
+                if (appendix) {
+                    P2PSync.shareQuestions(enrichedQuestions, appendix);
+                }
+            }
+
             // Combine cached and newly generated questions
             return [...cachedQuestions, ...enrichedQuestions];
         } catch (error) {
