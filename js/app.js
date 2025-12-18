@@ -3413,13 +3413,13 @@ Try it yourself: ${url}`,
         
         function openModal() {
             modal.setAttribute('aria-hidden', 'false');
-            modal.classList.add('active');
+            modal.classList.add('show');
             updateStatus();
         }
         
         function closeModal() {
             modal.setAttribute('aria-hidden', 'true');
-            modal.classList.remove('active');
+            modal.classList.remove('show');
             input.value = '';
         }
         
