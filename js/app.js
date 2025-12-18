@@ -61,6 +61,7 @@
                 lastUpdated: Date.now()
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            scheduleUIUpdate();
         } catch (e) {
             console.error('Error saving progress:', e);
         }
@@ -648,6 +649,47 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         if (questionChip) questionChip.textContent = `Questions: ${visibleQuestions}`;
     }
 
+    // ==================== CENTRALIZED UI UPDATE ====================
+    let uiUpdateTimer = null;
+    
+    function updateAllUI() {
+        updateCounts();
+        updateProgressGridPanel();
+        updateInsightsSummary();
+        updateReviewStats();
+        updateMobileSidebarStats();
+        renderStreak();
+        renderXP();
+        
+        // Update nav bar stats
+        const stats = calculateStats();
+        const percentageElement = document.getElementById("percentage");
+        const accuracyBar = document.getElementById("accuracy-bar");
+        const attemptedCount = document.getElementById("attempted-count");
+        
+        if (percentageElement) {
+            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+            percentageElement.textContent = percentage;
+        }
+        if (accuracyBar) {
+            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+            accuracyBar.style.width = `${percentage}%`;
+        }
+        if (attemptedCount) {
+            attemptedCount.textContent = stats.attempted;
+        }
+    }
+    
+    function scheduleUIUpdate() {
+        if (uiUpdateTimer) {
+            clearTimeout(uiUpdateTimer);
+        }
+        uiUpdateTimer = setTimeout(() => {
+            updateAllUI();
+            uiUpdateTimer = null;
+        }, 100);
+    }
+
     const sanitizeUserMessage = (input) => (input || "")
         .replace(/[\u0000-\u001F\u007F]/g, " ")
         .replace(/\s+/g, " ")
@@ -663,30 +705,29 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         }
     }
 
-    // Heuristic topic categorization for quick revision
+    // Appendix-based categorization for progress tracking
+    const APPENDIX_TITLES = {
+        'A': 'Appendix A: Soft Skills & Assessment',
+        'B': 'Appendix B: Core Technical Skills',
+        'C': 'Appendix C: Background Info & Open Source',
+        'D': 'Appendix D: Networking Equipment',
+        'E': 'Appendix E: Microsoft Windows Security',
+        'F': 'Appendix F: Unix Security Assessment',
+        'G': 'Appendix G: Web Technologies',
+        'H': 'Appendix H: Web Testing Methodologies',
+        'I': 'Appendix I: Web Testing Techniques',
+        'J': 'Appendix J: Databases'
+    };
+
     function categorizeQuestion(questionObj) {
-        const text = questionObj.question.toLowerCase();
-
-        const categories = [
-            { name: "Cryptography & Hashing", keywords: ["hash", "cipher", "encryption", "rsa", "aes", "des", "3des", "diffie", "ssl", "tls", "certificate", "pki", "mac ", "hmac", "salt", "digest"] },
-            { name: "Network Protocols & Ports", keywords: ["port", "udp", "tcp", "icmp", "arp", "ethernet", "ipsec", "ike", "isakmp", "ikev", "protocol", "packet", "ipv4", "ipv6", "osi", "layer", "icmp", "mpls", "bgp", "ospf", "rip", "eigrp"] },
-            { name: "VPN & Remote Access", keywords: ["vpn", "pptp", "l2tp", "ipsec", "tunnel", "remote access", "site to site", "client", "ike", "psk"] },
-            { name: "Windows Security", keywords: ["windows", "nt", "2000", "2003", "registry", "restrictanonymous", "sam", "sddl", "lsass", "active directory"] },
-            { name: "Unix/Linux Security", keywords: ["solaris", "linux", "unix", "/etc", "shadow", "passwd", "umask", "rhosts", "cron", "pam"] },
-            { name: "Authentication & Access Control", keywords: ["authentication", "password", "kerberos", "radius", "tacacs", "challenge", "token", "authorization", "access control", "aaa"] },
-            { name: "Web & Application Security", keywords: ["xss", "sql", "csrf", "cookie", "session", "web", "browser", "http", "https", "cgi", "iis", "apache", "web server", "header", "input", "script"] },
-            { name: "Malware & Threats", keywords: ["virus", "worm", "trojan", "malware", "rootkit", "botnet", "exploit", "payload", "shellcode"] },
-            { name: "Risk, Audit & Governance", keywords: ["risk", "audit", "policy", "standard", "compliance", "treatment", "assessment", "control", "mitigation"] },
-            { name: "Firewalls & IDS/IPS", keywords: ["firewall", "ids", "ips", "snort", "packet filter", "nat", "pat", "stateful", "proxy"] },
-            { name: "Wireless & Mobility", keywords: ["wifi", "wireless", "wep", "wpa", "wpa2", "802.1x", "bluetooth"] }
-        ];
-
-        for (const category of categories) {
-            if (category.keywords.some(keyword => text.includes(keyword))) {
-                return category.name;
-            }
+        // Use appendix metadata if available (preferred)
+        if (questionObj.appendix) {
+            return APPENDIX_TITLES[questionObj.appendix] || `Appendix ${questionObj.appendix}`;
         }
-        return "General / Other";
+        if (questionObj.appendix_title) {
+            return questionObj.appendix_title;
+        }
+        return "Unknown Appendix";
     }
 
     // Function to call LLM API (no key required)
@@ -873,45 +914,65 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             return;
         }
 
+        // Handle both old format {selected, correct} and new format {questionText, selectedAnswer, correctAnswer, isCorrect}
+        const questionData = quizData[questionId];
+        const isCorrect = state.isCorrect !== undefined ? state.isCorrect : state.correct;
+        const questionText = state.questionText || (questionData ? questionData.question : '');
+        const selectedAnswer = state.selectedAnswer || state.selected || '';
+        const correctAnswer = state.correctAnswer || (questionData ? questionData.answer : '');
+
+        if (!questionText || !correctAnswer) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Unable to generate explanation - question data not available.';
+            return;
+        }
+
         explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
-        explanationDiv.classList.add(state.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
+        explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
         explanationDiv.textContent = 'Searching study notes and generating explanation...';
         button.disabled = true;
         button.textContent = 'Loading...';
 
-        let prompt;
-        const ragQuery = `${state.questionText} ${state.correctAnswer}`;
-        
-        if (state.isCorrect) {
-            prompt = `Explain why this answer is correct using the reference material provided. Question: "${state.questionText}" Correct Answer: "${state.selectedAnswer}". Cite the relevant source if applicable. Keep it concise (2-3 sentences).`;
-        } else {
-            prompt = `Explain why this answer is incorrect and why the correct answer is right, using the reference material provided. Question: "${state.questionText}" Selected Answer: "${state.selectedAnswer}" Correct Answer: "${state.correctAnswer}". Cite the relevant source if applicable. Keep it concise (3-4 sentences).`;
-        }
-
-        const result = await callOpenAI(prompt, {
-            useRAG: true,
-            ragQuery: ragQuery,
-            topK: 3
-        });
-
-        explanationDiv.classList.remove('loading');
-        
-        // Handle RAG response with sources
-        if (result && typeof result === 'object' && result.answer) {
-            let content = result.answer;
-            if (result.sources && result.sources.length > 0) {
-                content += '\n\n--- Sources ---\n';
-                result.sources.forEach(src => {
-                    content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
-                });
+        try {
+            let prompt;
+            const ragQuery = `${questionText} ${correctAnswer}`;
+            
+            if (isCorrect) {
+                prompt = `Explain why this answer is correct using the reference material provided. Question: "${questionText}" Correct Answer: "${selectedAnswer}". Cite the relevant source if applicable. Keep it concise (2-3 sentences).`;
+            } else {
+                prompt = `Explain why this answer is incorrect and why the correct answer is right, using the reference material provided. Question: "${questionText}" Selected Answer: "${selectedAnswer}" Correct Answer: "${correctAnswer}". Cite the relevant source if applicable. Keep it concise (3-4 sentences).`;
             }
-            explanationDiv.textContent = content;
-        } else {
-            explanationDiv.textContent = result;
+
+            const result = await callOpenAI(prompt, {
+                useRAG: true,
+                ragQuery: ragQuery,
+                topK: 3
+            });
+
+            explanationDiv.classList.remove('loading');
+            
+            // Handle RAG response with sources
+            if (result && typeof result === 'object' && result.answer) {
+                let content = result.answer;
+                if (result.sources && result.sources.length > 0) {
+                    content += '\n\n--- Sources ---\n';
+                    result.sources.forEach(src => {
+                        content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
+                    });
+                }
+                explanationDiv.textContent = content;
+            } else {
+                explanationDiv.textContent = result || 'Unable to generate explanation.';
+            }
+            
+            button.textContent = '[AI+RAG] Hide Answer Explanation';
+        } catch (error) {
+            console.error('Error explaining answer:', error);
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = 'Error generating explanation. Please try again.';
+        } finally {
+            button.disabled = false;
         }
-        
-        button.disabled = false;
-        button.textContent = '[AI+RAG] Hide Answer Explanation';
     }
 
     async function loadQuiz() {
@@ -1308,11 +1369,15 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 explainBtn.disabled = false;
                 explainBtn.title = 'Explain Answer';
 
-                // Update answerState for progress tracking
+                // Update answerState for progress tracking and AI explain
                 answerState[id] = {
                     selected: selectedAnswer,
                     correct: isCorrect,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    questionText: question.question,
+                    selectedAnswer: selectedAnswer,
+                    correctAnswer: question.answer,
+                    isCorrect: isCorrect
                 };
 
                 // Update score
@@ -1619,11 +1684,15 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                     explainBtn.disabled = false;
                     explainBtn.title = "Explain Answer";
 
-                    // Update answerState for progress tracking
+                    // Update answerState for progress tracking and AI explain
                     answerState[key] = {
                         selected: selectedAnswer,
                         correct: isCorrect,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        questionText: questionObj.question,
+                        selectedAnswer: selectedAnswer,
+                        correctAnswer: questionObj.answer,
+                        isCorrect: isCorrect
                     };
 
                     // Update score
