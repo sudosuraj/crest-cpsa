@@ -785,6 +785,149 @@ Output ONLY the JSON array.`;
         }
     }
 
+    /**
+     * STREAMING RAG: Generate questions progressively with callback for each question
+     * This is TRUE RAG - retrieves chunks, generates questions, streams them to UI immediately
+     * @param {string} appendixLetter - The appendix letter
+     * @param {Object} options - Configuration options
+     * @param {number} options.targetCount - Target number of questions (default 20)
+     * @param {number} options.startChunkIdx - Starting chunk index (default 0)
+     * @param {Set} options.existingHashes - Set of existing question hashes to avoid duplicates
+     * @param {function} options.onQuestion - Callback fired for EACH question as it's generated (key for fast UX!)
+     * @param {function} options.onProgress - Progress callback
+     * @param {function} options.onComplete - Called when generation is complete
+     * @param {function} options.onError - Called on errors
+     * @returns {Promise<{questions: Array, nextChunkIdx: number, exhausted: boolean}>}
+     */
+    async function generateQuestionsStreaming(appendixLetter, options = {}) {
+        const {
+            targetCount = 20,
+            startChunkIdx = 0,
+            existingHashes = new Set(),
+            onQuestion = null,      // Called for EACH question - this is the key!
+            onProgress = null,
+            onComplete = null,
+            onError = null,
+            priority = 'high'
+        } = options;
+
+        if (!isInitialized) {
+            await initialize();
+        }
+
+        const appendixChunks = getChunksForAppendix(appendixLetter);
+        if (appendixChunks.length === 0) {
+            if (onComplete) onComplete({ questions: [], exhausted: true });
+            return { questions: [], nextChunkIdx: 0, exhausted: true };
+        }
+
+        const questions = [];
+        const newHashes = new Set();
+        let currentChunkIdx = startChunkIdx;
+        const questionsPerChunk = 5;
+        let cacheHits = 0;
+        let apiCalls = 0;
+        let consecutiveFailures = 0;
+        const MAX_CONSECUTIVE_FAILURES = 3;
+
+        // Process chunks and stream questions as they arrive
+        while (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
+            const chunk = appendixChunks[currentChunkIdx];
+
+            if (onProgress) {
+                onProgress({
+                    currentChunk: currentChunkIdx + 1,
+                    totalChunks: appendixChunks.length,
+                    section: chunk.section_id,
+                    questionsGenerated: questions.length,
+                    targetCount,
+                    cacheHits,
+                    apiCalls,
+                    status: 'generating'
+                });
+            }
+
+            try {
+                // Generate questions for this chunk (uses cache if available)
+                const generatedQuestions = await processChunkForQuestions(chunk, questionsPerChunk, { priority });
+                
+                if (generatedQuestions.length === 0) {
+                    consecutiveFailures++;
+                    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                        console.warn('Too many consecutive failures, stopping generation');
+                        if (onError) onError({ type: 'consecutive_failures', count: consecutiveFailures });
+                        break;
+                    }
+                } else {
+                    consecutiveFailures = 0; // Reset on success
+                }
+
+                // Track cache vs API
+                if (generatedQuestions.length > 0 && generatedQuestions[0].cached) {
+                    cacheHits++;
+                } else if (generatedQuestions.length > 0) {
+                    apiCalls++;
+                }
+
+                // Stream each question to the UI immediately!
+                for (const q of generatedQuestions) {
+                    const hash = hashQuestion(q.question);
+                    if (!existingHashes.has(hash) && !newHashes.has(hash)) {
+                        questions.push(q);
+                        newHashes.add(hash);
+                        existingHashes.add(hash);
+
+                        // THIS IS THE KEY: Call onQuestion for each question immediately
+                        // So the UI can display it right away without waiting for all 20
+                        if (onQuestion) {
+                            onQuestion(q, questions.length, targetCount);
+                        }
+
+                        if (questions.length >= targetCount) {
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error generating questions for chunk ${chunk.id}:`, error);
+                consecutiveFailures++;
+                if (onError) onError({ type: 'chunk_error', chunk: chunk.id, error });
+                
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    break;
+                }
+            }
+
+            currentChunkIdx++;
+        }
+
+        const result = {
+            questions,
+            nextChunkIdx: currentChunkIdx,
+            newHashes: Array.from(newHashes),
+            exhausted: currentChunkIdx >= appendixChunks.length,
+            stats: { cacheHits, apiCalls, consecutiveFailures }
+        };
+
+        if (onProgress) {
+            onProgress({
+                currentChunk: currentChunkIdx,
+                totalChunks: appendixChunks.length,
+                questionsGenerated: questions.length,
+                targetCount,
+                cacheHits,
+                apiCalls,
+                status: 'complete'
+            });
+        }
+
+        if (onComplete) {
+            onComplete(result);
+        }
+
+        return result;
+    }
+
     // Public API
     return {
         initialize,
@@ -805,7 +948,9 @@ Output ONLY the JSON array.`;
         generateQuestionsBatch,
         getAppendixChunkCount,
         hashQuestion,
-        clearQuestionsCache
+        clearQuestionsCache,
+        // Streaming RAG - shows questions immediately as they're generated
+        generateQuestionsStreaming
     };
 })();
 

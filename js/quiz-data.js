@@ -572,9 +572,211 @@ function getPreloadStatus() {
     };
 }
 
+/**
+ * STREAMING RAG: Load questions progressively with callback for each question
+ * This is TRUE RAG - retrieves chunks, generates questions, streams them to UI immediately
+ * Students see the FIRST question in 2-3 seconds instead of waiting for all 20!
+ * 
+ * @param {string} appendixLetter - The appendix letter (A-J)
+ * @param {Object} options - Configuration options
+ * @param {function} options.onQuestion - Called for EACH question as it arrives (key for fast UX!)
+ * @param {function} options.onProgress - Progress callback
+ * @param {function} options.onComplete - Called when generation is complete
+ * @param {function} options.onError - Called on errors
+ * @param {number} options.targetCount - Target number of questions (default 20)
+ * @returns {Promise<Object>} - Final result with all questions
+ */
+async function loadAppendixStreaming(appendixLetter, options = {}) {
+    const {
+        onQuestion = null,
+        onProgress = null,
+        onComplete = null,
+        onError = null,
+        targetCount = PAGE_SIZE
+    } = options;
+
+    if (typeof RAG === 'undefined') {
+        console.error('RAG module not loaded');
+        if (onError) onError({ type: 'rag_not_loaded' });
+        return { questions: {}, hasMore: false, currentPage: 0, totalQuestions: 0 };
+    }
+
+    await RAG.initialize();
+
+    // Reset state for this appendix
+    const state = getAppendixState(appendixLetter);
+    state.nextChunkIdx = 0;
+    state.allQuestions = [];
+    state.questionHashes = new Set();
+    state.currentPage = 0;
+    state.exhausted = false;
+    state.totalChunks = RAG.getAppendixChunkCount(appendixLetter);
+
+    // Clear any existing questions for this appendix from quizData
+    Object.keys(quizData).forEach(key => {
+        if (quizData[key].appendix === appendixLetter) {
+            delete quizData[key];
+        }
+    });
+
+    const pageQuestions = {};
+
+    // Use streaming RAG - this calls onQuestion for EACH question as it's generated
+    const result = await RAG.generateQuestionsStreaming(appendixLetter, {
+        targetCount,
+        startChunkIdx: state.nextChunkIdx,
+        existingHashes: state.questionHashes,
+        
+        // THIS IS THE KEY: Called for each question immediately
+        onQuestion: (ragQuestion, currentCount, total) => {
+            const id = String(questionIdCounter++);
+            const converted = convertToQuizFormat(ragQuestion);
+            quizData[id] = converted;
+            state.allQuestions.push({ id, ...converted });
+            pageQuestions[id] = converted;
+            
+            // Call the UI callback so it can display this question immediately!
+            if (onQuestion) {
+                onQuestion(converted, id, currentCount, total);
+            }
+        },
+        
+        onProgress: (progress) => {
+            if (onProgress) {
+                onProgress({
+                    ...progress,
+                    appendix: appendixLetter,
+                    totalChunks: state.totalChunks
+                });
+            }
+        },
+        
+        onError: (error) => {
+            console.error('Streaming RAG error:', error);
+            if (onError) onError(error);
+        }
+    });
+
+    // Update state
+    state.nextChunkIdx = result.nextChunkIdx;
+    state.exhausted = result.exhausted;
+    state.currentPage = 1;
+
+    console.log(`Streamed ${result.questions.length} questions for Appendix ${appendixLetter}`);
+
+    const finalResult = {
+        questions: pageQuestions,
+        hasMore: !state.exhausted && state.allQuestions.length < MIN_QUESTIONS_TARGET,
+        currentPage: state.currentPage,
+        totalQuestions: state.allQuestions.length,
+        exhausted: state.exhausted,
+        chunksProcessed: state.nextChunkIdx,
+        totalChunks: state.totalChunks,
+        stats: result.stats
+    };
+
+    if (onComplete) {
+        onComplete(finalResult);
+    }
+
+    return finalResult;
+}
+
+/**
+ * STREAMING RAG: Load next page of questions progressively
+ * @param {string} appendixLetter - The appendix letter (A-J)
+ * @param {Object} options - Same options as loadAppendixStreaming
+ * @returns {Promise<Object>} - Final result with all questions
+ */
+async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
+    const {
+        onQuestion = null,
+        onProgress = null,
+        onComplete = null,
+        onError = null,
+        targetCount = PAGE_SIZE
+    } = options;
+
+    if (typeof RAG === 'undefined') {
+        console.error('RAG module not loaded');
+        if (onError) onError({ type: 'rag_not_loaded' });
+        return { questions: {}, hasMore: false, currentPage: 0, totalQuestions: 0 };
+    }
+
+    const state = getAppendixState(appendixLetter);
+    
+    if (state.exhausted) {
+        console.log(`Appendix ${appendixLetter} is exhausted, no more questions available`);
+        const result = {
+            questions: {},
+            hasMore: false,
+            currentPage: state.currentPage,
+            totalQuestions: state.allQuestions.length,
+            exhausted: true,
+            chunksProcessed: state.nextChunkIdx,
+            totalChunks: state.totalChunks
+        };
+        if (onComplete) onComplete(result);
+        return result;
+    }
+
+    await RAG.initialize();
+
+    const pageQuestions = {};
+
+    // Use streaming RAG for next page
+    const result = await RAG.generateQuestionsStreaming(appendixLetter, {
+        targetCount,
+        startChunkIdx: state.nextChunkIdx,
+        existingHashes: state.questionHashes,
+        
+        onQuestion: (ragQuestion, currentCount, total) => {
+            const id = String(questionIdCounter++);
+            const converted = convertToQuizFormat(ragQuestion);
+            quizData[id] = converted;
+            state.allQuestions.push({ id, ...converted });
+            pageQuestions[id] = converted;
+            
+            if (onQuestion) {
+                onQuestion(converted, id, currentCount, total);
+            }
+        },
+        
+        onProgress,
+        onError
+    });
+
+    // Update state
+    state.nextChunkIdx = result.nextChunkIdx;
+    state.exhausted = result.exhausted;
+    state.currentPage++;
+
+    console.log(`Streamed page ${state.currentPage} with ${result.questions.length} questions for Appendix ${appendixLetter}`);
+
+    const finalResult = {
+        questions: pageQuestions,
+        hasMore: !state.exhausted && state.allQuestions.length < MIN_QUESTIONS_TARGET,
+        currentPage: state.currentPage,
+        totalQuestions: state.allQuestions.length,
+        exhausted: state.exhausted,
+        chunksProcessed: state.nextChunkIdx,
+        totalChunks: state.totalChunks,
+        stats: result.stats
+    };
+
+    if (onComplete) {
+        onComplete(finalResult);
+    }
+
+    return finalResult;
+}
+
 // Export functions for use in app.js
 window.QuizDataLoader = {
-    // Pagination functions
+    // STREAMING RAG - shows questions immediately as they're generated (FAST!)
+    loadAppendixStreaming,
+    loadAppendixNextPageStreaming,
+    // Legacy pagination functions (waits for all questions before returning)
     loadAppendixFirstPage,
     loadAppendixNextPage,
     getPageQuestions,

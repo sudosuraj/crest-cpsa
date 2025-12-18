@@ -1127,29 +1127,80 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             return;
         }
         
-        // Not preloaded - show loading screen and generate questions
+        // Not preloaded - use STREAMING RAG to show questions immediately as they're generated
+        // This is TRUE RAG: retrieves chunks, generates questions, streams them to UI
+        
+        // Track questions as they stream in
+        let streamedQuestions = {};
+        let firstQuestionShown = false;
+        
+        // Initial loading state - will be replaced as soon as first question arrives
         quizContainer.innerHTML = `
-            <div class="generation-progress">
+            <div class="generation-progress" id="streaming-progress">
                 <h2>Generating Questions for Appendix ${appendixLetter}</h2>
                 <p>${appendixTitle}</p>
-                <p class="generation-info">Generating first batch of 20 questions...</p>
+                <p class="generation-info">Using RAG to generate questions from study notes...</p>
                 <div class="progress-bar-container">
                     <div class="progress-bar" id="generation-progress-bar"></div>
                 </div>
-                <p id="generation-status">Initializing...</p>
+                <p id="generation-status">Retrieving relevant content...</p>
+                <p class="streaming-hint">Questions will appear as they're generated!</p>
             </div>
         `;
 
         try {
-            const result = await QuizDataLoader.loadAppendixFirstPage(appendixLetter, (progress) => {
-                const progressBar = document.getElementById('generation-progress-bar');
-                const statusEl = document.getElementById('generation-status');
-                if (progressBar) {
-                    const pct = (progress.currentChunk / progress.totalChunks) * 100;
-                    progressBar.style.width = `${pct}%`;
-                }
-                if (statusEl) {
-                    statusEl.textContent = `Processing chunk ${progress.currentChunk}/${progress.totalChunks} (${progress.questionsGenerated}/${progress.targetCount} questions)`;
+            // Use STREAMING RAG - questions appear immediately as they're generated!
+            const result = await QuizDataLoader.loadAppendixStreaming(appendixLetter, {
+                // THIS IS THE KEY: Called for EACH question as it arrives
+                onQuestion: (question, id, currentCount, targetCount) => {
+                    streamedQuestions[id] = question;
+                    
+                    // Show questions as soon as we have the first one!
+                    if (!firstQuestionShown) {
+                        firstQuestionShown = true;
+                        // Replace loading screen with questions display
+                        displayQuestionsWithPagination(streamedQuestions, appendixLetter, appendixTitle, {
+                            hasMore: true,
+                            currentPage: 1,
+                            totalQuestions: currentCount,
+                            exhausted: false,
+                            isStreaming: true,
+                            streamProgress: { current: currentCount, target: targetCount }
+                        });
+                    } else {
+                        // Update the streaming indicator
+                        const streamingIndicator = document.getElementById('streaming-indicator');
+                        if (streamingIndicator) {
+                            streamingIndicator.textContent = `Generating: ${currentCount}/${targetCount} questions`;
+                        }
+                        
+                        // Add the new question to the display
+                        addStreamedQuestion(question, id, currentCount);
+                    }
+                },
+                
+                onProgress: (progress) => {
+                    // Update progress bar if still showing loading screen
+                    const progressBar = document.getElementById('generation-progress-bar');
+                    const statusEl = document.getElementById('generation-status');
+                    if (progressBar && !firstQuestionShown) {
+                        const pct = (progress.currentChunk / progress.totalChunks) * 100;
+                        progressBar.style.width = `${pct}%`;
+                    }
+                    if (statusEl && !firstQuestionShown) {
+                        statusEl.textContent = `Processing section ${progress.section} (${progress.questionsGenerated} questions)`;
+                    }
+                },
+                
+                onError: (error) => {
+                    console.error('Streaming RAG error:', error);
+                    // Show error but don't stop if we have some questions
+                    if (Object.keys(streamedQuestions).length === 0) {
+                        quizContainer.innerHTML = `
+                            <p class="error">Error generating questions. Please try again.</p>
+                            <button onclick="loadQuiz()">Back to Appendix Selection</button>
+                        `;
+                    }
                 }
             });
 
@@ -1160,8 +1211,14 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 totalElement.textContent = totalQuestions;
             }
 
-            // Display the questions with pagination
+            // Final display update with complete results
             displayQuestionsWithPagination(result.questions, appendixLetter, appendixTitle, result);
+            
+            // Remove streaming indicator
+            const streamingIndicator = document.getElementById('streaming-indicator');
+            if (streamingIndicator) {
+                streamingIndicator.remove();
+            }
             
             // Start loading next batch in background
             setTimeout(() => {
@@ -1177,6 +1234,136 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 <button onclick="loadQuiz()">Back to Appendix Selection</button>
             `;
         }
+    }
+    
+    /**
+     * Add a single streamed question to the display
+     * Called when a new question arrives during streaming RAG
+     * Matches the structure used in displayQuestionsWithPagination
+     */
+    function addStreamedQuestion(question, id, questionNumber) {
+        const questionsContainer = document.getElementById('questions-list');
+        if (!questionsContainer) return;
+        
+        // Create question card matching existing structure
+        const questionCard = document.createElement('div');
+        questionCard.classList.add('question-card', 'fade-in');
+        questionCard.dataset.questionId = id;
+
+        // Question header with number badge and actions
+        const questionHeader = document.createElement('div');
+        questionHeader.classList.add('question-card-header');
+
+        const questionBadge = document.createElement('span');
+        questionBadge.classList.add('question-number-badge');
+        questionBadge.textContent = questionNumber;
+
+        const questionActions = document.createElement('div');
+        questionActions.classList.add('question-card-actions');
+
+        // Flag button
+        const flagBtn = document.createElement('button');
+        flagBtn.classList.add('flag-btn');
+        flagBtn.title = 'Flag for review';
+        flagBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`;
+        flagBtn.addEventListener('click', () => toggleFlag(id));
+
+        // Gemini explain button (disabled until user selects an option)
+        const explainBtn = document.createElement('button');
+        explainBtn.classList.add('gemini-btn');
+        explainBtn.id = `explain-answer-btn-${id}`;
+        explainBtn.title = 'Select an answer first';
+        explainBtn.disabled = true;
+        explainBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <defs>
+                <linearGradient id="gemini-grad-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="url(#gemini-grad-${id})" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+        explainBtn.addEventListener('click', () => explainAnswer(id));
+
+        questionActions.appendChild(flagBtn);
+        questionActions.appendChild(explainBtn);
+        questionHeader.appendChild(questionBadge);
+        questionHeader.appendChild(questionActions);
+
+        // Question text
+        const questionText = document.createElement('p');
+        questionText.classList.add('question-card-text');
+        questionText.textContent = question.question;
+
+        // Options
+        const optionsDiv = document.createElement('div');
+        optionsDiv.classList.add('question-card-options');
+
+        const allAnswers = [question.answer, ...question.incorrect];
+        shuffleArray(allAnswers);
+
+        allAnswers.forEach((answer, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.classList.add('option-tile');
+            
+            const optionLetter = document.createElement('span');
+            optionLetter.classList.add('option-letter');
+            optionLetter.textContent = String.fromCharCode(65 + index); // A, B, C, D
+            
+            const optionText = document.createElement('span');
+            optionText.classList.add('option-text');
+            optionText.textContent = answer;
+            
+            optionDiv.appendChild(optionLetter);
+            optionDiv.appendChild(optionText);
+            optionDiv.dataset.correct = answer === question.answer ? 'true' : 'false';
+
+            optionDiv.addEventListener('click', function() {
+                if (this.classList.contains('answered')) {
+                    return;
+                }
+
+                const isCorrect = this.dataset.correct === 'true';
+                
+                // Mark all options as answered
+                optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
+                    opt.classList.add('answered');
+                    if (opt.dataset.correct === 'true') {
+                        opt.classList.add('correct');
+                    } else if (opt === this && !isCorrect) {
+                        opt.classList.add('incorrect');
+                    }
+                });
+
+                // Add feedback to card
+                questionCard.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+
+                // Enable the Gemini explain button now that user has answered
+                explainBtn.disabled = false;
+                explainBtn.title = 'Explain Answer';
+
+                // Update score
+                if (isCorrect) {
+                    addXP(10);
+                }
+                
+                updateCounts();
+                saveProgress();
+                checkAndAwardBadges();
+            });
+
+            optionsDiv.appendChild(optionDiv);
+        });
+
+        // Assemble the card
+        questionCard.appendChild(questionHeader);
+        questionCard.appendChild(questionText);
+        questionCard.appendChild(optionsDiv);
+
+        questionsContainer.appendChild(questionCard);
     }
 
     async function loadNextPage() {
@@ -1278,8 +1465,23 @@ Practice at: https://sudosuraj.github.io/CREST/`;
 
         quizContainer.appendChild(header);
 
+        // Add streaming indicator if questions are being streamed
+        if (paginationResult.isStreaming) {
+            const streamingIndicator = document.createElement('div');
+            streamingIndicator.id = 'streaming-indicator';
+            streamingIndicator.className = 'streaming-indicator';
+            const progress = paginationResult.streamProgress || { current: 0, target: 20 };
+            streamingIndicator.innerHTML = `
+                <span class="streaming-pulse"></span>
+                <span>Generating: ${progress.current}/${progress.target} questions</span>
+            `;
+            quizContainer.appendChild(streamingIndicator);
+        }
+
         // Create questions container - flat list without categories
+        // ID is 'questions-list' so addStreamedQuestion can find it
         const questionsContainer = document.createElement('div');
+        questionsContainer.id = 'questions-list';
         questionsContainer.className = 'questions-container flat-list';
 
         // Render questions as flat list (no category grouping)
