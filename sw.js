@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v20';
+const CACHE_NAME = 'cpsa-quiz-v21';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [
@@ -90,9 +90,10 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
         );
-    }else {
+    } else {
         // Cache-first for other assets (images, CSS, JS, etc.)
         // IMPORTANT: Only match from current cache to avoid serving stale assets from old caches
+        // DO NOT return index.html as fallback for non-HTML requests - that breaks CSS/JS loading
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) => {
                 return cache.match(event.request).then((response) => {
@@ -107,9 +108,14 @@ self.addEventListener('fetch', (event) => {
                         return networkResponse;
                     });
                 });
-            }).catch(() => {
-                // Fallback to index.html for offline navigation
-                return caches.match(getIndexUrl(), { ignoreSearch: true });
+            }).catch((error) => {
+                // For non-HTML assets, just return an error response
+                // DO NOT return index.html - that would make CSS/JS requests receive HTML content
+                console.error('Asset fetch failed:', event.request.url, error);
+                return new Response('Asset not available offline', { 
+                    status: 503, 
+                    statusText: 'Service Unavailable' 
+                });
             })
         );
     }
