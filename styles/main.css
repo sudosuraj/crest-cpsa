@@ -830,15 +830,15 @@ textarea:focus-visible {
     gap: 0;
 }
 
-/* Desktop Sidebar */
+/* Desktop Sidebar - MOBILE-FIRST: hidden by default, shown on desktop */
 .desktop-sidebar {
+    display: none; /* Hidden by default (mobile-first) */
     position: sticky;
     top: 120px;
     height: calc(100vh - 120px);
     background: linear-gradient(180deg, var(--surface) 0%, var(--bg-secondary) 100%);
     border-right: 1px solid var(--border);
     padding: var(--space-5);
-    display: flex;
     flex-direction: column;
     gap: var(--space-5);
     overflow-y: auto;
@@ -997,27 +997,29 @@ textarea:focus-visible {
     color: var(--text-secondary);
 }
 
-/* Hide desktop sidebar on mobile */
-@media (max-width: 1024px) {
+/* MOBILE-FIRST: Default is single-column layout, no sidebar */
+/* The .desktop-sidebar is already display: none by default */
+
+/* DESKTOP: Show sidebar and hide duplicate navigation */
+@media (min-width: 1025px) {
+    /* Enable two-column grid layout with sidebar */
     .app-shell {
-        grid-template-columns: 1fr;
+        grid-template-columns: 280px 1fr;
     }
     
+    /* Show the desktop sidebar */
     .desktop-sidebar {
-        display: none;
+        display: flex;
     }
-}
-
-/* Hide duplicate navigation on desktop (when sidebar is visible) */
-@media (min-width: 1025px) {
+    
     /* Hide the tabs row - navigation is in sidebar */
     .nav-tabs-row {
-        display: none;
+        display: none !important;
     }
     
     /* Hide the stats in navbar - stats are in sidebar */
     .nav-stats {
-        display: none;
+        display: none !important;
     }
     
     /* Simplify top navbar on desktop */
