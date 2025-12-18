@@ -618,6 +618,204 @@ Output ONLY the JSON array.`;
         return true;
     }
 
+    /**
+     * Generate questions from MULTIPLE chunks in a SINGLE API call
+     * This reduces API calls from 4 to 1-2 for a page of 20 questions
+     * Respects 8k token limit by truncating chunk content appropriately
+     * 
+     * @param {Array} chunksToProcess - Array of chunks to process together
+     * @param {number} totalQuestions - Total questions to generate across all chunks
+     * @param {Object} options - Options (priority, skipCache)
+     * @returns {Promise<Array>} - Generated questions with source info
+     */
+    async function generateQuestionsFromMultipleChunks(chunksToProcess, totalQuestions = 15, options = {}) {
+        const { priority = 'high', skipCache = false } = options;
+        
+        if (!chunksToProcess || chunksToProcess.length === 0) {
+            return [];
+        }
+
+        // Check cache for each chunk first - collect cached questions
+        const cachedQuestions = [];
+        const uncachedChunks = [];
+        
+        if (!skipCache && typeof QuestionCache !== 'undefined') {
+            for (const chunk of chunksToProcess) {
+                try {
+                    const cached = await QuestionCache.get(chunk.id, { questionsPerChunk: 5 });
+                    if (cached && cached.length > 0) {
+                        console.log(`Cache hit for chunk ${chunk.id}: ${cached.length} questions`);
+                        cachedQuestions.push(...cached.map(q => ({
+                            ...q,
+                            source_chunk_id: chunk.id,
+                            appendix: chunk.appendix,
+                            appendix_title: chunk.appendix_title,
+                            section_id: chunk.section_id,
+                            section_title: chunk.section_title,
+                            cached: true
+                        })));
+                    } else {
+                        uncachedChunks.push(chunk);
+                    }
+                } catch (cacheError) {
+                    console.warn('Cache read error:', cacheError);
+                    uncachedChunks.push(chunk);
+                }
+            }
+        } else {
+            uncachedChunks.push(...chunksToProcess);
+        }
+
+        // If we have enough cached questions, return them
+        if (cachedQuestions.length >= totalQuestions) {
+            return cachedQuestions.slice(0, totalQuestions);
+        }
+
+        // If no uncached chunks, return what we have
+        if (uncachedChunks.length === 0) {
+            return cachedQuestions;
+        }
+
+        // Calculate how many more questions we need
+        const questionsNeeded = totalQuestions - cachedQuestions.length;
+        const questionsPerChunk = Math.ceil(questionsNeeded / uncachedChunks.length);
+
+        // Build combined prompt with multiple chunks
+        // Token budget: 8000 total - 800 system - 400 query - 1500 response = ~5300 for context
+        // With 3 chunks, that's ~1700 tokens (~6800 chars) per chunk
+        const maxCharsPerChunk = Math.floor(5000 / uncachedChunks.length) * TOKEN_CONFIG.charsPerToken;
+        
+        let combinedContent = '';
+        const chunkMetadata = [];
+        
+        for (let i = 0; i < uncachedChunks.length; i++) {
+            const chunk = uncachedChunks[i];
+            const truncatedText = chunk.text.substring(0, maxCharsPerChunk);
+            combinedContent += `\n--- SECTION ${i + 1}: ${chunk.section_id} - ${chunk.section_title} ---\n${truncatedText}\n`;
+            chunkMetadata.push({
+                index: i + 1,
+                chunk: chunk,
+                section_id: chunk.section_id
+            });
+        }
+
+        const systemPrompt = `You are a CPSA exam question generator. Generate exactly ${questionsNeeded} multiple-choice questions based on the provided study material sections.
+
+Output ONLY valid JSON array with this exact structure:
+[{"question":"Question text?","options":["A) Option 1","B) Option 2","C) Option 3","D) Option 4"],"correct":0,"explanation":"Brief explanation","section":1}]
+
+Rules:
+- Each question must have exactly 4 options (A, B, C, D)
+- "correct" is the 0-based index of the correct answer (0-3)
+- "section" is the section number (1, 2, 3, etc.) the question is based on
+- Questions must be directly answerable from the provided material
+- Distribute questions across all sections
+- Keep questions clear and concise`;
+
+        const userPrompt = `Generate ${questionsNeeded} MCQ questions from these CPSA study material sections:
+${combinedContent}
+
+Output ONLY the JSON array with ${questionsNeeded} questions distributed across all sections.`;
+
+        try {
+            let data;
+            if (typeof LLMClient !== 'undefined') {
+                const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
+                                  priority === 'low' ? LLMClient.requestLowPriority :
+                                  LLMClient.request;
+                data = await requestFn({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    max_tokens: 1500,
+                    temperature: 0.7
+                });
+            } else {
+                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        max_tokens: 1500,
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                data = await response.json();
+            }
+
+            let content = data.choices?.[0]?.message?.content?.trim() || '';
+
+            // Parse JSON from response
+            if (content.startsWith('```json')) content = content.slice(7);
+            if (content.startsWith('```')) content = content.slice(3);
+            if (content.endsWith('```')) content = content.slice(0, -3);
+            content = content.trim();
+
+            const questions = JSON.parse(content);
+            const validQuestions = questions.filter(q => validateQuestion(q));
+
+            // Enrich questions with source info based on section number
+            const enrichedQuestions = validQuestions.map(q => {
+                const sectionNum = q.section || 1;
+                const metadata = chunkMetadata[Math.min(sectionNum - 1, chunkMetadata.length - 1)] || chunkMetadata[0];
+                const chunk = metadata.chunk;
+                
+                return {
+                    ...q,
+                    source_chunk_id: chunk.id,
+                    appendix: chunk.appendix,
+                    appendix_title: chunk.appendix_title,
+                    section_id: chunk.section_id,
+                    section_title: chunk.section_title
+                };
+            });
+
+            // Cache questions grouped by chunk
+            if (enrichedQuestions.length > 0 && typeof QuestionCache !== 'undefined') {
+                // Group questions by source chunk for caching
+                const questionsByChunk = {};
+                for (const q of enrichedQuestions) {
+                    if (!questionsByChunk[q.source_chunk_id]) {
+                        questionsByChunk[q.source_chunk_id] = [];
+                    }
+                    questionsByChunk[q.source_chunk_id].push(q);
+                }
+                
+                // Cache each group
+                for (const [chunkId, chunkQuestions] of Object.entries(questionsByChunk)) {
+                    const chunk = uncachedChunks.find(c => c.id === chunkId);
+                    if (chunk) {
+                        try {
+                            await QuestionCache.set(chunkId, chunkQuestions, {
+                                appendix: chunk.appendix,
+                                sectionId: chunk.section_id
+                            }, { questionsPerChunk: chunkQuestions.length });
+                            console.log(`Cached ${chunkQuestions.length} questions for chunk ${chunkId}`);
+                        } catch (cacheError) {
+                            console.warn('Cache write error:', cacheError);
+                        }
+                    }
+                }
+            }
+
+            // Combine cached and newly generated questions
+            return [...cachedQuestions, ...enrichedQuestions];
+        } catch (error) {
+            console.error('Multi-chunk question generation error:', error);
+            // Return cached questions if we have any
+            return cachedQuestions;
+        }
+    }
+
     // Legacy generateQuestionsForAppendix function removed - use generateQuestionsBatch for pagination
 
     /**
@@ -808,7 +1006,8 @@ Output ONLY the JSON array.`;
             onProgress = null,
             onComplete = null,
             onError = null,
-            priority = 'high'
+            priority = 'high',
+            useBatching = true      // Use batched generation for fewer API calls
         } = options;
 
         if (!isInitialized) {
@@ -824,32 +1023,41 @@ Output ONLY the JSON array.`;
         const questions = [];
         const newHashes = new Set();
         let currentChunkIdx = startChunkIdx;
-        const questionsPerChunk = 5;
         let cacheHits = 0;
         let apiCalls = 0;
         let consecutiveFailures = 0;
         const MAX_CONSECUTIVE_FAILURES = 3;
+        
+        // BATCHED GENERATION: Process 3-4 chunks at once to reduce API calls
+        // This cuts API calls from 4 to 1-2 for a page of 20 questions
+        const CHUNKS_PER_BATCH = 3;  // Process 3 chunks per API call (fits in 8k tokens)
+        const QUESTIONS_PER_BATCH = 15; // Generate ~15 questions per batch
 
-        // Process chunks and stream questions as they arrive
         while (questions.length < targetCount && currentChunkIdx < appendixChunks.length) {
-            const chunk = appendixChunks[currentChunkIdx];
-
+            // Get the next batch of chunks
+            const batchEndIdx = Math.min(currentChunkIdx + CHUNKS_PER_BATCH, appendixChunks.length);
+            const chunksToProcess = appendixChunks.slice(currentChunkIdx, batchEndIdx);
+            
             if (onProgress) {
                 onProgress({
                     currentChunk: currentChunkIdx + 1,
                     totalChunks: appendixChunks.length,
-                    section: chunk.section_id,
+                    section: chunksToProcess[0]?.section_id,
                     questionsGenerated: questions.length,
                     targetCount,
                     cacheHits,
                     apiCalls,
-                    status: 'generating'
+                    status: 'generating',
+                    batchSize: chunksToProcess.length
                 });
             }
 
             try {
-                // Generate questions for this chunk (uses cache if available)
-                const generatedQuestions = await processChunkForQuestions(chunk, questionsPerChunk, { priority });
+                // Generate questions from multiple chunks in ONE API call
+                const questionsNeeded = Math.min(QUESTIONS_PER_BATCH, targetCount - questions.length);
+                const generatedQuestions = useBatching 
+                    ? await generateQuestionsFromMultipleChunks(chunksToProcess, questionsNeeded, { priority })
+                    : await processChunkForQuestions(chunksToProcess[0], 5, { priority });
                 
                 if (generatedQuestions.length === 0) {
                     consecutiveFailures++;
@@ -859,15 +1067,13 @@ Output ONLY the JSON array.`;
                         break;
                     }
                 } else {
-                    consecutiveFailures = 0; // Reset on success
-                }
-
-                // Track cache vs API
-                if (generatedQuestions.length > 0 && generatedQuestions[0].cached) {
-                    cacheHits++;
-                } else if (generatedQuestions.length > 0) {
+                    consecutiveFailures = 0;
                     apiCalls++;
                 }
+
+                // Track cache hits
+                const cachedCount = generatedQuestions.filter(q => q.cached).length;
+                if (cachedCount > 0) cacheHits++;
 
                 // Stream each question to the UI immediately!
                 for (const q of generatedQuestions) {
@@ -877,8 +1083,7 @@ Output ONLY the JSON array.`;
                         newHashes.add(hash);
                         existingHashes.add(hash);
 
-                        // THIS IS THE KEY: Call onQuestion for each question immediately
-                        // So the UI can display it right away without waiting for all 20
+                        // Call onQuestion for each question immediately
                         if (onQuestion) {
                             onQuestion(q, questions.length, targetCount);
                         }
@@ -889,16 +1094,17 @@ Output ONLY the JSON array.`;
                     }
                 }
             } catch (error) {
-                console.error(`Error generating questions for chunk ${chunk.id}:`, error);
+                console.error(`Error generating questions for batch starting at chunk ${currentChunkIdx}:`, error);
                 consecutiveFailures++;
-                if (onError) onError({ type: 'chunk_error', chunk: chunk.id, error });
+                if (onError) onError({ type: 'batch_error', startChunk: currentChunkIdx, error });
                 
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                     break;
                 }
             }
 
-            currentChunkIdx++;
+            // Move to next batch of chunks
+            currentChunkIdx = batchEndIdx;
         }
 
         const result = {
@@ -945,6 +1151,7 @@ Output ONLY the JSON array.`;
         // Question generation (pagination-based)
         getChunksForAppendix,
         generateQuestionsFromChunk,
+        generateQuestionsFromMultipleChunks,  // Batched generation for fewer API calls
         generateQuestionsBatch,
         getAppendixChunkCount,
         hashQuestion,
