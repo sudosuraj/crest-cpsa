@@ -598,12 +598,32 @@ Output ONLY the JSON array.`;
     }
 
     /**
-     * Validate a question has required fields
+     * Validate a question has required fields and balanced option lengths
      */
     function validateQuestion(q) {
         if (!q.question || !q.options || !Array.isArray(q.options)) return false;
         if (q.options.length !== 4) return false;
         if (typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) return false;
+        
+        // Check option length balance to prevent guessability
+        // Reject questions where correct answer is significantly longer than others
+        const optionLengths = q.options.map(opt => {
+            const text = opt.replace(/^[A-D]\)\s*/, '').trim();
+            return text.split(/\s+/).length;
+        });
+        
+        const maxLen = Math.max(...optionLengths);
+        const minLen = Math.min(...optionLengths);
+        const correctLen = optionLengths[q.correct];
+        
+        // Reject if word count variance is too high (max - min > 5 words)
+        if (maxLen - minLen > 5) return false;
+        
+        // Reject if correct answer is the longest by more than 3 words
+        const otherLengths = optionLengths.filter((_, i) => i !== q.correct);
+        const maxOtherLen = Math.max(...otherLengths);
+        if (correctLen > maxOtherLen + 3) return false;
+        
         return true;
     }
 
