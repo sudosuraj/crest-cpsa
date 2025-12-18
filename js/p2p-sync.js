@@ -153,15 +153,11 @@ const P2PSync = (function() {
 
                 isInitialized = true;
                 
-                // Try to connect to relay peers in background (best effort)
-                // These are community relay servers - they may or may not be available
-                setTimeout(() => {
-                    if (gun && navigator.onLine) {
-                        tryConnectToRelays();
-                    }
-                }, 1000);
+                // P2P relay connections are disabled by default to prevent console errors
+                // Gun.js will work locally but won't connect to external peers
+                // To enable P2P, users can manually call P2PSync.enableRelays() from console
                 
-                // Start presence heartbeat and flag listener
+                // Start presence heartbeat and flag listener (local only)
                 startPresenceHeartbeat();
                 startFlagListener();
                 
@@ -571,6 +567,35 @@ const P2PSync = (function() {
     function isAvailable() {
         return isInitialized && syncEnabled;
     }
+    
+    /**
+     * Manually enable relay connections (for power users)
+     * Call this from browser console: P2PSync.enableRelays()
+     * Note: Relay servers may be unreliable and cause WebSocket errors
+     */
+    function enableRelays(customRelays) {
+        if (!gun) {
+            console.warn('P2PSync: Gun not initialized. Call P2PSync.initialize() first.');
+            return false;
+        }
+        
+        const relayUrls = customRelays || [
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://gun-us.herokuapp.com/gun'
+        ];
+        
+        console.log('P2PSync: Attempting to connect to relays:', relayUrls);
+        
+        relayUrls.forEach(url => {
+            try {
+                gun.opt({ peers: [url] });
+            } catch (e) {
+                console.warn('P2PSync: Failed to add relay:', url, e);
+            }
+        });
+        
+        return true;
+    }
 
     // Public API
     return {
@@ -590,7 +615,8 @@ const P2PSync = (function() {
         getPeersOnSameAppendix,
         flagQuestion,
         isQuestionFlagged,
-        getFlagCount
+        getFlagCount,
+        enableRelays
     };
 })();
 
