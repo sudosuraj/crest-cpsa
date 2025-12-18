@@ -669,6 +669,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         updateInsightsSummary();
         updateReviewStats();
         updateMobileSidebarStats();
+        updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
         renderStreak();
         renderXP();
         
@@ -3564,6 +3565,109 @@ Try it yourself: ${url}`,
     }
 
     // ==========================================
+    // DESKTOP SIDEBAR NAVIGATION
+    // ==========================================
+    
+    // Centralized panel switching function (avoids brittle .click() delegation)
+    function switchPanel(panelName) {
+        const toolbarTabs = document.querySelectorAll('.toolbar-tab');
+        const toolbarPanels = document.querySelectorAll('.toolbar-panel');
+        const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
+        
+        // Update toolbar tabs
+        toolbarTabs.forEach(tab => {
+            const isActive = tab.dataset.tab === panelName;
+            tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        
+        // Update toolbar panels
+        toolbarPanels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === `${panelName}-panel`);
+        });
+        
+        // Update sidebar nav items
+        sidebarNavItems.forEach(nav => {
+            const isActive = nav.dataset.panel === panelName;
+            nav.classList.toggle('active', isActive);
+            nav.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
+    }
+    
+    // Update sidebar stats (called from updateAllUI, not setInterval)
+    function updateSidebarStats() {
+        const percentage = document.getElementById('percentage');
+        const streakCount = document.getElementById('streak-count');
+        const attemptedCount = document.getElementById('attempted-count');
+        
+        const sidebarAccuracy = document.getElementById('sidebar-accuracy');
+        const sidebarStreak = document.getElementById('sidebar-streak');
+        const sidebarAttempted = document.getElementById('sidebar-attempted');
+        
+        if (percentage && sidebarAccuracy) {
+            sidebarAccuracy.textContent = percentage.textContent + '%';
+        }
+        if (streakCount && sidebarStreak) {
+            sidebarStreak.textContent = streakCount.textContent;
+        }
+        if (attemptedCount && sidebarAttempted) {
+            sidebarAttempted.textContent = attemptedCount.textContent;
+        }
+    }
+    
+    function setupDesktopSidebar() {
+        const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
+        const toolbarTabs = document.querySelectorAll('.toolbar-tab');
+        
+        // Sidebar nav clicks use centralized switchPanel
+        sidebarNavItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const panel = item.dataset.panel;
+                switchPanel(panel);
+            });
+        });
+        
+        // Toolbar tab clicks also use centralized switchPanel
+        toolbarTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const panel = tab.dataset.tab;
+                switchPanel(panel);
+            });
+        });
+        
+        // Sidebar action buttons - call functions directly instead of .click()
+        const sidebarStartExam = document.getElementById('sidebar-start-exam');
+        const sidebarSprint = document.getElementById('sidebar-sprint');
+        
+        if (sidebarStartExam) {
+            sidebarStartExam.addEventListener('click', () => {
+                if (typeof startPracticeExam === 'function') {
+                    startPracticeExam();
+                } else {
+                    // Fallback to clicking the button if function not available
+                    const startExamBtn = document.getElementById('start-exam-btn');
+                    if (startExamBtn) startExamBtn.click();
+                }
+            });
+        }
+        
+        if (sidebarSprint) {
+            sidebarSprint.addEventListener('click', () => {
+                if (typeof startSprintMode === 'function') {
+                    startSprintMode();
+                } else {
+                    // Fallback to clicking the button if function not available
+                    const startSprintBtn = document.getElementById('start-sprint-btn');
+                    if (startSprintBtn) startSprintBtn.click();
+                }
+            });
+        }
+        
+        // Initial sidebar stats update
+        updateSidebarStats();
+    }
+
+    // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
@@ -3580,6 +3684,7 @@ Try it yourself: ${url}`,
         setupShareDropdown();
         setupMobileNavigation();
         setupApiKeySettings();
+        setupDesktopSidebar();
         
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();
