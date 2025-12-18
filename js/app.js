@@ -1127,29 +1127,80 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             return;
         }
         
-        // Not preloaded - show loading screen and generate questions
+        // Not preloaded - use STREAMING RAG to show questions immediately as they're generated
+        // This is TRUE RAG: retrieves chunks, generates questions, streams them to UI
+        
+        // Track questions as they stream in
+        let streamedQuestions = {};
+        let firstQuestionShown = false;
+        
+        // Initial loading state - will be replaced as soon as first question arrives
         quizContainer.innerHTML = `
-            <div class="generation-progress">
+            <div class="generation-progress" id="streaming-progress">
                 <h2>Generating Questions for Appendix ${appendixLetter}</h2>
                 <p>${appendixTitle}</p>
-                <p class="generation-info">Generating first batch of 20 questions...</p>
+                <p class="generation-info">Using RAG to generate questions from study notes...</p>
                 <div class="progress-bar-container">
                     <div class="progress-bar" id="generation-progress-bar"></div>
                 </div>
-                <p id="generation-status">Initializing...</p>
+                <p id="generation-status">Retrieving relevant content...</p>
+                <p class="streaming-hint">Questions will appear as they're generated!</p>
             </div>
         `;
 
         try {
-            const result = await QuizDataLoader.loadAppendixFirstPage(appendixLetter, (progress) => {
-                const progressBar = document.getElementById('generation-progress-bar');
-                const statusEl = document.getElementById('generation-status');
-                if (progressBar) {
-                    const pct = (progress.currentChunk / progress.totalChunks) * 100;
-                    progressBar.style.width = `${pct}%`;
-                }
-                if (statusEl) {
-                    statusEl.textContent = `Processing chunk ${progress.currentChunk}/${progress.totalChunks} (${progress.questionsGenerated}/${progress.targetCount} questions)`;
+            // Use STREAMING RAG - questions appear immediately as they're generated!
+            const result = await QuizDataLoader.loadAppendixStreaming(appendixLetter, {
+                // THIS IS THE KEY: Called for EACH question as it arrives
+                onQuestion: (question, id, currentCount, targetCount) => {
+                    streamedQuestions[id] = question;
+                    
+                    // Show questions as soon as we have the first one!
+                    if (!firstQuestionShown) {
+                        firstQuestionShown = true;
+                        // Replace loading screen with questions display
+                        displayQuestionsWithPagination(streamedQuestions, appendixLetter, appendixTitle, {
+                            hasMore: true,
+                            currentPage: 1,
+                            totalQuestions: currentCount,
+                            exhausted: false,
+                            isStreaming: true,
+                            streamProgress: { current: currentCount, target: targetCount }
+                        });
+                    } else {
+                        // Update the streaming indicator
+                        const streamingIndicator = document.getElementById('streaming-indicator');
+                        if (streamingIndicator) {
+                            streamingIndicator.textContent = `Generating: ${currentCount}/${targetCount} questions`;
+                        }
+                        
+                        // Add the new question to the display
+                        addStreamedQuestion(question, id, currentCount);
+                    }
+                },
+                
+                onProgress: (progress) => {
+                    // Update progress bar if still showing loading screen
+                    const progressBar = document.getElementById('generation-progress-bar');
+                    const statusEl = document.getElementById('generation-status');
+                    if (progressBar && !firstQuestionShown) {
+                        const pct = (progress.currentChunk / progress.totalChunks) * 100;
+                        progressBar.style.width = `${pct}%`;
+                    }
+                    if (statusEl && !firstQuestionShown) {
+                        statusEl.textContent = `Processing section ${progress.section} (${progress.questionsGenerated} questions)`;
+                    }
+                },
+                
+                onError: (error) => {
+                    console.error('Streaming RAG error:', error);
+                    // Show error but don't stop if we have some questions
+                    if (Object.keys(streamedQuestions).length === 0) {
+                        quizContainer.innerHTML = `
+                            <p class="error">Error generating questions. Please try again.</p>
+                            <button onclick="loadQuiz()">Back to Appendix Selection</button>
+                        `;
+                    }
                 }
             });
 
@@ -1160,8 +1211,14 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 totalElement.textContent = totalQuestions;
             }
 
-            // Display the questions with pagination
+            // Final display update with complete results
             displayQuestionsWithPagination(result.questions, appendixLetter, appendixTitle, result);
+            
+            // Remove streaming indicator
+            const streamingIndicator = document.getElementById('streaming-indicator');
+            if (streamingIndicator) {
+                streamingIndicator.remove();
+            }
             
             // Start loading next batch in background
             setTimeout(() => {
@@ -1177,6 +1234,53 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 <button onclick="loadQuiz()">Back to Appendix Selection</button>
             `;
         }
+    }
+    
+    /**
+     * Add a single streamed question to the display
+     * Called when a new question arrives during streaming RAG
+     */
+    function addStreamedQuestion(question, id, questionNumber) {
+        const questionsContainer = document.getElementById('questions-list');
+        if (!questionsContainer) return;
+        
+        // Create question element
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-card fade-in';
+        questionDiv.id = `question-${id}`;
+        questionDiv.setAttribute('data-question-id', id);
+        
+        // Build options HTML
+        const optionsHtml = [question.answer, ...question.incorrect]
+            .sort(() => Math.random() - 0.5)
+            .map((opt, i) => `
+                <div class="option" data-correct="${opt === question.answer}" tabindex="0" role="button">
+                    ${escapeHtml(opt)}
+                </div>
+            `).join('');
+        
+        questionDiv.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Q${questionNumber}</span>
+                <button class="flag-btn" onclick="toggleFlag('${id}')" title="Flag for review">
+                    <span class="flag-icon">&#9873;</span>
+                </button>
+            </div>
+            <p class="question-text">${escapeHtml(question.question)}</p>
+            <div class="options">${optionsHtml}</div>
+            <div class="explanation hidden">
+                <strong>Explanation:</strong> ${escapeHtml(question.explanation || 'No explanation available.')}
+            </div>
+        `;
+        
+        questionsContainer.appendChild(questionDiv);
+        
+        // Setup click handlers for options
+        questionDiv.querySelectorAll('.option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                handleOptionClick(this, questionDiv, id);
+            });
+        });
     }
 
     async function loadNextPage() {
@@ -1278,8 +1382,23 @@ Practice at: https://sudosuraj.github.io/CREST/`;
 
         quizContainer.appendChild(header);
 
+        // Add streaming indicator if questions are being streamed
+        if (paginationResult.isStreaming) {
+            const streamingIndicator = document.createElement('div');
+            streamingIndicator.id = 'streaming-indicator';
+            streamingIndicator.className = 'streaming-indicator';
+            const progress = paginationResult.streamProgress || { current: 0, target: 20 };
+            streamingIndicator.innerHTML = `
+                <span class="streaming-pulse"></span>
+                <span>Generating: ${progress.current}/${progress.target} questions</span>
+            `;
+            quizContainer.appendChild(streamingIndicator);
+        }
+
         // Create questions container - flat list without categories
+        // ID is 'questions-list' so addStreamedQuestion can find it
         const questionsContainer = document.createElement('div');
+        questionsContainer.id = 'questions-list';
         questionsContainer.className = 'questions-container flat-list';
 
         // Render questions as flat list (no category grouping)
