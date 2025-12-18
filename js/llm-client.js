@@ -15,13 +15,15 @@ const LLMClient = (function() {
         endpoint: 'https://api.llm7.io/v1/chat/completions',
         model: 'gpt-4o-mini',
         maxConcurrent: 1,           // Max concurrent requests (conservative to avoid 429)
-        minRequestSpacing: 1000,    // Minimum ms between starting requests
+        minRequestSpacing: 1500,    // Minimum ms between starting requests (increased from 1000)
         maxRetries: 3,              // Max retry attempts for retryable errors
-        baseBackoffMs: 1000,        // Base backoff time for retries
-        maxBackoffMs: 30000,        // Maximum backoff time
+        baseBackoffMs: 2000,        // Base backoff time for retries (increased from 1000)
+        maxBackoffMs: 60000,        // Maximum backoff time (increased from 30000)
         requestTimeout: 30000,      // Request timeout in ms
-        circuitBreakerThreshold: 5, // Consecutive failures before circuit opens
-        circuitBreakerResetMs: 60000 // Time before circuit breaker resets
+        circuitBreakerThreshold: 3, // Consecutive failures before circuit opens (reduced from 5)
+        circuitBreakerResetMs: 120000, // Time before circuit breaker resets (increased from 60000)
+        rateLimitCooldownMs: 30000, // Extra cooldown after hitting rate limit
+        storageKey: 'llm_client_state' // Key for persisting state
     };
 
     // Queue state
@@ -34,6 +36,22 @@ const LLMClient = (function() {
     let consecutiveFailures = 0;
     let circuitOpenUntil = 0;
 
+    // Rate limit state (persisted across reloads)
+    let rateLimitCooldownUntil = 0;
+    let dynamicSpacing = CONFIG.minRequestSpacing; // Increases after 429s
+
+    // Cross-tab coordination
+    let broadcastChannel = null;
+    try {
+        broadcastChannel = new BroadcastChannel('llm_client_sync');
+        broadcastChannel.onmessage = handleBroadcastMessage;
+    } catch (e) {
+        console.warn('BroadcastChannel not available, cross-tab sync disabled');
+    }
+
+    // Load persisted state on init
+    loadPersistedState();
+
     // Statistics for debugging
     const stats = {
         totalRequests: 0,
@@ -43,6 +61,76 @@ const LLMClient = (function() {
         rateLimitHits: 0,
         cacheHits: 0
     };
+
+    /**
+     * Load persisted rate limit state from localStorage
+     */
+    function loadPersistedState() {
+        try {
+            const saved = localStorage.getItem(CONFIG.storageKey);
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state.rateLimitCooldownUntil && state.rateLimitCooldownUntil > Date.now()) {
+                    rateLimitCooldownUntil = state.rateLimitCooldownUntil;
+                    console.log(`LLMClient: Rate limit cooldown active until ${new Date(rateLimitCooldownUntil).toISOString()}`);
+                }
+                if (state.dynamicSpacing) {
+                    dynamicSpacing = Math.min(state.dynamicSpacing, CONFIG.maxBackoffMs);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load LLMClient state:', e);
+        }
+    }
+
+    /**
+     * Save rate limit state to localStorage
+     */
+    function savePersistedState() {
+        try {
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify({
+                rateLimitCooldownUntil,
+                dynamicSpacing,
+                lastUpdated: Date.now()
+            }));
+        } catch (e) {
+            console.warn('Failed to save LLMClient state:', e);
+        }
+    }
+
+    /**
+     * Handle messages from other tabs
+     */
+    function handleBroadcastMessage(event) {
+        const { type, data } = event.data;
+        if (type === 'rate_limit') {
+            // Another tab hit a rate limit, apply cooldown here too
+            if (data.cooldownUntil > rateLimitCooldownUntil) {
+                rateLimitCooldownUntil = data.cooldownUntil;
+                dynamicSpacing = Math.max(dynamicSpacing, data.dynamicSpacing || CONFIG.minRequestSpacing);
+                console.log(`LLMClient: Rate limit synced from another tab, cooldown until ${new Date(rateLimitCooldownUntil).toISOString()}`);
+            }
+        }
+    }
+
+    /**
+     * Broadcast rate limit to other tabs
+     */
+    function broadcastRateLimit() {
+        if (broadcastChannel) {
+            try {
+                broadcastChannel.postMessage({
+                    type: 'rate_limit',
+                    data: {
+                        cooldownUntil: rateLimitCooldownUntil,
+                        dynamicSpacing
+                    }
+                });
+            } catch (e) {
+                console.warn('Failed to broadcast rate limit:', e);
+            }
+        }
+    }
 
     /**
      * Priority levels for requests
@@ -193,9 +281,18 @@ const LLMClient = (function() {
                     stats.rateLimitHits++;
                     const retryAfterMs = parseRetryAfter(response);
                     
+                    // Set cooldown and increase dynamic spacing
+                    const cooldownMs = retryAfterMs || CONFIG.rateLimitCooldownMs;
+                    rateLimitCooldownUntil = Date.now() + cooldownMs;
+                    dynamicSpacing = Math.min(dynamicSpacing * 2, CONFIG.maxBackoffMs);
+                    
+                    // Persist and broadcast to other tabs
+                    savePersistedState();
+                    broadcastRateLimit();
+                    
                     if (attempt < CONFIG.maxRetries) {
                         const backoffMs = calculateBackoff(attempt, retryAfterMs);
-                        console.warn(`LLMClient: Rate limited (429), retrying in ${backoffMs}ms (attempt ${attempt + 1}/${CONFIG.maxRetries})`);
+                        console.warn(`LLMClient: Rate limited (429), cooldown ${cooldownMs}ms, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${CONFIG.maxRetries})`);
                         stats.retriedRequests++;
                         await new Promise(resolve => setTimeout(resolve, backoffMs));
                         continue;
@@ -255,11 +352,20 @@ const LLMClient = (function() {
                 continue;
             }
 
-            // Enforce minimum spacing between requests
+            // Check rate limit cooldown (persisted across reloads and tabs)
+            if (Date.now() < rateLimitCooldownUntil) {
+                const waitTime = rateLimitCooldownUntil - Date.now();
+                console.log(`LLMClient: Rate limit cooldown active, waiting ${waitTime}ms`);
+                await new Promise(resolve => setTimeout(resolve, Math.min(waitTime, 5000)));
+                continue;
+            }
+
+            // Use dynamic spacing (increases after 429s, gradually decreases on success)
+            const currentSpacing = Math.max(CONFIG.minRequestSpacing, dynamicSpacing);
             const timeSinceLastRequest = Date.now() - lastRequestTime;
-            if (timeSinceLastRequest < CONFIG.minRequestSpacing) {
+            if (timeSinceLastRequest < currentSpacing) {
                 await new Promise(resolve => 
-                    setTimeout(resolve, CONFIG.minRequestSpacing - timeSinceLastRequest)
+                    setTimeout(resolve, currentSpacing - timeSinceLastRequest)
                 );
             }
 
@@ -277,6 +383,11 @@ const LLMClient = (function() {
             executeWithRetry(request.payload, request.priority)
                 .then(result => {
                     request.resolve(result);
+                    // Gradually reduce dynamic spacing on success
+                    if (dynamicSpacing > CONFIG.minRequestSpacing) {
+                        dynamicSpacing = Math.max(CONFIG.minRequestSpacing, dynamicSpacing * 0.9);
+                        savePersistedState();
+                    }
                 })
                 .catch(error => {
                     request.reject(error);

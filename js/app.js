@@ -1327,6 +1327,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 }
 
                 const isCorrect = this.dataset.correct === 'true';
+                const selectedAnswer = this.querySelector('.option-text').textContent;
                 
                 // Mark all options as answered
                 optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
@@ -1345,8 +1346,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 explainBtn.disabled = false;
                 explainBtn.title = 'Explain Answer';
 
+                // Update answerState for progress tracking
+                answerState[id] = {
+                    selected: selectedAnswer,
+                    correct: isCorrect,
+                    timestamp: Date.now()
+                };
+
                 // Update score
                 if (isCorrect) {
+                    score++;
                     addXP(10);
                 }
                 
@@ -1382,30 +1391,87 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             nextPageBtn.textContent = 'Generating next batch...';
         }
 
+        // Show streaming indicator
+        const streamingIndicator = document.getElementById('streaming-indicator');
+        if (streamingIndicator) {
+            streamingIndicator.classList.remove('hidden');
+            streamingIndicator.querySelector('.streaming-text').textContent = 'Generating more questions...';
+        }
+
+        // Get current question count to know where to start numbering
+        const questionsContainer = document.getElementById('questions-list');
+        let currentQuestionCount = questionsContainer ? questionsContainer.children.length : 0;
+
         try {
-            const result = await QuizDataLoader.loadAppendixNextPage(letter, (progress) => {
-                if (nextPageBtn) {
-                    nextPageBtn.textContent = `Generating... (${progress.questionsGenerated}/${progress.targetCount})`;
+            // Use streaming version for progressive question display
+            const result = await QuizDataLoader.loadAppendixNextPageStreaming(letter, {
+                onQuestion: (question, id) => {
+                    currentQuestionCount++;
+                    addStreamedQuestion(question, id, currentQuestionCount);
+                    
+                    // Update total questions count as each arrives
+                    totalQuestions = QuizDataLoader.getTotalQuestionCount();
+                    const totalElement = document.getElementById("total-questions");
+                    if (totalElement) {
+                        totalElement.textContent = totalQuestions;
+                    }
+                },
+                onProgress: (progress) => {
+                    if (nextPageBtn) {
+                        nextPageBtn.textContent = `Generating... (${progress.questionsGenerated}/${progress.targetCount})`;
+                    }
+                    if (streamingIndicator) {
+                        streamingIndicator.querySelector('.streaming-text').textContent = 
+                            `Generating questions... ${progress.questionsGenerated}/${progress.targetCount}`;
+                    }
+                },
+                onComplete: (finalResult) => {
+                    // Hide streaming indicator
+                    if (streamingIndicator) {
+                        streamingIndicator.classList.add('hidden');
+                    }
+                    
+                    // Update pagination info
+                    const paginationInfo = QuizDataLoader.getPaginationInfo(letter);
+                    const paginationEl = document.getElementById('pagination-info');
+                    if (paginationEl && paginationInfo) {
+                        paginationEl.textContent = `Page ${paginationInfo.currentPage} of ${paginationInfo.totalPages} (${paginationInfo.totalQuestions} questions)`;
+                    }
+                    
+                    // Update next page button
+                    if (nextPageBtn) {
+                        if (finalResult.hasMore) {
+                            nextPageBtn.disabled = false;
+                            nextPageBtn.textContent = 'Next Page (Generate More)';
+                        } else {
+                            nextPageBtn.textContent = 'All questions generated!';
+                            nextPageBtn.disabled = true;
+                        }
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error generating next page:', error);
+                    if (streamingIndicator) {
+                        streamingIndicator.classList.add('hidden');
+                    }
+                    if (nextPageBtn) {
+                        nextPageBtn.disabled = false;
+                        nextPageBtn.textContent = 'Next Page (Generate More)';
+                    }
+                    showToast('Error generating questions. Please try again.', 'error');
                 }
             });
-
-            // Update total questions count
-            totalQuestions = QuizDataLoader.getTotalQuestionCount();
-            const totalElement = document.getElementById("total-questions");
-            if (totalElement) {
-                totalElement.textContent = totalQuestions;
-            }
-
-            // Re-display all questions with updated pagination
-            const allQuestions = QuizDataLoader.getAllAppendixQuestions(letter);
-            displayQuestionsWithPagination(allQuestions, letter, title, result);
             
         } catch (error) {
             console.error('Error generating next page:', error);
+            if (streamingIndicator) {
+                streamingIndicator.classList.add('hidden');
+            }
             if (nextPageBtn) {
                 nextPageBtn.disabled = false;
                 nextPageBtn.textContent = 'Next Page (Generate More)';
             }
+            showToast('Error generating questions. Please try again.', 'error');
         }
     }
 
@@ -1572,6 +1638,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                     }
 
                     const isCorrect = this.dataset.correct === "true";
+                    const selectedAnswer = this.querySelector(".option-text").textContent;
                     
                     // Mark all options as answered
                     optionsDiv.querySelectorAll(".option-tile").forEach(opt => {
@@ -1590,8 +1657,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                     explainBtn.disabled = false;
                     explainBtn.title = "Explain Answer";
 
+                    // Update answerState for progress tracking
+                    answerState[key] = {
+                        selected: selectedAnswer,
+                        correct: isCorrect,
+                        timestamp: Date.now()
+                    };
+
                     // Update score
                     if (isCorrect) {
+                        score++;
                         correctAnswers++;
                         addXP(10);
                     }
@@ -3287,6 +3362,47 @@ Try it yourself: ${url}`,
 
         updateMobileSidebarStats();
     }
+    
+    // ==========================================
+    // P2P STATUS INDICATOR
+    // ==========================================
+    function setupP2PStatusIndicator() {
+        const statusEl = document.getElementById('p2p-status');
+        const countEl = document.getElementById('p2p-online-count');
+        
+        if (!statusEl || !countEl) return;
+        
+        function updateP2PStatus() {
+            if (typeof P2PSync === 'undefined' || !P2PSync.isAvailable()) {
+                statusEl.style.display = 'none';
+                return;
+            }
+            
+            statusEl.style.display = 'flex';
+            const onlineCount = P2PSync.getOnlineCount();
+            countEl.textContent = onlineCount;
+            
+            const stats = P2PSync.getStats();
+            if (stats.questionsReceived > 0 || stats.questionsSent > 0) {
+                statusEl.classList.add('syncing');
+                statusEl.title = 'P2P Sync: ' + stats.questionsSent + ' sent, ' + stats.questionsReceived + ' received';
+            } else {
+                statusEl.classList.remove('syncing');
+                statusEl.title = 'P2P Question Sync';
+            }
+        }
+        
+        updateP2PStatus();
+        setInterval(updateP2PStatus, 5000);
+        
+        if (typeof P2PSync !== 'undefined') {
+            P2PSync.onQuestionReceived(() => {
+                updateP2PStatus();
+                statusEl.classList.add('syncing');
+                setTimeout(() => statusEl.classList.remove('syncing'), 2000);
+            });
+        }
+    }
 
     function updateMobileSidebarStats() {
         const stats = calculateStats();
@@ -3322,6 +3438,9 @@ Try it yourself: ${url}`,
         setupXPSystem();
         setupShareDropdown();
         setupMobileNavigation();
+        
+        // Setup P2P status indicator updates
+        setupP2PStatusIndicator();
         
         // Start background preloading of all appendixes
         // This runs silently in the background to improve UX

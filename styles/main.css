@@ -65,6 +65,43 @@
             display: block;
         }
         
+        /* P2P Status Indicator */
+        .p2p-status {
+            position: fixed;
+            top: 8px;
+            right: 16px;
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 9997;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .p2p-status:hover {
+            background: rgba(34, 197, 94, 0.25);
+        }
+        
+        .p2p-icon {
+            display: flex;
+            align-items: center;
+        }
+        
+        .p2p-status.syncing {
+            animation: p2p-pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes p2p-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
         /* Back to Top Button */
         .back-to-top {
             position: fixed;

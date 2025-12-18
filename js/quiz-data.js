@@ -602,6 +602,11 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
     }
 
     await RAG.initialize();
+    
+    // Subscribe to P2P sync for this appendix (lazy subscription)
+    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        P2PSync.subscribeToAppendix(appendixLetter);
+    }
 
     // Reset state for this appendix
     const state = getAppendixState(appendixLetter);
@@ -701,6 +706,11 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
         console.error('RAG module not loaded');
         if (onError) onError({ type: 'rag_not_loaded' });
         return { questions: {}, hasMore: false, currentPage: 0, totalQuestions: 0 };
+    }
+    
+    // Ensure P2P subscription is active for this appendix
+    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        P2PSync.subscribeToAppendix(appendixLetter);
     }
 
     const state = getAppendixState(appendixLetter);
