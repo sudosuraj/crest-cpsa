@@ -496,7 +496,7 @@
 - Streak: ${streak.count} days
 - Badges: ${badges.length}/${BADGE_DEFINITIONS.length}
 
-Practice at: https://sudosuraj.github.io/CREST/`;
+Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     function shareProgress() {
@@ -506,7 +506,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             navigator.share({
                 title: 'My CPSA Quiz Progress',
                 text: text,
-                url: 'https://sudosuraj.github.io/CREST/'
+                url: 'https://sudosuraj.github.io/crest-cpsa/'
             }).catch(() => {
                 copyToClipboard(text);
             });
@@ -1087,13 +1087,13 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                     <div class="appendix-card-body">
                         <div class="appendix-stats">
                             <div class="appendix-stat">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                                 </svg>
                                 ${chunkCount} topics
                             </div>
                             <div class="appendix-stat">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                                 ~${estimatedQuestions} questions
@@ -2302,7 +2302,7 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         const streak = streakEl ? streakEl.textContent : '0';
         const attempted = attemptedEl ? attemptedEl.textContent : '0';
         
-        const url = 'https://sudosuraj.github.io/CREST/';
+        const url = 'https://sudosuraj.github.io/crest-cpsa/';
         
         return {
             twitter: `I'm preparing for my CREST CPSA certification!
@@ -3126,7 +3126,7 @@ Try it yourself: ${url}`,
                 ${generateCategoryReport()}
                 
                 <div class="footer">
-                    <p>CREST CPSA Practice Quiz - https://sudosuraj.github.io/CREST/</p>
+                    <p>CREST CPSA Practice Quiz - https://sudosuraj.github.io/crest-cpsa/</p>
                 </div>
             </body>
             </html>
@@ -3667,11 +3667,61 @@ Try it yourself: ${url}`,
         updateSidebarStats();
     }
 
+    // ==================== THEME TOGGLE ====================
+    const THEME_KEY = 'cpsa_theme';
+    
+    function getPreferredTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        if (saved) return saved;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem(THEME_KEY, theme);
+        updateThemeToggleIcon(theme);
+    }
+    
+    function updateThemeToggleIcon(theme) {
+        const lightIcon = document.querySelector('.theme-icon-light');
+        const darkIcon = document.querySelector('.theme-icon-dark');
+        if (lightIcon && darkIcon) {
+            lightIcon.style.display = theme === 'dark' ? 'none' : 'block';
+            darkIcon.style.display = theme === 'dark' ? 'block' : 'none';
+        }
+    }
+    
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    }
+    
+    function setupThemeToggle() {
+        // Apply saved theme on load
+        const theme = getPreferredTheme();
+        setTheme(theme);
+        
+        // Setup toggle button
+        const toggleBtn = document.getElementById('theme-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', toggleTheme);
+        }
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem(THEME_KEY)) {
+                setTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+    
     // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
         // Setup new features
+        setupThemeToggle();
         setupPracticeExam();
         setupAnalytics();
         setupSpacedRepetition();
