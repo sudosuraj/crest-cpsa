@@ -347,11 +347,15 @@
         const filterValue = filterSelect?.value || 'all';
         const searchQuery = searchInput?.value?.toLowerCase() || '';
         
-        document.querySelectorAll('.question-container').forEach(container => {
+        // Support both old (.question-container) and new (.question-card) DOM structures
+        const questionElements = document.querySelectorAll('.question-card, .question-container');
+        questionElements.forEach(container => {
             const qId = container.dataset.questionId;
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
-            const questionText = container.querySelector('h3')?.textContent?.toLowerCase() || '';
+            // Support both old (h3) and new (.question-card-text) question text elements
+            const questionText = (container.querySelector('.question-card-text')?.textContent || 
+                                 container.querySelector('h3')?.textContent || '').toLowerCase();
             
             let showByFilter = true;
             switch (filterValue) {
@@ -375,9 +379,9 @@
             container.style.display = (showByFilter && showBySearch) ? '' : 'none';
         });
         
-        // Update category visibility
+        // Update category visibility (for legacy category-based UI)
         document.querySelectorAll('.category-section').forEach(section => {
-            const visibleQuestions = section.querySelectorAll('.question-container:not([style*="display: none"])');
+            const visibleQuestions = section.querySelectorAll('.question-container:not([style*="display: none"]), .question-card:not([style*="display: none"])');
             section.style.display = visibleQuestions.length > 0 ? '' : 'none';
         });
         
@@ -462,14 +466,21 @@
         }
         saveProgress();
         
-        // Update UI
-        const container = document.querySelector(`.question-container[data-question-id="${questionId}"]`);
+        // Update UI - support both old (.question-container) and new (.question-card) DOM structures
+        const container = document.querySelector(`.question-card[data-question-id="${questionId}"]`) || 
+                         document.querySelector(`.question-container[data-question-id="${questionId}"]`);
         if (container) {
             container.classList.toggle('flagged', flaggedQuestions.has(questionId));
-            const flagBtn = container.querySelector('.flag-button');
+            // Support both old (.flag-button) and new (.flag-btn) button classes
+            const flagBtn = container.querySelector('.flag-btn') || container.querySelector('.flag-button');
             if (flagBtn) {
                 flagBtn.classList.toggle('flagged', flaggedQuestions.has(questionId));
-                flagBtn.textContent = flaggedQuestions.has(questionId) ? '[!] Flagged' : '[_] Flag';
+                // Update SVG fill for new UI, or text for old UI
+                if (flagBtn.querySelector('svg')) {
+                    flagBtn.querySelector('svg').style.fill = flaggedQuestions.has(questionId) ? 'currentColor' : 'none';
+                } else {
+                    flagBtn.textContent = flaggedQuestions.has(questionId) ? '[!] Flagged' : '[_] Flag';
+                }
             }
         }
     }
@@ -1394,10 +1405,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
             optionsDiv.appendChild(optionDiv);
         });
 
+        // Answer explanation container (for AI explanations)
+        const answerExplanation = document.createElement("div");
+        answerExplanation.id = `answer-explanation-${id}`;
+        answerExplanation.classList.add("answer-explanation");
+
         // Assemble the card
         questionCard.appendChild(questionHeader);
         questionCard.appendChild(questionText);
         questionCard.appendChild(optionsDiv);
+        questionCard.appendChild(answerExplanation);
 
         questionsContainer.appendChild(questionCard);
     }
@@ -1711,10 +1728,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 optionsDiv.appendChild(optionDiv);
             });
 
+            // Answer explanation container (for AI explanations)
+            const answerExplanation = document.createElement("div");
+            answerExplanation.id = `answer-explanation-${key}`;
+            answerExplanation.classList.add("answer-explanation");
+
             // Assemble the card
             questionCard.appendChild(questionHeader);
             questionCard.appendChild(questionText);
             questionCard.appendChild(optionsDiv);
+            questionCard.appendChild(answerExplanation);
 
             questionsContainer.appendChild(questionCard);
             questionNumber++;
@@ -2524,33 +2547,44 @@ Try it yourself: ${url}`,
             attemptedEl.textContent = attempted;
         }
         
-        // Restore answered questions UI
+        // Restore answered questions UI - support both old and new DOM structures
         Object.entries(answerState).forEach(([qId, state]) => {
-            const container = document.querySelector(`.question-container[data-question-id="${qId}"]`);
+            const container = document.querySelector(`.question-card[data-question-id="${qId}"]`) ||
+                             document.querySelector(`.question-container[data-question-id="${qId}"]`);
             if (!container) return;
             
             // Mark container as answered
             container.classList.add(state.correct ? 'answered-correct' : 'answered-incorrect');
             
-            // Find and select the answered option
-            const options = container.querySelectorAll('.option');
+            // Find and select the answered option - support both old (.option) and new (.option-tile) structures
+            const options = container.querySelectorAll('.option-tile, .option');
             options.forEach(optionDiv => {
-                const input = optionDiv.querySelector('input');
-                if (!input) return;
-                
-                // Disable all inputs
-                input.disabled = true;
-                
-                // Mark correct answer
-                if (input.value === state.correctAnswer) {
-                    optionDiv.classList.add('correct');
-                }
-                
-                // Mark selected answer
-                if (input.value === state.selectedAnswer) {
-                    input.checked = true;
-                    if (!state.correct) {
+                // For new UI (.option-tile), check data-correct attribute
+                if (optionDiv.classList.contains('option-tile')) {
+                    optionDiv.classList.add('answered');
+                    const optionText = optionDiv.querySelector('.option-text')?.textContent;
+                    if (optionDiv.dataset.correct === 'true') {
+                        optionDiv.classList.add('correct');
+                    }
+                    if (optionText === state.selectedAnswer && !state.correct) {
                         optionDiv.classList.add('incorrect');
+                    }
+                } else {
+                    // For old UI (.option), check input value
+                    const input = optionDiv.querySelector('input');
+                    if (!input) return;
+                    
+                    input.disabled = true;
+                    
+                    if (input.value === state.correctAnswer) {
+                        optionDiv.classList.add('correct');
+                    }
+                    
+                    if (input.value === state.selectedAnswer) {
+                        input.checked = true;
+                        if (!state.correct) {
+                            optionDiv.classList.add('incorrect');
+                        }
                     }
                 }
             });
@@ -2562,15 +2596,20 @@ Try it yourself: ${url}`,
             }
         });
         
-        // Restore flagged questions UI
+        // Restore flagged questions UI - support both old and new DOM structures
         flaggedQuestions.forEach(qId => {
-            const container = document.querySelector(`.question-container[data-question-id="${qId}"]`);
+            const container = document.querySelector(`.question-card[data-question-id="${qId}"]`) ||
+                             document.querySelector(`.question-container[data-question-id="${qId}"]`);
             if (container) {
                 container.classList.add('flagged');
-                const flagBtn = container.querySelector('.flag-button');
+                const flagBtn = container.querySelector('.flag-btn') || container.querySelector('.flag-button');
                 if (flagBtn) {
                     flagBtn.classList.add('flagged');
-                    flagBtn.textContent = '[!] Flagged';
+                    if (flagBtn.querySelector('svg')) {
+                        flagBtn.querySelector('svg').style.fill = 'currentColor';
+                    } else {
+                        flagBtn.textContent = '[!] Flagged';
+                    }
                 }
             }
         });
