@@ -517,7 +517,12 @@ Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - "correct" is the 0-based index of the correct answer (0-3)
 - Questions must be directly answerable from the provided material
-- Keep questions clear and concise`;
+- Keep questions clear and concise
+- IMPORTANT: All 4 options must be similar in length (within 2-3 words of each other)
+- Each option should be a concise phrase (5-15 words maximum)
+- Make all distractors equally specific and plausible as the correct answer
+- Never include extra detail, justification, or examples in only one option
+- Avoid making the correct answer longer or more detailed than distractors`;
 
         // Truncate chunk text to fit within token budget
         const maxChunkChars = 2500 * TOKEN_CONFIG.charsPerToken; // ~2500 tokens for context
@@ -713,7 +718,12 @@ Rules:
 - "section" is the section number (1, 2, 3, etc.) the question is based on
 - Questions must be directly answerable from the provided material
 - Distribute questions across all sections
-- Keep questions clear and concise`;
+- Keep questions clear and concise
+- IMPORTANT: All 4 options must be similar in length (within 2-3 words of each other)
+- Each option should be a concise phrase (5-15 words maximum)
+- Make all distractors equally specific and plausible as the correct answer
+- Never include extra detail, justification, or examples in only one option
+- Avoid making the correct answer longer or more detailed than distractors`;
 
         const userPrompt = `Generate ${questionsNeeded} MCQ questions from these CPSA study material sections:
 ${combinedContent}
