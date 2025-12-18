@@ -1,21 +1,21 @@
-const CACHE_NAME = 'cpsa-quiz-v13';
+const CACHE_NAME = 'cpsa-quiz-v14';
 const urlsToCache = [
-    '/CREST/',
-    '/CREST/index.html',
-    '/CREST/styles/main.css',
-    '/CREST/js/config.js',
-    '/CREST/js/db-utils.js',
-    '/CREST/js/llm-client.js',
-    '/CREST/js/question-cache.js',
-    '/CREST/js/p2p-sync.js',
-    '/CREST/js/app.js',
-    '/CREST/js/quiz-data.js',
-    '/CREST/js/rag.js',
-    '/CREST/manifest.json',
-    '/CREST/icon-192.svg',
-    '/CREST/icon-512.svg',
-    '/CREST/og-image.svg',
-    '/CREST/rag/index.json'
+    '/crest-cpsa/',
+    '/crest-cpsa/index.html',
+    '/crest-cpsa/styles/main.css',
+    '/crest-cpsa/js/config.js',
+    '/crest-cpsa/js/db-utils.js',
+    '/crest-cpsa/js/llm-client.js',
+    '/crest-cpsa/js/question-cache.js',
+    '/crest-cpsa/js/p2p-sync.js',
+    '/crest-cpsa/js/app.js',
+    '/crest-cpsa/js/quiz-data.js',
+    '/crest-cpsa/js/rag.js',
+    '/crest-cpsa/manifest.json',
+    '/crest-cpsa/icon-192.svg',
+    '/crest-cpsa/icon-512.svg',
+    '/crest-cpsa/og-image.svg',
+    '/crest-cpsa/rag/index.json'
 ];
 
 // Install event - cache resources
@@ -73,7 +73,7 @@ self.addEventListener('fetch', (event) => {
                 .catch(() => {
                     // Fallback to cache if offline
                     return caches.match(event.request).then((response) => {
-                        return response || caches.match('/CREST/index.html');
+                        return response || caches.match('/crest-cpsa/index.html');
                     });
                 })
         );
@@ -97,7 +97,7 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
                 .catch(() => {
-                    return caches.match('/CREST/index.html');
+                    return caches.match('/crest-cpsa/index.html');
                 })
         );
     }

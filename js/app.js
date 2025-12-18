@@ -321,7 +321,10 @@
     // ==================== SERVICE WORKER REGISTRATION ====================
     function registerServiceWorker() {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/CREST/sw.js')
+            // Detect the correct base path for service worker registration
+            const basePath = window.location.pathname.includes('/crest-cpsa/') ? '/crest-cpsa/' : 
+                            window.location.pathname.includes('/CREST/') ? '/CREST/' : '/';
+            navigator.serviceWorker.register(basePath + 'sw.js')
                 .then(reg => console.log('Service Worker registered:', reg.scope))
                 .catch(err => console.log('Service Worker registration failed:', err));
         }
