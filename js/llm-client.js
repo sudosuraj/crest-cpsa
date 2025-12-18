@@ -23,8 +23,12 @@ const LLMClient = (function() {
         circuitBreakerThreshold: 3, // Consecutive failures before circuit opens (reduced from 5)
         circuitBreakerResetMs: 120000, // Time before circuit breaker resets (increased from 60000)
         rateLimitCooldownMs: 30000, // Extra cooldown after hitting rate limit
-        storageKey: 'llm_client_state' // Key for persisting state
+        storageKey: 'llm_client_state', // Key for persisting state
+        apiKeyStorageKey: 'llm_api_key' // Key for storing custom API key
     };
+    
+    // Custom API key (user-provided to avoid 429 errors)
+    let customApiKey = null;
 
     // Queue state
     const requestQueue = [];
@@ -64,6 +68,7 @@ const LLMClient = (function() {
 
     // Load persisted state on init
     loadPersistedState();
+    loadApiKey();
     
     // Start listening for storage changes (cross-tab lock coordination)
     if (typeof window !== 'undefined') {
@@ -79,6 +84,59 @@ const LLMClient = (function() {
         rateLimitHits: 0,
         cacheHits: 0
     };
+
+    /**
+     * Load custom API key from localStorage
+     */
+    function loadApiKey() {
+        try {
+            const savedKey = localStorage.getItem(CONFIG.apiKeyStorageKey);
+            if (savedKey) {
+                customApiKey = savedKey;
+                console.log('LLMClient: Custom API key loaded');
+            }
+        } catch (e) {
+            console.warn('Failed to load API key:', e);
+        }
+    }
+
+    /**
+     * Set custom API key (user-provided to avoid 429 errors)
+     * @param {string} apiKey - The API key to use for requests
+     */
+    function setApiKey(apiKey) {
+        if (apiKey && typeof apiKey === 'string' && apiKey.trim()) {
+            customApiKey = apiKey.trim();
+            try {
+                localStorage.setItem(CONFIG.apiKeyStorageKey, customApiKey);
+                console.log('LLMClient: Custom API key saved');
+            } catch (e) {
+                console.warn('Failed to save API key:', e);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Clear custom API key
+     */
+    function clearApiKey() {
+        customApiKey = null;
+        try {
+            localStorage.removeItem(CONFIG.apiKeyStorageKey);
+            console.log('LLMClient: Custom API key cleared');
+        } catch (e) {
+            console.warn('Failed to clear API key:', e);
+        }
+    }
+
+    /**
+     * Check if a custom API key is set
+     */
+    function hasApiKey() {
+        return !!customApiKey;
+    }
 
     /**
      * Load persisted rate limit state from localStorage
@@ -435,9 +493,16 @@ const LLMClient = (function() {
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.requestTimeout);
 
         try {
+            const headers = { 'Content-Type': 'application/json' };
+            
+            // Add Authorization header if custom API key is set
+            if (customApiKey) {
+                headers['Authorization'] = `Bearer ${customApiKey}`;
+            }
+            
             const response = await fetch(CONFIG.endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify({
                     model: payload.model || CONFIG.model,
                     messages: payload.messages,
@@ -735,6 +800,10 @@ const LLMClient = (function() {
         isIdle,
         waitForIdle,
         Priority,
+        // API key management
+        setApiKey,
+        clearApiKey,
+        hasApiKey,
         // Expose config for debugging
         getConfig: () => ({ ...CONFIG })
     };

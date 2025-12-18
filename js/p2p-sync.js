@@ -110,6 +110,14 @@ const P2PSync = (function() {
         }
     }
 
+    // Default relay servers for P2P sync
+    // These are community-run Gun.js relays
+    const DEFAULT_RELAY_SERVERS = [
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://gun-us.herokuapp.com/gun',
+        'https://peer.wallie.io/gun'
+    ];
+
     /**
      * Initialize Gun.js with public relay peers (lazy - only when needed)
      * This is "best effort" - failures are silent and don't spam console
@@ -143,27 +151,25 @@ const P2PSync = (function() {
 
                 myPeerId = generatePeerId();
 
-                // Use Gun without relay peers initially - it will work locally
-                // and attempt peer connections in background without blocking
+                // Initialize Gun WITH relay peers for actual P2P sync
+                // This enables cross-user question sharing
                 gun = Gun({
-                    peers: [],  // Start with no peers to avoid immediate connection errors
+                    peers: DEFAULT_RELAY_SERVERS,
                     localStorage: false,
                     radisk: false
                 });
 
                 isInitialized = true;
                 
-                // P2P relay connections are disabled by default to prevent console errors
-                // Gun.js will work locally but won't connect to external peers
-                // To enable P2P, users can manually call P2PSync.enableRelays() from console
-                
-                // Start presence heartbeat and flag listener (local only)
+                // Start presence heartbeat and flag listener
                 startPresenceHeartbeat();
                 startFlagListener();
                 
+                console.log('P2PSync: Initialized with relay servers');
                 resolve(true);
             } catch (error) {
                 // Silent failure - P2P is optional
+                console.warn('P2PSync: Initialization failed', error);
                 syncEnabled = false;
                 resolve(false);
             }
@@ -171,17 +177,12 @@ const P2PSync = (function() {
     }
     
     /**
-     * Try to connect to relay servers (best effort, no console spam)
+     * Try to connect to additional relay servers (best effort, no console spam)
      */
-    function tryConnectToRelays() {
+    function tryConnectToRelays(customRelays) {
         if (!gun || isInCooldown()) return;
         
-        // List of potential relay servers to try
-        // These are community-run and may not always be available
-        const relayUrls = [
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://gun-us.herokuapp.com/gun'
-        ];
+        const relayUrls = customRelays || DEFAULT_RELAY_SERVERS;
         
         // Gun handles connection attempts internally
         // We just add the peers and let Gun manage connections
@@ -196,8 +197,18 @@ const P2PSync = (function() {
     
     /**
      * Subscribe to questions for a specific appendix (lazy subscription)
+     * Self-sufficient: automatically initializes P2P if not already done
      */
-    function subscribeToAppendix(appendixLetter) {
+    async function subscribeToAppendix(appendixLetter) {
+        // Auto-initialize if not already done (lazy initialization)
+        if (!isInitialized) {
+            const initialized = await initialize();
+            if (!initialized) {
+                console.log('P2PSync: Could not initialize, skipping subscription');
+                return;
+            }
+        }
+        
         if (!gun || !syncEnabled) return;
         if (currentAppendix === appendixLetter) return;
         
@@ -416,10 +427,15 @@ const P2PSync = (function() {
     // ==================== P2P-FIRST POLICY ====================
     
     async function getQuestionsFromPool(appendixLetter) {
+        // Auto-initialize if not already done
+        if (!isInitialized) {
+            await initialize();
+        }
+        
         if (!gun || !syncEnabled) return [];
         
         if (currentAppendix !== appendixLetter) {
-            subscribeToAppendix(appendixLetter);
+            await subscribeToAppendix(appendixLetter);
         }
         
         if (typeof QuestionCache !== 'undefined') {
@@ -438,8 +454,14 @@ const P2PSync = (function() {
     /**
      * Share questions by chunk (groups questions by source_chunk_id)
      * This ensures P2P questions are stored under correct cache keys
+     * Auto-initializes P2P if not already done
      */
-    function shareChunkQuestions(questions, chunkId, appendixLetter, sectionId) {
+    async function shareChunkQuestions(questions, chunkId, appendixLetter, sectionId) {
+        // Auto-initialize if not already done
+        if (!isInitialized) {
+            await initialize();
+        }
+        
         if (!gun || !syncEnabled || !questions || !chunkId) return;
         if (!Array.isArray(questions) || questions.length === 0) return;
         
@@ -483,8 +505,9 @@ const P2PSync = (function() {
     
     /**
      * Share multiple questions (groups by source_chunk_id automatically)
+     * Auto-initializes P2P if not already done
      */
-    function shareQuestions(questions, appendixLetter) {
+    async function shareQuestions(questions, appendixLetter) {
         if (!Array.isArray(questions) || questions.length === 0) return;
         
         // Group questions by source_chunk_id
@@ -498,18 +521,19 @@ const P2PSync = (function() {
         });
         
         // Share each chunk
-        byChunk.forEach((data, chunkId) => {
-            shareChunkQuestions(data.questions, chunkId, appendixLetter, data.sectionId);
-        });
+        for (const [chunkId, data] of byChunk) {
+            await shareChunkQuestions(data.questions, chunkId, appendixLetter, data.sectionId);
+        }
     }
     
     /**
      * Share a single question (wraps shareChunkQuestions)
+     * Auto-initializes P2P if not already done
      */
-    function shareQuestion(question, appendixLetter) {
+    async function shareQuestion(question, appendixLetter) {
         if (!question) return;
         const chunkId = question.source_chunk_id || (appendixLetter + '_unknown');
-        shareChunkQuestions([question], chunkId, appendixLetter, question.section_id);
+        await shareChunkQuestions([question], chunkId, appendixLetter, question.section_id);
     }
 
     /**

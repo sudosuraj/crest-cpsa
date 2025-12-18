@@ -4151,3 +4151,112 @@
         transform: translateY(0);
     }
 }
+
+/* API Key Settings Button */
+.nav-icon-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.nav-icon-btn:hover {
+    background: var(--bg-strong);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.api-key-indicator {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+}
+
+/* API Key Modal Styles */
+#api-key-modal .modal-body p {
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+#api-key-modal .config-group {
+    margin-bottom: 16px;
+}
+
+#api-key-modal .config-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+#api-key-modal .config-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: monospace;
+}
+
+#api-key-modal .config-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.api-key-status {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--bg-strong);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.api-key-status.success {
+    background: rgba(var(--success-rgb, 34, 197, 94), 0.1);
+    color: var(--success);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.modal-actions .btn-primary,
+.modal-actions .btn-secondary {
+    flex: 1;
+    margin-top: 0;
+}
+
+.api-key-note {
+    margin-top: 16px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.api-key-note a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.api-key-note a:hover {
+    text-decoration: underline;
+}
