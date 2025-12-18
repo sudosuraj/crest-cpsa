@@ -7,12 +7,12 @@
     
     <!-- Main Quiz Page -->
     <url>
-        <loc>https://sudosuraj.github.io/CREST/</loc>
+        <loc>https://sudosuraj.github.io/crest-cpsa/</loc>
         <lastmod>2024-12-15</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
         <image:image>
-            <image:loc>https://sudosuraj.github.io/CREST/og-image.svg</image:loc>
+            <image:loc>https://sudosuraj.github.io/crest-cpsa/og-image.svg</image:loc>
             <image:title>CREST CPSA Practice Quiz - 803 Free Questions</image:title>
             <image:caption>Free CPSA certification practice quiz with AI-powered explanations</image:caption>
         </image:image>

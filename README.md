@@ -53,7 +53,7 @@ For optimal performance, the system uses concurrent queue patterns:
 
 ## Usage
 
-Visit [https://sudosuraj.github.io/CREST/](https://sudosuraj.github.io/CREST/) to start practicing.
+Visit [https://sudosuraj.github.io/crest-cpsa/](https://sudosuraj.github.io/crest-cpsa/) to start practicing.
 
 The quiz can also be installed as a PWA on your device for offline access.
 
