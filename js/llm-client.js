@@ -308,9 +308,30 @@ const LLMClient = (function() {
                     continue;
                 }
 
-                // Non-retryable error
+                // Non-retryable error - try to get error details from response body
                 recordFailure();
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
+                let errorMessage = `API error: ${response.status} ${response.statusText}`;
+                try {
+                    const errorBody = await response.text();
+                    if (errorBody) {
+                        // Try to parse as JSON for structured error
+                        try {
+                            const errorJson = JSON.parse(errorBody);
+                            if (errorJson.error && errorJson.error.message) {
+                                errorMessage = `API error: ${response.status} - ${errorJson.error.message}`;
+                            } else if (errorJson.message) {
+                                errorMessage = `API error: ${response.status} - ${errorJson.message}`;
+                            }
+                        } catch (parseErr) {
+                            // Not JSON, use raw text (truncated)
+                            errorMessage = `API error: ${response.status} - ${errorBody.substring(0, 200)}`;
+                        }
+                    }
+                    console.error('LLMClient: API error details:', { status: response.status, body: errorBody.substring(0, 500) });
+                } catch (bodyErr) {
+                    // Couldn't read body, use original error
+                }
+                throw new Error(errorMessage);
 
             } catch (error) {
                 lastError = error;
