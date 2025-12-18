@@ -1,30 +1,36 @@
-const CACHE_NAME = 'cpsa-quiz-v18';
-const urlsToCache = [
-    './',
-    './index.html',
-    './styles/main.css',
-    './js/config.js',
-    './js/db-utils.js',
-    './js/llm-client.js',
-    './js/question-cache.js',
-    './js/p2p-sync.js',
-    './js/app.js',
-    './js/quiz-data.js',
-    './js/rag.js',
-    './manifest.json',
-    './icon-192.svg',
-    './icon-512.svg',
-    './og-image.svg',
-    './rag/index.json'
+const CACHE_NAME = 'cpsa-quiz-v19';
+
+// Relative paths to cache - will be resolved to absolute URLs at install time
+const ASSETS_TO_CACHE = [
+    '',
+    'index.html',
+    'styles/main.css',
+    'js/config.js',
+    'js/db-utils.js',
+    'js/llm-client.js',
+    'js/question-cache.js',
+    'js/p2p-sync.js',
+    'js/app.js',
+    'js/quiz-data.js',
+    'js/rag.js',
+    'manifest.json',
+    'icon-192.svg',
+    'icon-512.svg',
+    'og-image.svg',
+    'rag/index.json'
 ];
 
-// Install event - cache resources
+// Install event - cache resources with absolute URLs derived from SW scope
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('Opened cache');
-                return cache.addAll(urlsToCache);
+                console.log('Opened cache, scope:', self.registration.scope);
+                // Resolve relative paths to absolute URLs using SW scope as base
+                const BASE = self.registration.scope;
+                const absoluteUrls = ASSETS_TO_CACHE.map(path => new URL(path, BASE).href);
+                console.log('Caching URLs:', absoluteUrls);
+                return cache.addAll(absoluteUrls);
             })
             .catch((error) => {
                 console.log('Cache install failed:', error);
@@ -50,6 +56,11 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
+// Helper to get absolute index.html URL from SW scope
+function getIndexUrl() {
+    return new URL('index.html', self.registration.scope).href;
+}
+
 // Fetch event - network-first for HTML, cache-first for other assets
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
@@ -71,9 +82,9 @@ self.addEventListener('fetch', (event) => {
                     return response;
                 })
                 .catch(() => {
-                    // Fallback to cache if offline
-                    return caches.match(event.request).then((response) => {
-                        return response || caches.match('./index.html');
+                    // Fallback to cache if offline - use absolute URL with ignoreSearch
+                    return caches.match(event.request, { ignoreSearch: true }).then((response) => {
+                        return response || caches.match(getIndexUrl(), { ignoreSearch: true });
                     });
                 })
         );
@@ -97,7 +108,8 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
                 .catch(() => {
-                    return caches.match('./index.html');
+                    // Fallback to index.html for offline navigation
+                    return caches.match(getIndexUrl(), { ignoreSearch: true });
                 })
         );
     }

@@ -2,10 +2,10 @@
     "name": "CREST CPSA Practice Quiz",
     "short_name": "CPSA Quiz",
     "description": "Free CPSA certification practice quiz with 803 multiple-choice questions for CREST exam preparation.",
-    "start_url": "/crest-cpsa/",
+    "start_url": "./",
     "display": "standalone",
-    "background_color": "#f7f9fb",
-    "theme_color": "#2563eb",
+    "background_color": "#f8fafc",
+    "theme_color": "#6366f1",
     "orientation": "portrait-primary",
     "categories": ["education", "productivity"],
     "icons": [
@@ -22,11 +22,11 @@
             "purpose": "any maskable"
         }
     ],
-        "shortcuts": [
-            {
-                "name": "Start Quiz",
-                "url": "/crest-cpsa/",
-                "description": "Jump into CPSA practice questions"
-            }
-        ]
+    "shortcuts": [
+        {
+            "name": "Start Quiz",
+            "url": "./",
+            "description": "Jump into CPSA practice questions"
+        }
+    ]
 }
