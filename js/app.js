@@ -713,37 +713,19 @@ Practice at: https://sudosuraj.github.io/CREST/`;
                 }
             }
             
-            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                data = await LLMClient.requestHighPriority({
-                    messages: [
-                        { role: 'system', content: systemContent },
-                        { role: 'user', content: userContent }
-                    ],
-                    max_tokens: 400,
-                    temperature: 0.7
-                });
-            } else {
-                const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'gpt-4o-mini',
-                        messages: [
-                            { role: 'system', content: systemContent },
-                            { role: 'user', content: userContent }
-                        ],
-                        max_tokens: 400,
-                        temperature: 0.7
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
-                data = await response.json();
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
+            
+            const data = await LLMClient.requestHighPriority({
+                messages: [
+                    { role: 'system', content: systemContent },
+                    { role: 'user', content: userContent }
+                ],
+                max_tokens: 400,
+                temperature: 0.7
+            });
 
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No explanation available.';
             
@@ -801,39 +783,16 @@ Practice at: https://sudosuraj.github.io/CREST/`;
         payload.push(...messages);
 
         try {
-            // Use LLMClient if available for rate limiting, otherwise fall back to direct fetch
-            let data;
-            if (typeof LLMClient !== 'undefined') {
-                data = await LLMClient.requestHighPriority({
-                    messages: payload,
-                    max_tokens: 400,
-                    temperature: 0.5
-                });
-            } else {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000);
-                
-                try {
-                    const response = await fetch('https://api.llm7.io/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            model: 'gpt-4o-mini',
-                            messages: payload,
-                            max_tokens: 400,
-                            temperature: 0.5
-                        }),
-                        signal: controller.signal
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.status}`);
-                    }
-                    data = await response.json();
-                } finally {
-                    clearTimeout(timeoutId);
-                }
+            // LLMClient is required - no direct fetch fallback to ensure rate limiting
+            if (typeof LLMClient === 'undefined') {
+                throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
+            
+            const data = await LLMClient.requestHighPriority({
+                messages: payload,
+                max_tokens: 400,
+                temperature: 0.5
+            });
 
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
             
