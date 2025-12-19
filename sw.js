@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v22';
+const CACHE_NAME = 'cpsa-quiz-v23';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [

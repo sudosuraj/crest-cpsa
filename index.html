@@ -71,20 +71,20 @@
             </div>
             
             <nav class="side-nav-menu" role="navigation">
-                <button class="nav-item active" id="tab-practice" data-tab="practice" role="tab" aria-selected="true">
+                <button class="sidebar-nav-item toolbar-tab active" id="tab-practice" data-tab="practice" data-panel="practice" role="tab" aria-selected="true">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
                     <span>Practice</span>
                 </button>
-                <button class="nav-item" id="tab-review" data-tab="review" role="tab" aria-selected="false">
+                <button class="sidebar-nav-item toolbar-tab" id="tab-review" data-tab="review" data-panel="review" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
                     <span>Review</span>
                     <span class="nav-badge" id="review-count">0</span>
                 </button>
-                <button class="nav-item" id="tab-insights" data-tab="insights" role="tab" aria-selected="false">
+                <button class="sidebar-nav-item toolbar-tab" id="tab-insights" data-tab="insights" data-panel="insights" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
                     <span>Insights</span>
                 </button>
-                <button class="nav-item" id="tab-progress" data-tab="progress" role="tab" aria-selected="false">
+                <button class="sidebar-nav-item toolbar-tab" id="tab-progress" data-tab="progress" data-panel="progress" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg>
                     <span>Progress</span>
                 </button>
@@ -160,84 +160,11 @@
             </header>
 
             <div class="content-area">
-                <section class="panel active" id="panel-practice" role="tabpanel">
-                    <div class="appendix-selection" id="appendix-selection">
-                        <div class="hero-section">
-                            <h1 class="hero-title">CREST CPSA Practice</h1>
-                            <p class="hero-subtitle">Master the certification with AI-powered practice questions</p>
-                            <div class="hero-stats">
-                                <div class="hero-stat">
-                                    <span class="hero-stat-value">803+</span>
-                                    <span class="hero-stat-label">Questions</span>
-                                </div>
-                                <div class="hero-stat">
-                                    <span class="hero-stat-value">10</span>
-                                    <span class="hero-stat-label">Appendices</span>
-                                </div>
-                                <div class="hero-stat">
-                                    <span class="hero-stat-value" id="hero-completion">0%</span>
-                                    <span class="hero-stat-label">Complete</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bento-grid" id="appendix-grid"></div>
-                    </div>
-                    
-                    <div class="quiz-view" id="quiz-view" style="display:none">
-                        <div class="quiz-toolbar">
-                            <button class="back-btn" id="back-to-appendices">
-                                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-                                Back to Topics
-                            </button>
-                            <div class="quiz-filters">
-                                <select id="filter-select" class="filter-select">
-                                    <option value="all">All Questions</option>
-                                    <option value="unanswered">Unanswered</option>
-                                    <option value="correct">Correct</option>
-                                    <option value="incorrect">Incorrect</option>
-                                    <option value="flagged">Flagged</option>
-                                </select>
-                                <div class="search-box">
-                                    <input type="search" id="search-input" placeholder="Search questions...">
-                                </div>
-                            </div>
-                            <div class="quiz-actions">
-                                <div class="mode-toggle">
-                                    <button class="mode-btn active" id="study-mode-btn" data-mode="study">Study</button>
-                                    <button class="mode-btn" id="exam-mode-btn" data-mode="exam">Exam</button>
-                                </div>
-                                <button class="action-btn primary" id="start-exam-btn">Start Exam</button>
-                            </div>
-                        </div>
-                        <div class="quiz-layout">
-                            <div class="quiz-main" id="quiz-container"></div>
-                            <aside class="ai-tutor-sidebar" id="ai-tutor-sidebar">
-                                <div class="tutor-header">
-                                    <h3>AI Tutor</h3>
-                                    <span class="tutor-badge">RAG-Powered</span>
-                                </div>
-                                <div class="tutor-content" id="tutor-content">
-                                    <div class="tutor-placeholder">
-                                        <p>Select a question to get AI-powered hints</p>
-                                    </div>
-                                </div>
-                                <div class="tutor-actions">
-                                    <button class="tutor-btn" id="hint-btn" disabled>Get Hint</button>
-                                    <button class="tutor-btn" id="explain-btn" disabled>Explain</button>
-                                </div>
-                            </aside>
-                        </div>
-                        <div class="quiz-nav-fixed" id="quiz-nav-fixed" style="display:none">
-                            <button class="quiz-nav-btn" id="prev-question-btn">Previous</button>
-                            <div class="quiz-nav-info"><span id="current-question-num">1</span> / <span id="total-questions-num">0</span></div>
-                            <button class="quiz-nav-btn" id="skip-question-btn">Skip</button>
-                            <button class="quiz-nav-btn flag" id="flag-question-btn">Flag</button>
-                            <button class="quiz-nav-btn primary" id="next-question-btn">Next</button>
-                        </div>
-                    </div>
+                <section class="toolbar-panel active" id="practice-panel" role="tabpanel">
+                    <div id="quiz-container"></div>
                 </section>
 
-                <section class="panel" id="panel-review" role="tabpanel">
+                <section class="toolbar-panel" id="review-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Review - Mistake Bank</h2>
                         <p>Questions you've answered incorrectly.</p>
@@ -259,7 +186,7 @@
                     <div class="review-list" id="review-list"></div>
                 </section>
 
-                <section class="panel" id="panel-insights" role="tabpanel">
+                <section class="toolbar-panel" id="insights-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Insights</h2>
                         <p>Analytics on your performance.</p>
@@ -292,7 +219,7 @@
                     </div>
                 </section>
 
-                <section class="panel" id="panel-progress" role="tabpanel">
+                <section class="toolbar-panel" id="progress-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Progress</h2>
                         <p>Track your learning journey.</p>

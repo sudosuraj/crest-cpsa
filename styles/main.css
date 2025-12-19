@@ -70,10 +70,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .side-nav-collapse:hover { background: var(--bg); color: var(--text); }
 
 .side-nav-menu { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
-.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); font-weight: 500; transition: all 0.15s; position: relative; }
-.nav-item:hover { background: var(--bg); color: var(--text); }
-.nav-item.active { background: var(--accent-soft); color: var(--accent); }
-.nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+.nav-item, .sidebar-nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); color: var(--text-secondary); font-weight: 500; transition: all 0.15s; position: relative; }
+.nav-item:hover, .sidebar-nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active, .sidebar-nav-item.active { background: var(--accent-soft); color: var(--accent); }
+.nav-item svg, .sidebar-nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
 .nav-badge { position: absolute; right: 12px; background: var(--accent); color: white; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
 
 .side-nav-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
@@ -124,8 +124,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .focus-mode .main-content { margin-left: 0; }
 
 .content-area { flex: 1; padding: 24px; }
-.panel { display: none; }
-.panel.active { display: block; }
+.panel, .toolbar-panel { display: none; }
+.panel.active, .toolbar-panel.active { display: block; }
+#practice-panel { display: block !important; }
 
 .panel-header { margin-bottom: 24px; }
 .panel-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
