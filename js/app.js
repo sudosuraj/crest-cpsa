@@ -551,9 +551,42 @@
     // Update progress grid in the Progress panel (tab)
     function updateProgressGridPanel() {
         const grid = document.getElementById('progress-grid-panel');
-        if (!grid) return;
-        
         const stats = calculateStats();
+        
+        // Update Progress panel overview stats (correct IDs from HTML)
+        const overallProgressEl = document.getElementById('overall-progress');
+        const questionsAnsweredEl = document.getElementById('questions-answered');
+        const appendicesStartedEl = document.getElementById('appendices-started');
+        const currentStreakEl = document.getElementById('current-streak');
+        const progressRingFill = document.getElementById('progress-ring-fill');
+        
+        // Calculate overall progress percentage
+        const totalQuestions = Object.keys(quizData).length || 1;
+        const progressPercent = Math.round((stats.attempted / totalQuestions) * 100);
+        
+        if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
+        if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
+        if (currentStreakEl) currentStreakEl.textContent = `${currentStreak || 0} days`;
+        
+        // Count appendices started (appendices with at least one question answered)
+        const appendicesWithProgress = new Set();
+        Object.keys(answerState).forEach(qId => {
+            const q = quizData[qId];
+            if (q && q.appendix) {
+                appendicesWithProgress.add(q.appendix);
+            }
+        });
+        if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
+        
+        // Update progress ring SVG
+        if (progressRingFill) {
+            const circumference = 2 * Math.PI * 54; // r=54 from HTML
+            const offset = circumference - (progressPercent / 100) * circumference;
+            progressRingFill.style.strokeDasharray = `${circumference}`;
+            progressRingFill.style.strokeDashoffset = `${offset}`;
+        }
+        
+        if (!grid) return;
         const categorizedQuestions = {};
         
         // Group questions by category
@@ -1292,6 +1325,16 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const quizContainer = document.getElementById("quiz-container");
         currentAppendix = { letter: appendixLetter, title: appendixTitle };
         
+        // CRITICAL: Ensure practice panel is active before loading any content
+        // This fixes the blank page bug when navigating to appendix routes
+        const practicePanel = document.getElementById('practice-panel');
+        const practiceTab = document.getElementById('tab-practice');
+        if (practicePanel) practicePanel.classList.add('active');
+        if (practiceTab) {
+            practiceTab.classList.add('active');
+            practiceTab.setAttribute('aria-selected', 'true');
+        }
+        
         // Check if this appendix has been preloaded
         const isPreloaded = QuizDataLoader.isAppendixPreloaded && QuizDataLoader.isAppendixPreloaded(appendixLetter);
         
@@ -2012,51 +2055,6 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             });
         }
         
-                        // Setup focus mode
-                const focusModeBtn = document.getElementById("focus-mode-btn");
-                const focusModeExit = document.getElementById("focus-mode-exit");
-                const appLayout = document.getElementById("app-layout");
-        
-                function setFocusMode(enabled) {
-                    if (!appLayout) return;
-                    if (enabled) {
-                        appLayout.classList.add('focus-mode');
-                        if (focusModeExit) focusModeExit.hidden = false;
-                    } else {
-                        appLayout.classList.remove('focus-mode');
-                        if (focusModeExit) focusModeExit.hidden = true;
-                    }
-                    localStorage.setItem('cpsa_focus_mode', enabled);
-                    if (focusModeBtn) focusModeBtn.setAttribute('aria-pressed', enabled);
-                }
-        
-                function exitFocusMode() {
-                    setFocusMode(false);
-                }
-        
-                if (focusModeBtn && appLayout) {
-                    const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
-                    if (savedFocusMode) {
-                        setFocusMode(true);
-                    }
-                    focusModeBtn.addEventListener("click", () => {
-                        const isFocusMode = !appLayout.classList.contains('focus-mode');
-                        setFocusMode(isFocusMode);
-                    });
-                }
-        
-                // Focus mode exit button
-                if (focusModeExit) {
-                    focusModeExit.addEventListener("click", exitFocusMode);
-                }
-        
-                // Keyboard shortcut to exit focus mode (Escape key)
-                document.addEventListener("keydown", (e) => {
-                    if (e.key === "Escape" && appLayout && appLayout.classList.contains('focus-mode')) {
-                        exitFocusMode();
-                    }
-                });
-        
         // Setup debounced search
         setupDebouncedSearch();
         
@@ -2188,13 +2186,23 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const correct = Object.values(answerState).filter(s => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        const accuracyEl = document.getElementById('insight-accuracy');
-        const attemptedEl = document.getElementById('insight-attempted');
-        const streakEl = document.getElementById('insight-streak');
+        // Update Insights panel stats (correct IDs from HTML)
+        const totalAttemptedEl = document.getElementById('total-attempted');
+        const totalCorrectEl = document.getElementById('total-correct');
+        const overallAccuracyEl = document.getElementById('overall-accuracy');
+        const studyTimeEl = document.getElementById('study-time');
         
-        if (accuracyEl) accuracyEl.textContent = `${accuracy}%`;
-        if (attemptedEl) attemptedEl.textContent = attempted;
-        if (streakEl) streakEl.textContent = currentStreak || 0;
+        if (totalAttemptedEl) totalAttemptedEl.textContent = attempted;
+        if (totalCorrectEl) totalCorrectEl.textContent = correct;
+        if (overallAccuracyEl) overallAccuracyEl.textContent = `${accuracy}%`;
+        
+        // Update study time
+        if (studyTimeEl) {
+            const totalMinutes = getStudyTime();
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            studyTimeEl.textContent = `${hours}h ${minutes}m`;
+        }
     }
     
     // Update review stats
@@ -2202,8 +2210,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const incorrectCount = Object.values(answerState).filter(s => !s.correct).length;
         const flaggedCount = Object.values(flaggedQuestions).filter(f => f).length;
         
-        const incorrectEl = document.getElementById('incorrect-review-count');
-        const flaggedEl = document.getElementById('flagged-review-count');
+        // Update Review panel stats (correct IDs from HTML)
+        const incorrectEl = document.getElementById('incorrect-count');
+        const flaggedEl = document.getElementById('flagged-count');
         
         if (incorrectEl) incorrectEl.textContent = incorrectCount;
         if (flaggedEl) flaggedEl.textContent = flaggedCount;

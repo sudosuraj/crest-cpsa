@@ -105,14 +105,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .xp-bar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
 .xp-bar-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
 
-.focus-mode-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); transition: all 0.15s; }
-.focus-mode-btn:hover { background: var(--bg); color: var(--accent); }
-.focus-mode .side-nav, .focus-mode .top-bar { display: none; }
-.focus-mode .main-content { margin-left: 0; }
-.focus-mode-exit { position: fixed; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-md); z-index: 200; cursor: pointer; transition: all 0.15s; }
-.focus-mode-exit:hover { border-color: var(--accent); color: var(--accent); }
-.focus-mode-exit kbd { background: var(--bg); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 4px; }
-
 .content-area { flex: 1; padding: 24px; }
 .panel, .toolbar-panel { display: none; }
 .panel.active, .toolbar-panel.active { display: block; }
