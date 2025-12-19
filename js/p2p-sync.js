@@ -437,32 +437,75 @@ const P2PSync = (function() {
         return flagData ? flagData.count : 0;
     }
     
-    // ==================== P2P-FIRST POLICY ====================
+        // ==================== P2P-FIRST POLICY ====================
     
-    async function getQuestionsFromPool(appendixLetter) {
-        // Auto-initialize if not already done
-        if (!isInitialized) {
-            await initialize();
-        }
+        /**
+         * Wait for P2P questions with timeout
+         * This function waits for Gun.js data to arrive before returning
+         * @param {string} appendixLetter - The appendix to get questions for
+         * @param {Object} options - Options: minCount (minimum questions needed), timeoutMs (max wait time)
+         */
+        async function getQuestionsFromPool(appendixLetter, options = {}) {
+            const { minCount = 5, timeoutMs = 2000 } = options;
         
-        if (!gun || !syncEnabled) return [];
-        
-        if (currentAppendix !== appendixLetter) {
-            await subscribeToAppendix(appendixLetter);
-        }
-        
-        if (typeof QuestionCache !== 'undefined') {
-            try {
-                const cached = await QuestionCache.getAllQuestionsForAppendix(appendixLetter);
-                const p2pCount = cached.filter(q => q.fromP2P).length;
-                stats.questionsUsedFromP2P = p2pCount;
-                return cached;
-            } catch (e) {
-                console.warn('P2PSync: Error getting cached questions', e);
+            // Auto-initialize if not already done
+            if (!isInitialized) {
+                await initialize();
             }
+        
+            if (!gun || !syncEnabled) return [];
+        
+            // Subscribe to appendix (sets up Gun.js listener)
+            if (currentAppendix !== appendixLetter) {
+                await subscribeToAppendix(appendixLetter);
+            }
+        
+            // Wait for P2P data to arrive with timeout
+            // Gun.js data arrives asynchronously via processReceivedChunk
+            const startTime = Date.now();
+            let lastCount = 0;
+        
+            while (Date.now() - startTime < timeoutMs) {
+                if (typeof QuestionCache !== 'undefined') {
+                    try {
+                        const cached = await QuestionCache.getAllQuestionsForAppendix(appendixLetter);
+                        const p2pQuestions = cached.filter(q => q.fromP2P);
+                    
+                        // If we have enough P2P questions, return immediately
+                        if (p2pQuestions.length >= minCount) {
+                            stats.questionsUsedFromP2P = p2pQuestions.length;
+                            console.log('P2PSync: Found ' + p2pQuestions.length + ' P2P questions for Appendix ' + appendixLetter);
+                            return cached;
+                        }
+                    
+                        // If count increased, log progress
+                        if (p2pQuestions.length > lastCount) {
+                            console.log('P2PSync: Receiving questions... ' + p2pQuestions.length + '/' + minCount);
+                            lastCount = p2pQuestions.length;
+                        }
+                    } catch (e) {
+                        console.warn('P2PSync: Error checking cache', e);
+                    }
+                }
+            
+                // Wait a bit before checking again
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        
+            // Timeout reached - return whatever we have
+            if (typeof QuestionCache !== 'undefined') {
+                try {
+                    const cached = await QuestionCache.getAllQuestionsForAppendix(appendixLetter);
+                    const p2pCount = cached.filter(q => q.fromP2P).length;
+                    stats.questionsUsedFromP2P = p2pCount;
+                    console.log('P2PSync: Timeout reached, returning ' + p2pCount + ' P2P questions');
+                    return cached;
+                } catch (e) {
+                    console.warn('P2PSync: Error getting cached questions', e);
+                }
+            }
+            return [];
         }
-        return [];
-    }
 
     /**
      * Share questions by chunk (groups questions by source_chunk_id)
