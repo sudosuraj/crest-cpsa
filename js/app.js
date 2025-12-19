@@ -2161,9 +2161,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         // Review flagged button
         if (reviewFlaggedBtn) {
             reviewFlaggedBtn.addEventListener('click', () => {
-                const flaggedIds = Object.entries(flaggedQuestions)
-                    .filter(([_, flagged]) => flagged)
-                    .map(([id, _]) => id);
+                // flaggedQuestions is a Set, convert to array directly
+                const flaggedIds = Array.from(flaggedQuestions);
                 
                 if (flaggedIds.length === 0) {
                     showToast('No flagged questions to review');
@@ -2208,7 +2207,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // Update review stats
     function updateReviewStats() {
         const incorrectCount = Object.values(answerState).filter(s => !s.correct).length;
-        const flaggedCount = Object.values(flaggedQuestions).filter(f => f).length;
+        // flaggedQuestions is a Set, use .size instead of Object.values()
+        const flaggedCount = flaggedQuestions.size;
         
         // Update Review panel stats (correct IDs from HTML)
         const incorrectEl = document.getElementById('incorrect-count');
