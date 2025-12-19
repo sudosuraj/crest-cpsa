@@ -27,6 +27,20 @@ const PAGE_SIZE = 20;
 const MIN_QUESTIONS_TARGET = 20;
 
 /**
+ * Simple hash function for question deduplication
+ */
+function hashQuestion(text) {
+    if (!text) return '0';
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        const char = text.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return hash.toString(36);
+}
+
+/**
  * Initialize or get state for an appendix
  */
 function getAppendixState(appendixLetter) {
@@ -613,11 +627,6 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
 
     await RAG.initialize();
     
-    // Subscribe to P2P sync for this appendix (lazy subscription)
-    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
-        P2PSync.subscribeToAppendix(appendixLetter);
-    }
-
     // Reset state for this appendix
     const state = getAppendixState(appendixLetter);
     state.nextChunkIdx = 0;
@@ -636,7 +645,57 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
 
     const pageQuestions = {};
 
-    // Use streaming RAG - this calls onQuestion for EACH question as it's generated
+    // P2P-FIRST: Try to get questions from P2P sync before generating from LLM
+    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        P2PSync.subscribeToAppendix(appendixLetter);
+        
+        try {
+            const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter);
+            if (p2pQuestions && p2pQuestions.length >= targetCount) {
+                console.log(`P2P-FIRST: Found ${p2pQuestions.length} questions from P2P for Appendix ${appendixLetter}`);
+                
+                // Use P2P questions - convert and store them
+                const questionsToUse = p2pQuestions.slice(0, targetCount);
+                questionsToUse.forEach((q, idx) => {
+                    const id = String(questionIdCounter++);
+                    const converted = convertToQuizFormat(q);
+                    quizData[id] = converted;
+                    state.allQuestions.push({ id, ...converted });
+                    pageQuestions[id] = converted;
+                    state.questionHashes.add(hashQuestion(q.question));
+                    
+                    if (onQuestion) {
+                        onQuestion(converted, id, idx + 1, questionsToUse.length);
+                    }
+                });
+                
+                state.currentPage = 1;
+                
+                const finalResult = {
+                    questions: pageQuestions,
+                    hasMore: p2pQuestions.length > targetCount,
+                    currentPage: state.currentPage,
+                    totalQuestions: state.allQuestions.length,
+                    exhausted: false,
+                    chunksProcessed: 0,
+                    totalChunks: state.totalChunks,
+                    stats: { p2pHits: questionsToUse.length, apiCalls: 0 }
+                };
+                
+                if (onComplete) {
+                    onComplete(finalResult);
+                }
+                
+                return finalResult;
+            } else {
+                console.log(`P2P-FIRST: Only ${p2pQuestions ? p2pQuestions.length : 0} questions from P2P, need ${targetCount}. Falling back to LLM.`);
+            }
+        } catch (e) {
+            console.warn('P2P-FIRST: Error getting P2P questions, falling back to LLM', e);
+        }
+    }
+
+    // Fallback: Use streaming RAG - this calls onQuestion for EACH question as it's generated
     const result = await RAG.generateQuestionsStreaming(appendixLetter, {
         targetCount,
         startChunkIdx: state.nextChunkIdx,
@@ -672,12 +731,22 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
         }
     });
 
-    // Update state
-    state.nextChunkIdx = result.nextChunkIdx;
-    state.exhausted = result.exhausted;
-    state.currentPage = 1;
+        // Update state
+        state.nextChunkIdx = result.nextChunkIdx;
+        state.exhausted = result.exhausted;
+        state.currentPage = 1;
 
-    console.log(`Streamed ${result.questions.length} questions for Appendix ${appendixLetter}`);
+        console.log(`Streamed ${result.questions.length} questions for Appendix ${appendixLetter}`);
+    
+        // DUAL P2P SYNC: Share LLM-generated questions back to P2P for other users
+        if (result.questions.length > 0 && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+            try {
+                await P2PSync.shareQuestions(result.questions, appendixLetter);
+                console.log(`P2P-SYNC: Shared ${result.questions.length} LLM-generated questions to P2P network`);
+            } catch (e) {
+                console.warn('P2P-SYNC: Failed to share questions to P2P', e);
+            }
+        }
 
     const finalResult = {
         questions: pageQuestions,
@@ -766,12 +835,22 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
         onError
     });
 
-    // Update state
-    state.nextChunkIdx = result.nextChunkIdx;
-    state.exhausted = result.exhausted;
-    state.currentPage++;
+        // Update state
+        state.nextChunkIdx = result.nextChunkIdx;
+        state.exhausted = result.exhausted;
+        state.currentPage++;
 
-    console.log(`Streamed page ${state.currentPage} with ${result.questions.length} questions for Appendix ${appendixLetter}`);
+        console.log(`Streamed page ${state.currentPage} with ${result.questions.length} questions for Appendix ${appendixLetter}`);
+    
+        // DUAL P2P SYNC: Share LLM-generated questions back to P2P for other users
+        if (result.questions.length > 0 && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+            try {
+                await P2PSync.shareQuestions(result.questions, appendixLetter);
+                console.log(`P2P-SYNC: Shared ${result.questions.length} LLM-generated questions to P2P network`);
+            } catch (e) {
+                console.warn('P2P-SYNC: Failed to share questions to P2P', e);
+            }
+        }
 
     const finalResult = {
         questions: pageQuestions,

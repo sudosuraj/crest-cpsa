@@ -1169,7 +1169,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         selectionScreen.innerHTML = `
             <div class="appendix-hero">
                 <h1>CREST CPSA Practice Quiz</h1>
-                <p>Master penetration testing concepts with AI-generated questions from the official study notes</p>
+                <p>Master penetration testing concepts with AI-generated questions from the study notes</p>
                 <div class="hero-stats">
                     <div class="hero-stat">
                         <span class="hero-stat-value">10</span>
@@ -1934,15 +1934,48 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // - displayQuestions (use displayQuestionsWithPagination instead)
     // - expandAllCategories, collapseAllCategories, filterCategories, resetFilters (category UI removed)
 
-    function setupUtilities() {
-        // Legacy expand/collapse buttons removed - category UI no longer exists
-        const resetProgressBtn = document.getElementById("reset-progress-btn");
+        function setupUtilities() {
+            // Legacy expand/collapse buttons removed - category UI no longer exists
+            const resetProgressBtn = document.getElementById("reset-progress-btn");
 
-        if (resetProgressBtn) {
-            resetProgressBtn.addEventListener("click", resetProgress);
-        }
+            if (resetProgressBtn) {
+                resetProgressBtn.addEventListener("click", resetProgress);
+            }
         
-        // Setup sidebar collapse
+            // Setup mobile menu toggle
+            const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+            const sideNav = document.getElementById("side-nav");
+            const mobileNavOverlay = document.getElementById("mobile-nav-overlay");
+        
+            if (mobileMenuBtn && sideNav) {
+                mobileMenuBtn.addEventListener("click", () => {
+                    sideNav.classList.toggle('open');
+                    if (mobileNavOverlay) {
+                        mobileNavOverlay.hidden = !sideNav.classList.contains('open');
+                    }
+                });
+            
+                // Close sidebar when clicking overlay
+                if (mobileNavOverlay) {
+                    mobileNavOverlay.addEventListener("click", () => {
+                        sideNav.classList.remove('open');
+                        mobileNavOverlay.hidden = true;
+                    });
+                }
+            
+                // Close sidebar when clicking a nav button on mobile
+                const navButtons = sideNav.querySelectorAll('.nav-btn');
+                navButtons.forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        if (window.innerWidth <= 768) {
+                            sideNav.classList.remove('open');
+                            if (mobileNavOverlay) mobileNavOverlay.hidden = true;
+                        }
+                    });
+                });
+            }
+        
+            // Setup sidebar collapse
         const sideNavCollapse = document.getElementById("side-nav-collapse");
         const sideNav = document.getElementById("side-nav");
         if (sideNavCollapse && sideNav) {
