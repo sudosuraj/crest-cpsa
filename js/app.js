@@ -1977,7 +1977,6 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         
             // Setup sidebar collapse
         const sideNavCollapse = document.getElementById("side-nav-collapse");
-        const sideNav = document.getElementById("side-nav");
         if (sideNavCollapse && sideNav) {
             const savedCollapsed = localStorage.getItem('cpsa_sidebar_collapsed') === 'true';
             if (savedCollapsed) {
