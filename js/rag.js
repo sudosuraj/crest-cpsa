@@ -518,11 +518,14 @@ Rules:
 - "correct" is the 0-based index of the correct answer (0-3)
 - Questions must be directly answerable from the provided material
 - Keep questions clear and concise
-- IMPORTANT: All 4 options must be similar in length (within 2-3 words of each other)
-- Each option should be a concise phrase (5-15 words maximum)
-- Make all distractors equally specific and plausible as the correct answer
-- Never include extra detail, justification, or examples in only one option
-- Avoid making the correct answer longer or more detailed than distractors`;
+
+CRITICAL - Option Length Rules (to prevent answer guessing):
+- ALL 4 options MUST be exactly the same length (within 1-2 words)
+- The correct answer must NEVER be longer than the distractors
+- Each option should be 3-8 words maximum
+- If the correct answer needs more detail, make ALL options equally detailed
+- Never add qualifiers like "specifically", "exactly", "always" to only one option
+- Avoid patterns where correct answers are more complete or technical`;
 
         // Truncate chunk text to fit within token budget
         // Hard cap at 1500 chars to stay well under API limits
@@ -722,11 +725,14 @@ Rules:
 - Questions must be directly answerable from the provided material
 - Distribute questions across all sections
 - Keep questions clear and concise
-- IMPORTANT: All 4 options must be similar in length (within 2-3 words of each other)
-- Each option should be a concise phrase (5-15 words maximum)
-- Make all distractors equally specific and plausible as the correct answer
-- Never include extra detail, justification, or examples in only one option
-- Avoid making the correct answer longer or more detailed than distractors`;
+
+CRITICAL - Option Length Rules (to prevent answer guessing):
+- ALL 4 options MUST be exactly the same length (within 1-2 words)
+- The correct answer must NEVER be longer than the distractors
+- Each option should be 3-8 words maximum
+- If the correct answer needs more detail, make ALL options equally detailed
+- Never add qualifiers like "specifically", "exactly", "always" to only one option
+- Avoid patterns where correct answers are more complete or technical`;
 
         const userPrompt = `Generate ${questionsNeeded} MCQ questions from these CPSA study material sections:
 ${combinedContent}
