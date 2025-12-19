@@ -15,7 +15,7 @@
         // Parse the current URL hash into a route object
         parseHash() {
             const hash = window.location.hash.slice(1); // Remove the #
-            if (!hash) return { type: 'home', value: null };
+            if (!hash) return { type: 'tab', value: 'study' };
             
             const parts = hash.split('/');
             if (parts.length >= 2) {
@@ -25,7 +25,7 @@
                 if (type === 'appendix' && /^[A-J]$/.test(value)) {
                     return { type: 'appendix', value: value };
                 }
-                if (type === 'tab' && ['practice', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
+                if (type === 'tab' && ['study', 'practice', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
                     return { type: 'tab', value: parts[1].toLowerCase() };
                 }
             }
@@ -4117,6 +4117,16 @@ Try it yourself: ${url}`,
             setupApiKeySettings();
             setupDesktopSidebar();
             setupCommandPalette();
+            
+            // Setup "Start Practice" button on Study page
+            const goToPracticeBtn = document.getElementById('go-to-practice-btn');
+            if (goToPracticeBtn) {
+                goToPracticeBtn.addEventListener('click', () => {
+                    if (typeof switchPanel === 'function') {
+                        switchPanel('practice', { updateUrl: true });
+                    }
+                });
+            }
         
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();
