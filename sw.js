@@ -1,9 +1,10 @@
-const CACHE_NAME = 'cpsa-quiz-v27';
+const CACHE_NAME = 'cpsa-quiz-v28';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [
     '',
     'index.html',
+    'pdfjs-viewer.html',
     'styles/main.css',
     'js/config.js',
     'js/db-utils.js',
@@ -17,7 +18,11 @@ const ASSETS_TO_CACHE = [
     'icon-192.svg',
     'icon-512.svg',
     'og-image.svg',
-    'rag/index.json'
+    'rag/index.json',
+    'vendor/pdfjs/build/pdf.mjs',
+    'vendor/pdfjs/build/pdf.worker.mjs',
+    'vendor/pdfjs/web/pdf_viewer.mjs',
+    'vendor/pdfjs/web/pdf_viewer.css'
 ];
 
 // Install event - cache resources with absolute URLs derived from SW scope
