@@ -1155,7 +1155,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             mainContent.classList.add('toolbar-collapsed');
         }
         
-        // Remove active state from all tabs
+        // Remove active state from all tabs, then activate practice panel
+        // This ensures the practice panel is visible when showing appendix selection
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
@@ -1163,6 +1164,15 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         document.querySelectorAll('.toolbar-panel').forEach(panel => {
             panel.classList.remove('active');
         });
+        
+        // Re-activate the practice panel since appendix selection is displayed there
+        const practicePanel = document.getElementById('practice-panel');
+        const practiceTab = document.getElementById('tab-practice');
+        if (practicePanel) practicePanel.classList.add('active');
+        if (practiceTab) {
+            practiceTab.classList.add('active');
+            practiceTab.setAttribute('aria-selected', 'true');
+        }
         
         const selectionScreen = document.createElement('div');
         selectionScreen.className = 'appendix-selection';
@@ -1687,7 +1697,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             mainContent.classList.add('toolbar-collapsed');
         }
         
-        // Remove active state from all tabs
+        // Remove active state from all tabs, then activate practice panel
+        // This ensures the practice panel is visible when displaying questions
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
@@ -1695,6 +1706,15 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         document.querySelectorAll('.toolbar-panel').forEach(panel => {
             panel.classList.remove('active');
         });
+        
+        // Re-activate the practice panel since quiz content is displayed there
+        const practicePanel = document.getElementById('practice-panel');
+        const practiceTab = document.getElementById('tab-practice');
+        if (practicePanel) practicePanel.classList.add('active');
+        if (practiceTab) {
+            practiceTab.classList.add('active');
+            practiceTab.setAttribute('aria-selected', 'true');
+        }
 
         quizContainer.innerHTML = '';
 

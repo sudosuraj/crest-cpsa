@@ -21,7 +21,7 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d9488">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icon-192.svg">
     
     <script type="application/ld+json">
@@ -349,15 +349,17 @@
             </div>
             <div class="modal-body">
                 <p>Add your OpenAI-compatible API key for AI features.</p>
-                <div class="config-group">
-                    <label for="api-key-input">API Key</label>
-                    <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
-                </div>
-                <div class="api-key-status" id="api-key-status"></div>
-                <div class="modal-actions">
-                    <button class="btn-primary" id="save-api-key">Save</button>
-                    <button class="btn-secondary" id="clear-api-key">Clear</button>
-                </div>
+                <form id="api-key-form" onsubmit="return false;">
+                    <div class="config-group">
+                        <label for="api-key-input">API Key</label>
+                        <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+                    </div>
+                    <div class="api-key-status" id="api-key-status"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-primary" id="save-api-key">Save</button>
+                        <button type="button" class="btn-secondary" id="clear-api-key">Clear</button>
+                    </div>
+                </form>
                 <p class="api-key-note">Get a key from <a href="https://toke.llm7.io" target="_blank">toke.llm7.io</a></p>
             </div>
         </div>
