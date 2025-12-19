@@ -521,17 +521,27 @@ QUESTION DIFFICULTY - Generate HARD exam-level questions:
 - Test understanding of when/why to use specific tools or techniques
 - Avoid simple definition questions like "What is X?" - instead ask "In which scenario would X be preferred over Y?"
 
-DISTRACTOR QUALITY - Make wrong answers plausible:
-- All distractors must be real security concepts from the same domain
-- Distractors should be things a less-prepared candidate might choose
-- Include common misconceptions as distractors
-- Never use obviously wrong or joke answers
+CRITICAL - OPTION LENGTH UNIFORMITY (students guess by length otherwise):
+Follow this process for EACH question:
+1. First, write the correct answer with the detail it needs
+2. Count the EXACT number of words in the correct answer
+3. Write each distractor with the SAME word count (+/- 1 word maximum)
+4. Verify all 4 options have similar character length (within 20% of each other)
 
-STRICT OPTION FORMAT - Prevent length-based guessing:
+DISTRACTOR QUALITY - Make wrong answers equally specific and plausible:
+- All distractors MUST be real security concepts from the SAME specific domain as the correct answer
+- If correct answer mentions a specific tool/technique, distractors must mention equally specific alternatives
+- Distractors should represent common misconceptions or things a less-prepared candidate might confuse
+- Each distractor must be a legitimate concept that could plausibly answer the question
+- Never use vague/generic distractors when the correct answer is specific
+- Never use obviously wrong, joke, or unrelated answers
+
+STRICT OPTION FORMAT:
+- Target 5-10 words per option (allows for technical terms)
 - ALL 4 options MUST have the same word count (within 1 word difference)
-- Each option: 4-7 words only, no exceptions
-- Use parallel grammatical structure for all options
-- If correct answer needs detail, add equal detail to ALL options
+- ALL 4 options MUST have similar character length (within 20% of longest)
+- Use identical grammatical structure for all options (parallel construction)
+- If one option has a technical term, others should have equally technical terms
 - Never use "All of the above" or "None of the above"
 
 Rules:
@@ -583,24 +593,42 @@ Output ONLY the JSON array.`;
 
             const questions = JSON.parse(content);
 
-            // Validate questions
-            const validQuestions = questions.filter(q => validateQuestion(q));
+            // Separate valid and invalid questions
+            const validQuestions = [];
+            const invalidQuestions = [];
+            for (const q of questions) {
+                if (validateQuestion(q)) {
+                    validQuestions.push(q);
+                } else {
+                    invalidQuestions.push(q);
+                }
+            }
+            
+            // Try to repair invalid questions (only if we have some and it's worth the API call)
+            let repairedQuestions = [];
+            if (invalidQuestions.length > 0 && invalidQuestions.length <= 3) {
+                console.log(`Attempting to repair ${invalidQuestions.length} questions with unbalanced options`);
+                repairedQuestions = await repairQuestionOptions(invalidQuestions, { priority });
+            }
+            
+            // Combine valid and repaired questions
+            const allValidQuestions = [...validQuestions, ...repairedQuestions];
             
             // Cache the valid questions
-            if (validQuestions.length > 0 && typeof QuestionCache !== 'undefined') {
+            if (allValidQuestions.length > 0 && typeof QuestionCache !== 'undefined') {
                 try {
-                    await QuestionCache.set(chunk.id, validQuestions, {
+                    await QuestionCache.set(chunk.id, allValidQuestions, {
                         appendix: chunk.appendix,
                         sectionId: chunk.section_id
                     }, { questionsPerChunk });
-                    console.log(`Cached ${validQuestions.length} questions for chunk ${chunk.id}`);
+                    console.log(`Cached ${allValidQuestions.length} questions for chunk ${chunk.id}`);
                 } catch (cacheError) {
                     console.warn('Cache write error:', cacheError);
                 }
             }
 
             // Enrich questions with source info
-            return validQuestions.map(q => ({
+            return allValidQuestions.map(q => ({
                 ...q,
                 source_chunk_id: chunk.id,
                 appendix: chunk.appendix,
@@ -616,32 +644,161 @@ Output ONLY the JSON array.`;
 
     /**
      * Validate a question has required fields and balanced option lengths
+     * Returns { valid: boolean, reason?: string } for detailed feedback
      */
-    function validateQuestion(q) {
-        if (!q.question || !q.options || !Array.isArray(q.options)) return false;
-        if (q.options.length !== 4) return false;
-        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) return false;
+    function validateQuestion(q, returnDetails = false) {
+        const fail = (reason) => returnDetails ? { valid: false, reason } : false;
+        const pass = () => returnDetails ? { valid: true } : true;
         
-        // Check option length balance to prevent guessability
-        // Reject questions where correct answer is significantly longer than others
-        const optionLengths = q.options.map(opt => {
-            const text = opt.replace(/^[A-D]\)\s*/, '').trim();
-            return text.split(/\s+/).length;
-        });
+        if (!q.question || !q.options || !Array.isArray(q.options)) {
+            return fail('missing_fields');
+        }
+        if (q.options.length !== 4) {
+            return fail('wrong_option_count');
+        }
+        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) {
+            return fail('invalid_correct_index');
+        }
         
-        const maxLen = Math.max(...optionLengths);
-        const minLen = Math.min(...optionLengths);
-        const correctLen = optionLengths[q.correct];
+        // Extract option texts (remove A), B), etc. prefixes)
+        const optionTexts = q.options.map(opt => opt.replace(/^[A-D]\)\s*/, '').trim());
         
-        // Reject if word count variance is too high (max - min > 5 words)
-        if (maxLen - minLen > 5) return false;
+        // Check word count balance
+        const wordCounts = optionTexts.map(text => text.split(/\s+/).length);
+        const maxWords = Math.max(...wordCounts);
+        const minWords = Math.min(...wordCounts);
+        const correctWords = wordCounts[q.correct];
         
-        // Reject if correct answer is the longest by more than 3 words
-        const otherLengths = optionLengths.filter((_, i) => i !== q.correct);
-        const maxOtherLen = Math.max(...otherLengths);
-        if (correctLen > maxOtherLen + 3) return false;
+        // Stricter validation: max word variance of 2 words (down from 5)
+        if (maxWords - minWords > 2) {
+            return fail('word_count_variance');
+        }
         
-        return true;
+        // Reject if correct answer is longest by more than 1 word (down from 3)
+        const otherWordCounts = wordCounts.filter((_, i) => i !== q.correct);
+        const maxOtherWords = Math.max(...otherWordCounts);
+        if (correctWords > maxOtherWords + 1) {
+            return fail('correct_too_long_words');
+        }
+        
+        // NEW: Check character length ratio to catch long technical terms
+        const charLengths = optionTexts.map(text => text.length);
+        const maxChars = Math.max(...charLengths);
+        const minChars = Math.min(...charLengths);
+        const correctChars = charLengths[q.correct];
+        
+        // Reject if character length ratio exceeds 1.5 (50% longer)
+        if (minChars > 0 && maxChars / minChars > 1.5) {
+            return fail('char_length_ratio');
+        }
+        
+        // Reject if correct answer is significantly longer in characters
+        const otherCharLengths = charLengths.filter((_, i) => i !== q.correct);
+        const maxOtherChars = Math.max(...otherCharLengths);
+        if (maxOtherChars > 0 && correctChars / maxOtherChars > 1.3) {
+            return fail('correct_too_long_chars');
+        }
+        
+        return pass();
+    }
+
+    /**
+     * Repair questions with unbalanced options by calling LLM to rewrite them
+     * Only rewrites the options, preserving the question and correct answer index
+     * @param {Array} questions - Questions that failed validation
+     * @param {Object} options - Options (priority)
+     * @returns {Promise<Array>} - Repaired questions
+     */
+    async function repairQuestionOptions(questions, options = {}) {
+        if (!questions || questions.length === 0) return [];
+        
+        const { priority = 'normal' } = options;
+        
+        // Build repair prompt
+        const questionsToRepair = questions.map((q, i) => ({
+            index: i,
+            question: q.question,
+            options: q.options,
+            correct: q.correct,
+            explanation: q.explanation
+        }));
+        
+        const systemPrompt = `You are fixing quiz questions where the options have uneven lengths, making it easy to guess the answer.
+
+Your task: Rewrite ONLY the options to have uniform length while preserving meaning and correctness.
+
+Rules:
+1. Keep the same correct answer index (0-3)
+2. Keep the same meaning for each option
+3. Make ALL 4 options have the SAME word count (within 1 word)
+4. Make ALL 4 options have similar character length (within 20%)
+5. Use parallel grammatical structure
+6. Keep technical accuracy - don't oversimplify
+
+Output ONLY valid JSON array with the repaired questions in the same format.`;
+
+        const userPrompt = `Repair these questions by making all options uniform in length:
+
+${JSON.stringify(questionsToRepair, null, 2)}
+
+Output ONLY the JSON array with repaired questions. Keep the same structure, just fix the option lengths.`;
+
+        try {
+            if (typeof LLMClient === 'undefined') {
+                console.warn('LLMClient not available for repair');
+                return [];
+            }
+            
+            const requestFn = priority === 'high' ? LLMClient.requestHighPriority :
+                              priority === 'low' ? LLMClient.requestLowPriority :
+                              LLMClient.request;
+            
+            const data = await requestFn({
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                max_tokens: 1500,
+                temperature: 0.3  // Lower temperature for more consistent repairs
+            });
+
+            let content = data.choices?.[0]?.message?.content?.trim() || '';
+            
+            // Parse JSON from response
+            if (content.startsWith('```json')) content = content.slice(7);
+            if (content.startsWith('```')) content = content.slice(3);
+            if (content.endsWith('```')) content = content.slice(0, -3);
+            content = content.trim();
+
+            const repairedQuestions = JSON.parse(content);
+            
+            // Validate repaired questions and merge back metadata
+            const validRepaired = [];
+            for (const repaired of repairedQuestions) {
+                const originalIdx = repaired.index;
+                if (originalIdx === undefined || originalIdx >= questions.length) continue;
+                
+                const original = questions[originalIdx];
+                const merged = {
+                    ...original,
+                    question: repaired.question || original.question,
+                    options: repaired.options || original.options,
+                    correct: repaired.correct !== undefined ? repaired.correct : original.correct,
+                    explanation: repaired.explanation || original.explanation
+                };
+                
+                // Validate the repaired question
+                if (validateQuestion(merged)) {
+                    validRepaired.push(merged);
+                    console.log(`Repaired question ${originalIdx}: options now balanced`);
+                }
+            }
+            
+            return validRepaired;
+        } catch (error) {
+            console.error('Question repair error:', error);
+            return [];
+        }
     }
 
     /**
@@ -739,17 +896,27 @@ QUESTION DIFFICULTY - Generate HARD exam-level questions:
 - Test understanding of when/why to use specific tools or techniques
 - Avoid simple definition questions like "What is X?" - instead ask "In which scenario would X be preferred over Y?"
 
-DISTRACTOR QUALITY - Make wrong answers plausible:
-- All distractors must be real security concepts from the same domain
-- Distractors should be things a less-prepared candidate might choose
-- Include common misconceptions as distractors
-- Never use obviously wrong or joke answers
+CRITICAL - OPTION LENGTH UNIFORMITY (students guess by length otherwise):
+Follow this process for EACH question:
+1. First, write the correct answer with the detail it needs
+2. Count the EXACT number of words in the correct answer
+3. Write each distractor with the SAME word count (+/- 1 word maximum)
+4. Verify all 4 options have similar character length (within 20% of each other)
 
-STRICT OPTION FORMAT - Prevent length-based guessing:
+DISTRACTOR QUALITY - Make wrong answers equally specific and plausible:
+- All distractors MUST be real security concepts from the SAME specific domain as the correct answer
+- If correct answer mentions a specific tool/technique, distractors must mention equally specific alternatives
+- Distractors should represent common misconceptions or things a less-prepared candidate might confuse
+- Each distractor must be a legitimate concept that could plausibly answer the question
+- Never use vague/generic distractors when the correct answer is specific
+- Never use obviously wrong, joke, or unrelated answers
+
+STRICT OPTION FORMAT:
+- Target 5-10 words per option (allows for technical terms)
 - ALL 4 options MUST have the same word count (within 1 word difference)
-- Each option: 4-7 words only, no exceptions
-- Use parallel grammatical structure for all options
-- If correct answer needs detail, add equal detail to ALL options
+- ALL 4 options MUST have similar character length (within 20% of longest)
+- Use identical grammatical structure for all options (parallel construction)
+- If one option has a technical term, others should have equally technical terms
 - Never use "All of the above" or "None of the above"
 
 Rules:
@@ -791,10 +958,30 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
             content = content.trim();
 
             const questions = JSON.parse(content);
-            const validQuestions = questions.filter(q => validateQuestion(q));
+            
+            // Separate valid and invalid questions
+            const validQuestions = [];
+            const invalidQuestions = [];
+            for (const q of questions) {
+                if (validateQuestion(q)) {
+                    validQuestions.push(q);
+                } else {
+                    invalidQuestions.push(q);
+                }
+            }
+            
+            // Try to repair invalid questions (only if we have some and it's worth the API call)
+            let repairedQuestions = [];
+            if (invalidQuestions.length > 0 && invalidQuestions.length <= 5) {
+                console.log(`Attempting to repair ${invalidQuestions.length} questions with unbalanced options`);
+                repairedQuestions = await repairQuestionOptions(invalidQuestions, { priority });
+            }
+            
+            // Combine valid and repaired questions
+            const allValidQuestions = [...validQuestions, ...repairedQuestions];
 
             // Enrich questions with source info based on section number
-            const enrichedQuestions = validQuestions.map(q => {
+            const enrichedQuestions = allValidQuestions.map(q => {
                 const sectionNum = q.section || 1;
                 const metadata = chunkMetadata[Math.min(sectionNum - 1, chunkMetadata.length - 1)] || chunkMetadata[0];
                 const chunk = metadata.chunk;
