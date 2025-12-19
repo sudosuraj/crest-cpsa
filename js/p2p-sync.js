@@ -24,7 +24,8 @@ const P2PSync = (function() {
     let gun = null;
     let isInitialized = false;
     let syncEnabled = true;
-    let initializationAttempted = false;
+    let lastInitAttempt = 0;
+    const INIT_THROTTLE_MS = 30000;
     
     // App namespace to avoid conflicts with other Gun apps
     const APP_NAMESPACE = 'cpsa-quiz-v2';
@@ -88,6 +89,7 @@ const P2PSync = (function() {
             // Cooldown expired, reset and allow retry
             FAILURE_BUDGET.disabled = false;
             FAILURE_BUDGET.failures = 0;
+            syncEnabled = true;
             return false;
         }
         return true;
@@ -111,10 +113,10 @@ const P2PSync = (function() {
     }
 
     // Default relay servers for P2P sync
-    // These are community-run Gun.js relays
+    // These are community-run Gun.js relays - updated for reliability
     const DEFAULT_RELAY_SERVERS = [
-        'https://gun-manhattan.herokuapp.com/gun',
-        'https://gun-us.herokuapp.com/gun',
+        'https://relay.peer.ooo/gun',
+        'https://gun-relay.meething.space/gun',
         'https://peer.wallie.io/gun'
     ];
 
@@ -128,8 +130,14 @@ const P2PSync = (function() {
             return Promise.resolve(true);
         }
         
-        // Already tried and failed, or in cooldown
-        if (initializationAttempted || isInCooldown()) {
+        // In cooldown due to failures
+        if (isInCooldown()) {
+            return Promise.resolve(false);
+        }
+        
+        // Throttle initialization attempts to prevent spam
+        const now = Date.now();
+        if (now - lastInitAttempt < INIT_THROTTLE_MS) {
             return Promise.resolve(false);
         }
         
@@ -138,13 +146,13 @@ const P2PSync = (function() {
             return Promise.resolve(false);
         }
 
-        initializationAttempted = true;
+        lastInitAttempt = now;
 
         return new Promise((resolve) => {
             try {
                 if (typeof Gun === 'undefined') {
                     // Gun.js not loaded - this is fine, P2P is optional
-                    syncEnabled = false;
+                    recordFailure();
                     resolve(false);
                     return;
                 }
@@ -160,6 +168,11 @@ const P2PSync = (function() {
                 });
 
                 isInitialized = true;
+                syncEnabled = true;
+                
+                // Reset failure budget on successful init
+                FAILURE_BUDGET.failures = 0;
+                FAILURE_BUDGET.disabled = false;
                 
                 // Start presence heartbeat and flag listener
                 startPresenceHeartbeat();
@@ -168,9 +181,9 @@ const P2PSync = (function() {
                 console.log('P2PSync: Initialized with relay servers');
                 resolve(true);
             } catch (error) {
-                // Silent failure - P2P is optional
+                // Record failure and allow retry after cooldown
                 console.warn('P2PSync: Initialization failed', error);
-                syncEnabled = false;
+                recordFailure();
                 resolve(false);
             }
         });

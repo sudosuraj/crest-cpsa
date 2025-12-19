@@ -3821,61 +3821,11 @@ Try it yourself: ${url}`,
         updateSidebarStats();
     }
 
-    // ==================== THEME TOGGLE ====================
-    const THEME_KEY = 'cpsa_theme';
-    
-    function getPreferredTheme() {
-        const saved = localStorage.getItem(THEME_KEY);
-        if (saved) return saved;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    
-    function setTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem(THEME_KEY, theme);
-        updateThemeToggleIcon(theme);
-    }
-    
-    function updateThemeToggleIcon(theme) {
-        const lightIcon = document.querySelector('.theme-icon-light');
-        const darkIcon = document.querySelector('.theme-icon-dark');
-        if (lightIcon && darkIcon) {
-            lightIcon.style.display = theme === 'dark' ? 'none' : 'block';
-            darkIcon.style.display = theme === 'dark' ? 'block' : 'none';
-        }
-    }
-    
-    function toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
-        const newTheme = current === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-    }
-    
-    function setupThemeToggle() {
-        // Apply saved theme on load
-        const theme = getPreferredTheme();
-        setTheme(theme);
-        
-        // Setup toggle button
-        const toggleBtn = document.getElementById('theme-toggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', toggleTheme);
-        }
-        
-        // Listen for system theme changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (!localStorage.getItem(THEME_KEY)) {
-                setTheme(e.matches ? 'dark' : 'light');
-            }
-        });
-    }
-    
     // ==========================================
     // INITIALIZE ALL NEW FEATURES
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
         // Setup new features
-        setupThemeToggle();
         setupPracticeExam();
         setupAnalytics();
         setupSpacedRepetition();
