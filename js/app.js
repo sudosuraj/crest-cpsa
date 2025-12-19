@@ -1992,29 +1992,36 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             });
         }
         
-                // Setup focus mode
+                        // Setup focus mode
                 const focusModeBtn = document.getElementById("focus-mode-btn");
                 const focusModeExit = document.getElementById("focus-mode-exit");
                 const appLayout = document.getElementById("app-layout");
         
-                function exitFocusMode() {
-                    if (appLayout && appLayout.classList.contains('focus-mode')) {
+                function setFocusMode(enabled) {
+                    if (!appLayout) return;
+                    if (enabled) {
+                        appLayout.classList.add('focus-mode');
+                        if (focusModeExit) focusModeExit.hidden = false;
+                    } else {
                         appLayout.classList.remove('focus-mode');
-                        localStorage.setItem('cpsa_focus_mode', 'false');
-                        if (focusModeBtn) focusModeBtn.setAttribute('aria-pressed', 'false');
+                        if (focusModeExit) focusModeExit.hidden = true;
                     }
+                    localStorage.setItem('cpsa_focus_mode', enabled);
+                    if (focusModeBtn) focusModeBtn.setAttribute('aria-pressed', enabled);
+                }
+        
+                function exitFocusMode() {
+                    setFocusMode(false);
                 }
         
                 if (focusModeBtn && appLayout) {
                     const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
                     if (savedFocusMode) {
-                        appLayout.classList.add('focus-mode');
+                        setFocusMode(true);
                     }
                     focusModeBtn.addEventListener("click", () => {
-                        appLayout.classList.toggle('focus-mode');
-                        const isFocusMode = appLayout.classList.contains('focus-mode');
-                        localStorage.setItem('cpsa_focus_mode', isFocusMode);
-                        focusModeBtn.setAttribute('aria-pressed', isFocusMode);
+                        const isFocusMode = !appLayout.classList.contains('focus-mode');
+                        setFocusMode(isFocusMode);
                     });
                 }
         
@@ -2717,56 +2724,67 @@ Try it yourself: ${url}`,
         }
     }
 	
-	document.addEventListener("DOMContentLoaded", async () => {
-        // Load saved progress first
-        loadProgress();
+	// Helper function to activate a panel - used during startup to ensure a panel is always active
+	    function activatePanel(panelId) {
+	        // Deactivate all tabs and panels first
+	        document.querySelectorAll('.toolbar-tab').forEach(tab => {
+	            tab.classList.remove('active');
+	            tab.setAttribute('aria-selected', 'false');
+	        });
+	        document.querySelectorAll('.toolbar-panel').forEach(panel => {
+	            panel.classList.remove('active');
+	        });
         
-        // Initialize the Router and get the initial route from URL hash
-        const initialRoute = Router.init();
+	        // Activate the specified panel and tab
+	        const panel = document.getElementById(`${panelId}-panel`);
+	        const tab = document.getElementById(`tab-${panelId}`);
+	        if (panel) panel.classList.add('active');
+	        if (tab) {
+	            tab.classList.add('active');
+	            tab.setAttribute('aria-selected', 'true');
+	        }
+	    }
+
+	    document.addEventListener("DOMContentLoaded", async () => {
+	        // Load saved progress first
+	        loadProgress();
         
-        // Handle initial route - either load specific appendix or show home
-        if (initialRoute.type === 'appendix' && initialRoute.value) {
-            // Deep link to specific appendix - load it directly
-            const appendixTitle = APPENDIX_TITLES[initialRoute.value] || `Appendix ${initialRoute.value}`;
-            await loadAppendixQuiz(initialRoute.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
-        } else if (initialRoute.type === 'tab' && initialRoute.value) {
-            // Deep link to specific tab - load home first, then switch tab
-            await loadQuiz();
-            if (typeof switchPanel === 'function') {
-                // Pass updateUrl: false to prevent pushing history on initial load
-                switchPanel(initialRoute.value, { updateUrl: false });
-            }
-                } else {
-                    // Default: show appendix selection and activate Practice panel
-                    await loadQuiz();
-                    // Directly activate Practice panel since switchPanel may not be in scope yet
-                    const practicePanel = document.getElementById('practice-panel');
-                    const practiceTab = document.getElementById('tab-practice');
-                    if (practicePanel) practicePanel.classList.add('active');
-                    if (practiceTab) {
-                        practiceTab.classList.add('active');
-                        practiceTab.setAttribute('aria-selected', 'true');
-                    }
-                }
+	        // Initialize the Router and get the initial route from URL hash
+	        const initialRoute = Router.init();
         
-        setupUtilities();
-        setupChatbot();
+	        // Handle initial route - either load specific appendix or show home
+	        if (initialRoute.type === 'appendix' && initialRoute.value) {
+	            // Deep link to specific appendix - load it directly
+	            const appendixTitle = APPENDIX_TITLES[initialRoute.value] || `Appendix ${initialRoute.value}`;
+	            await loadAppendixQuiz(initialRoute.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
+	        } else if (initialRoute.type === 'tab' && initialRoute.value) {
+	            // Deep link to specific tab - load home first, then switch tab
+	            await loadQuiz();
+	            activatePanel(initialRoute.value);
+	        } else {
+	            // Default: show appendix selection and activate Practice panel
+	            await loadQuiz();
+	            activatePanel('practice');
+	        }
         
-        // Restore UI state from saved progress
-        restoreUIState();
+	        setupUtilities();
+	        setupChatbot();
         
-        // Render streak indicator
-        renderStreak();
+	        // Restore UI state from saved progress
+	        restoreUIState();
         
-        // Register service worker for PWA
-        registerServiceWorker();
+	        // Render streak indicator
+	        renderStreak();
         
-        // Update counts
-        updateCounts();
+	        // Register service worker for PWA
+	        registerServiceWorker();
         
-        // Setup share dropdown (moved here to ensure it runs)
-        setupShareDropdown();
-    });
+	        // Update counts
+	        updateCounts();
+        
+	        // Setup share dropdown (moved here to ensure it runs)
+	        setupShareDropdown();
+	    });
     
     // Restore UI state from saved progress
     function restoreUIState() {
