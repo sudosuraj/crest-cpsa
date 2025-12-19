@@ -109,6 +109,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .focus-mode-btn:hover { background: var(--bg); color: var(--accent); }
 .focus-mode .side-nav, .focus-mode .top-bar { display: none; }
 .focus-mode .main-content { margin-left: 0; }
+.focus-mode-exit { position: fixed; top: 16px; right: 16px; display: none; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-md); z-index: 200; cursor: pointer; transition: all 0.15s; }
+.focus-mode-exit:hover { border-color: var(--accent); color: var(--accent); }
+.focus-mode-exit kbd { background: var(--bg); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 4px; }
+.focus-mode .focus-mode-exit { display: flex; }
 
 .content-area { flex: 1; padding: 24px; }
 .panel, .toolbar-panel { display: none; }
@@ -238,8 +242,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .option-tile .option-text { flex: 1; font-size: 15px; line-height: 1.5; color: var(--text); }
 
 /* Question card header and actions */
-.question-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.question-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .question-card-badge { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.question-number-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 8px; background: var(--accent); color: white; font-size: 13px; font-weight: 600; border-radius: 50%; flex-shrink: 0; }
 .question-card-actions { display: flex; gap: 8px; }
 
 /* Gemini AI explain button */

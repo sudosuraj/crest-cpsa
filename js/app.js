@@ -1551,6 +1551,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 updateCounts();
                 saveProgress();
                 checkAndAwardBadges();
+                updateAllUI(); // Update Progress/Review/Insights/Streak in real time
             });
 
             optionsDiv.appendChild(optionDiv);
@@ -1874,6 +1875,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     updateCounts();
                     saveProgress();
                     checkAndAwardBadges();
+                    updateAllUI(); // Update Progress/Review/Insights/Streak in real time
                 });
 
                 optionsDiv.appendChild(optionDiv);
@@ -1990,21 +1992,43 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             });
         }
         
-        // Setup focus mode
-        const focusModeBtn = document.getElementById("focus-mode-btn");
-        const appLayout = document.getElementById("app-layout");
-        if (focusModeBtn && appLayout) {
-            const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
-            if (savedFocusMode) {
-                appLayout.classList.add('focus-mode');
-            }
-            focusModeBtn.addEventListener("click", () => {
-                appLayout.classList.toggle('focus-mode');
-                const isFocusMode = appLayout.classList.contains('focus-mode');
-                localStorage.setItem('cpsa_focus_mode', isFocusMode);
-                focusModeBtn.setAttribute('aria-pressed', isFocusMode);
-            });
-        }
+                // Setup focus mode
+                const focusModeBtn = document.getElementById("focus-mode-btn");
+                const focusModeExit = document.getElementById("focus-mode-exit");
+                const appLayout = document.getElementById("app-layout");
+        
+                function exitFocusMode() {
+                    if (appLayout && appLayout.classList.contains('focus-mode')) {
+                        appLayout.classList.remove('focus-mode');
+                        localStorage.setItem('cpsa_focus_mode', 'false');
+                        if (focusModeBtn) focusModeBtn.setAttribute('aria-pressed', 'false');
+                    }
+                }
+        
+                if (focusModeBtn && appLayout) {
+                    const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
+                    if (savedFocusMode) {
+                        appLayout.classList.add('focus-mode');
+                    }
+                    focusModeBtn.addEventListener("click", () => {
+                        appLayout.classList.toggle('focus-mode');
+                        const isFocusMode = appLayout.classList.contains('focus-mode');
+                        localStorage.setItem('cpsa_focus_mode', isFocusMode);
+                        focusModeBtn.setAttribute('aria-pressed', isFocusMode);
+                    });
+                }
+        
+                // Focus mode exit button
+                if (focusModeExit) {
+                    focusModeExit.addEventListener("click", exitFocusMode);
+                }
+        
+                // Keyboard shortcut to exit focus mode (Escape key)
+                document.addEventListener("keydown", (e) => {
+                    if (e.key === "Escape" && appLayout && appLayout.classList.contains('focus-mode')) {
+                        exitFocusMode();
+                    }
+                });
         
         // Setup debounced search
         setupDebouncedSearch();
@@ -2712,13 +2736,18 @@ Try it yourself: ${url}`,
                 // Pass updateUrl: false to prevent pushing history on initial load
                 switchPanel(initialRoute.value, { updateUrl: false });
             }
-        } else {
-            // Default: show appendix selection and activate Practice panel
-            await loadQuiz();
-            if (typeof switchPanel === 'function') {
-                switchPanel('practice', { updateUrl: false });
-            }
-        }
+                } else {
+                    // Default: show appendix selection and activate Practice panel
+                    await loadQuiz();
+                    // Directly activate Practice panel since switchPanel may not be in scope yet
+                    const practicePanel = document.getElementById('practice-panel');
+                    const practiceTab = document.getElementById('tab-practice');
+                    if (practicePanel) practicePanel.classList.add('active');
+                    if (practiceTab) {
+                        practiceTab.classList.add('active');
+                        practiceTab.setAttribute('aria-selected', 'true');
+                    }
+                }
         
         setupUtilities();
         setupChatbot();
@@ -3888,24 +3917,159 @@ Try it yourself: ${url}`,
         updateSidebarStats();
     }
 
-    // ==========================================
-    // INITIALIZE ALL NEW FEATURES
-    // ==========================================
-    document.addEventListener('DOMContentLoaded', () => {
-        // Setup new features
-        setupPracticeExam();
-        setupAnalytics();
-        setupSpacedRepetition();
-        setupPDFExport();
-        setupChallengeMode();
-        setupSprintMode();
-        setupModeToggle();
-        setupViewToggle();
-        setupXPSystem();
-        setupShareDropdown();
-        setupMobileNavigation();
-        setupApiKeySettings();
-        setupDesktopSidebar();
+        // ==========================================
+        // COMMAND PALETTE SEARCH
+        // ==========================================
+        function setupCommandPalette() {
+            const searchTrigger = document.getElementById('search-trigger');
+            const commandPalette = document.getElementById('command-palette');
+            const commandSearch = document.getElementById('command-search');
+            const commandResults = document.getElementById('command-results');
+        
+            if (!searchTrigger || !commandPalette || !commandSearch || !commandResults) return;
+        
+            function openCommandPalette() {
+                commandPalette.hidden = false;
+                commandSearch.value = '';
+                commandSearch.focus();
+                renderResults('');
+            }
+        
+            function closeCommandPalette() {
+                commandPalette.hidden = true;
+                commandSearch.value = '';
+            }
+        
+            function renderResults(query) {
+                const lowerQuery = query.toLowerCase().trim();
+                let html = '';
+            
+                const appendices = [
+                    { letter: 'A', title: 'Soft Skills and Assessment Management' },
+                    { letter: 'B', title: 'Core Technical Skills' },
+                    { letter: 'C', title: 'Background Information Gathering & Open Source Intelligence' },
+                    { letter: 'D', title: 'Networking Equipment' },
+                    { letter: 'E', title: 'Microsoft Windows Security Assessment' },
+                    { letter: 'F', title: 'Unix Security Assessment' },
+                    { letter: 'G', title: 'Web Technologies' },
+                    { letter: 'H', title: 'Web Testing Methodologies' },
+                    { letter: 'I', title: 'Web Testing Techniques' },
+                    { letter: 'J', title: 'Databases' }
+                ];
+            
+                const filteredAppendices = appendices.filter(a => 
+                    !lowerQuery || 
+                    a.letter.toLowerCase().includes(lowerQuery) || 
+                    a.title.toLowerCase().includes(lowerQuery)
+                );
+            
+                if (filteredAppendices.length > 0) {
+                    html += '<div class="command-group"><div class="command-group-title">Appendices</div>';
+                    filteredAppendices.forEach(a => {
+                        html += `<button class="command-item" data-action="appendix" data-value="${a.letter}">
+                            <strong>Appendix ${a.letter}:</strong> ${a.title}
+                        </button>`;
+                    });
+                    html += '</div>';
+                }
+            
+                const panels = [
+                    { id: 'practice', title: 'Practice', desc: 'Start practicing questions' },
+                    { id: 'review', title: 'Review', desc: 'Review incorrect and flagged questions' },
+                    { id: 'insights', title: 'Insights', desc: 'View performance analytics' },
+                    { id: 'progress', title: 'Progress', desc: 'Track your learning journey' }
+                ];
+            
+                const filteredPanels = panels.filter(p => 
+                    !lowerQuery || 
+                    p.title.toLowerCase().includes(lowerQuery) || 
+                    p.desc.toLowerCase().includes(lowerQuery)
+                );
+            
+                if (filteredPanels.length > 0) {
+                    html += '<div class="command-group"><div class="command-group-title">Navigation</div>';
+                    filteredPanels.forEach(p => {
+                        html += `<button class="command-item" data-action="panel" data-value="${p.id}">
+                            <strong>${p.title}</strong> - ${p.desc}
+                        </button>`;
+                    });
+                    html += '</div>';
+                }
+            
+                if (!html) {
+                    html = '<div class="command-group"><div class="command-group-title">No results found</div></div>';
+                }
+            
+                commandResults.innerHTML = html;
+            
+                commandResults.querySelectorAll('.command-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const action = item.dataset.action;
+                        const value = item.dataset.value;
+                    
+                        if (action === 'appendix') {
+                            const appendix = appendices.find(a => a.letter === value);
+                            if (appendix) {
+                                Router.navigate('appendix', value, { skipHandler: true });
+                                loadAppendixQuiz(value, appendix.title);
+                            }
+                        } else if (action === 'panel') {
+                            if (typeof switchPanel === 'function') {
+                                switchPanel(value);
+                            }
+                        }
+                    
+                        closeCommandPalette();
+                    });
+                });
+            }
+        
+            searchTrigger.addEventListener('click', openCommandPalette);
+        
+            commandPalette.addEventListener('click', (e) => {
+                if (e.target === commandPalette) {
+                    closeCommandPalette();
+                }
+            });
+        
+            commandSearch.addEventListener('input', (e) => {
+                renderResults(e.target.value);
+            });
+        
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    if (commandPalette.hidden) {
+                        openCommandPalette();
+                    } else {
+                        closeCommandPalette();
+                    }
+                }
+                if (e.key === 'Escape' && !commandPalette.hidden) {
+                    closeCommandPalette();
+                }
+            });
+        }
+
+        // ==========================================
+        // INITIALIZE ALL NEW FEATURES
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup new features
+            setupPracticeExam();
+            setupAnalytics();
+            setupSpacedRepetition();
+            setupPDFExport();
+            setupChallengeMode();
+            setupSprintMode();
+            setupModeToggle();
+            setupViewToggle();
+            setupXPSystem();
+            setupShareDropdown();
+            setupMobileNavigation();
+            setupApiKeySettings();
+            setupDesktopSidebar();
+            setupCommandPalette();
         
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();
