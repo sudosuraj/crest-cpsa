@@ -524,3 +524,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .nav-dot.active { background: var(--accent); transform: scale(1.2); }
 .nav-dot.answered { background: var(--success); }
 .nav-dot.flagged { background: var(--warning); }
+
+.pdf-container { width: 100%; height: calc(100vh - var(--top-bar-height) - 120px); min-height: 600px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.pdf-container iframe { width: 100%; height: 100%; border: none; }
+
+@media (max-width: 768px) {
+    .pdf-container { height: calc(100vh - var(--top-bar-height) - 100px); min-height: 400px; }
+}
