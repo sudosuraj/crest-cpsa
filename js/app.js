@@ -66,6 +66,15 @@
             this.navigate('home', null, options);
         },
         
+        // Smart back navigation - uses history.back() with fallback to home
+        goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                this.goHome();
+            }
+        },
+        
         // Handle route changes (called on popstate and initial load)
         async handleRoute(route) {
             if (this.isNavigating) return;
@@ -77,9 +86,9 @@
                     const appendixTitle = APPENDIX_TITLES[route.value] || `Appendix ${route.value}`;
                     await loadAppendixQuiz(route.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
                 } else if (route.type === 'tab' && route.value) {
-                    // Switch to the specified tab
+                    // Switch to the specified tab - pass updateUrl: false to prevent history loop
                     if (typeof switchPanel === 'function') {
-                        switchPanel(route.value);
+                        switchPanel(route.value, { updateUrl: false });
                     }
                 } else {
                     // Home - show appendix selection
@@ -1374,7 +1383,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     if (Object.keys(streamedQuestions).length === 0) {
                         quizContainer.innerHTML = `
                             <p class="error">Error generating questions. Please try again.</p>
-                            <button onclick="loadQuiz()">Back to Appendix Selection</button>
+                            <button onclick="Router.goBack()">Back to Appendix Selection</button>
                         `;
                     }
                 }
@@ -1407,7 +1416,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             console.error('Error generating questions:', error);
             quizContainer.innerHTML = `
                 <p class="error">Error generating questions. Please try again.</p>
-                <button onclick="loadQuiz()">Back to Appendix Selection</button>
+                <button onclick="Router.goBack()">Back to Appendix Selection</button>
             `;
         }
     }
@@ -1693,9 +1702,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         header.className = 'quiz-header-pagination';
         
         const backBtn = document.createElement('button');
-        backBtn.className = 'back-to-selection';
-        backBtn.textContent = 'Back to Appendix Selection';
-        backBtn.addEventListener('click', loadQuiz);
+        backBtn.className = 'back-to-selection back-btn';
+        backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg> Back';
+        backBtn.addEventListener('click', () => Router.goBack());
         header.appendChild(backBtn);
 
         const titleEl = document.createElement('h2');
@@ -1964,13 +1973,12 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // Tabbed Toolbar
     function setupTabbedToolbar() {
         const tabs = document.querySelectorAll('.toolbar-tab');
-        const panels = document.querySelectorAll('.toolbar-panel');
         const moreBtn = document.getElementById('more-actions-btn');
         const moreMenu = document.getElementById('more-menu');
         const reviewFlaggedBtn = document.getElementById('review-flagged-btn');
         const mainContent = document.getElementById('main-content');
         
-        // Tab switching
+        // Tab switching - use centralized switchPanel for consistent routing
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
@@ -1987,29 +1995,16 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     mainContent.classList.remove('toolbar-collapsed');
                 }
                 
-                // Update tabs
-                tabs.forEach(t => {
-                    t.classList.remove('active');
-                    t.setAttribute('aria-selected', 'false');
-                });
-                tab.classList.add('active');
-                tab.setAttribute('aria-selected', 'true');
+                // Use centralized switchPanel which handles URL updates
+                switchPanel(tabName);
                 
-                // Update panels
-                panels.forEach(p => p.classList.remove('active'));
-                document.getElementById(`panel-${tabName}`).classList.add('active');
-                
-                // Update insights when switching to insights tab
+                // Update tab-specific content
                 if (tabName === 'insights') {
                     updateInsightsSummary();
                 }
-                
-                // Update review stats when switching to review tab
                 if (tabName === 'review') {
                     updateReviewStats();
                 }
-                
-                // Update progress grid when switching to progress tab
                 if (tabName === 'progress') {
                     updateProgressGridPanel();
                 }
@@ -2650,7 +2645,8 @@ Try it yourself: ${url}`,
             // Deep link to specific tab - load home first, then switch tab
             await loadQuiz();
             if (typeof switchPanel === 'function') {
-                switchPanel(initialRoute.value);
+                // Pass updateUrl: false to prevent pushing history on initial load
+                switchPanel(initialRoute.value, { updateUrl: false });
             }
         } else {
             // Default: show appendix selection
@@ -3782,7 +3778,6 @@ Try it yourself: ${url}`,
     
     function setupDesktopSidebar() {
         const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
-        const toolbarTabs = document.querySelectorAll('.toolbar-tab');
         
         // Sidebar nav clicks use centralized switchPanel
         sidebarNavItems.forEach(item => {
@@ -3792,13 +3787,7 @@ Try it yourself: ${url}`,
             });
         });
         
-        // Toolbar tab clicks also use centralized switchPanel
-        toolbarTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const panel = tab.dataset.tab;
-                switchPanel(panel);
-            });
-        });
+        // Note: Toolbar tab clicks are handled by setupTabbedToolbar() to avoid double-binding
         
         // Sidebar action buttons - call functions directly instead of .click()
         const sidebarStartExam = document.getElementById('sidebar-start-exam');
