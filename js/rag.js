@@ -525,7 +525,8 @@ Rules:
 - Avoid making the correct answer longer or more detailed than distractors`;
 
         // Truncate chunk text to fit within token budget
-        const maxChunkChars = 2500 * TOKEN_CONFIG.charsPerToken; // ~2500 tokens for context
+        // Hard cap at 1500 chars to stay well under API limits
+        const maxChunkChars = 1500;
         const truncatedText = chunk.text.substring(0, maxChunkChars);
 
         const userPrompt = `Generate ${questionsPerChunk} MCQ questions from this CPSA study material:
@@ -691,8 +692,9 @@ Output ONLY the JSON array.`;
 
         // Build combined prompt with multiple chunks
         // Token budget: 8000 total - 800 system - 400 query - 1500 response = ~5300 for context
-        // With 3 chunks, that's ~1700 tokens (~6800 chars) per chunk
-        const maxCharsPerChunk = Math.floor(5000 / uncachedChunks.length) * TOKEN_CONFIG.charsPerToken;
+        // Hard cap at 1500 chars per chunk to stay well under API limits
+        // With 4 chunks max, total context ~6000 chars which is safe
+        const maxCharsPerChunk = Math.min(1500, Math.floor(6000 / Math.max(uncachedChunks.length, 1)));
         
         let combinedContent = '';
         const chunkMetadata = [];

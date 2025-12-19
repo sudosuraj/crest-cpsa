@@ -217,9 +217,46 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .question-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; color: var(--text-secondary); transition: all 0.15s; }
 .question-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-.answer-explanation { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: var(--radius-sm); border-left: 3px solid var(--accent); }
+.answer-explanation { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: var(--radius-sm); border-left: 3px solid var(--accent); display: none; }
+.answer-explanation.show { display: block; }
+.answer-explanation.loading { color: var(--muted); font-style: italic; }
+.answer-explanation.correct-explanation { border-left-color: var(--success); background: rgba(16,185,129,0.05); }
+.answer-explanation.incorrect-explanation { border-left-color: var(--danger); background: rgba(239,68,68,0.05); }
 .answer-explanation h4 { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
 .answer-explanation p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+/* Dynamic quiz question card styles */
+.question-card-text { font-size: 16px; font-weight: 500; line-height: 1.6; margin-bottom: 20px; color: var(--text); }
+.question-card-options { display: flex; flex-direction: column; gap: 10px; }
+.option-tile { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+.option-tile:hover { border-color: var(--accent); background: var(--accent-soft); }
+.option-tile.answered { pointer-events: none; }
+.option-tile.correct { border-color: var(--success); background: rgba(16,185,129,0.1); }
+.option-tile.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.1); }
+.option-tile .option-letter { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); border-radius: 50%; font-size: 13px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.option-tile.correct .option-letter { background: var(--success); border-color: var(--success); color: white; }
+.option-tile.incorrect .option-letter { background: var(--danger); border-color: var(--danger); color: white; }
+.option-tile .option-text { flex: 1; font-size: 15px; line-height: 1.5; color: var(--text); }
+
+/* Question card header and actions */
+.question-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.question-card-badge { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.question-card-actions { display: flex; gap: 8px; }
+
+/* Gemini AI explain button */
+.gemini-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+.gemini-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.gemini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gemini-btn svg { width: 20px; height: 20px; }
+
+/* Flag button */
+.flag-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; color: var(--text-secondary); }
+.flag-btn:hover { border-color: var(--warning); color: var(--warning); }
+.flag-btn.flagged { background: var(--warning); border-color: var(--warning); color: white; }
+
+/* Question card answered states */
+.question-card.answered-correct { border-color: var(--success); }
+.question-card.answered-incorrect { border-color: var(--danger); }
 
 .review-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .review-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; text-align: center; }
