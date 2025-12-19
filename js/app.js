@@ -1942,6 +1942,38 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             resetProgressBtn.addEventListener("click", resetProgress);
         }
         
+        // Setup sidebar collapse
+        const sideNavCollapse = document.getElementById("side-nav-collapse");
+        const sideNav = document.getElementById("side-nav");
+        if (sideNavCollapse && sideNav) {
+            const savedCollapsed = localStorage.getItem('cpsa_sidebar_collapsed') === 'true';
+            if (savedCollapsed) {
+                sideNav.classList.add('collapsed');
+            }
+            sideNavCollapse.addEventListener("click", () => {
+                sideNav.classList.toggle('collapsed');
+                const isCollapsed = sideNav.classList.contains('collapsed');
+                localStorage.setItem('cpsa_sidebar_collapsed', isCollapsed);
+                sideNavCollapse.setAttribute('aria-expanded', !isCollapsed);
+            });
+        }
+        
+        // Setup focus mode
+        const focusModeBtn = document.getElementById("focus-mode-btn");
+        const appLayout = document.getElementById("app-layout");
+        if (focusModeBtn && appLayout) {
+            const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
+            if (savedFocusMode) {
+                appLayout.classList.add('focus-mode');
+            }
+            focusModeBtn.addEventListener("click", () => {
+                appLayout.classList.toggle('focus-mode');
+                const isFocusMode = appLayout.classList.contains('focus-mode');
+                localStorage.setItem('cpsa_focus_mode', isFocusMode);
+                focusModeBtn.setAttribute('aria-pressed', isFocusMode);
+            });
+        }
+        
         // Setup debounced search
         setupDebouncedSearch();
         
@@ -2596,8 +2628,8 @@ Try it yourself: ${url}`,
 
         const togglePanel = (show) => {
             if (!panel) return;
-            const shouldShow = typeof show === "boolean" ? show : !panel.classList.contains("show");
-            panel.classList.toggle("show", shouldShow);
+            const shouldShow = typeof show === "boolean" ? show : !panel.classList.contains("open");
+            panel.classList.toggle("open", shouldShow);
             if (toggle) {
                 toggle.setAttribute("aria-expanded", shouldShow ? "true" : "false");
             }

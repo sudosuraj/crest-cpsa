@@ -113,7 +113,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .content-area { flex: 1; padding: 24px; }
 .panel, .toolbar-panel { display: none; }
 .panel.active, .toolbar-panel.active { display: block; }
-#practice-panel { display: block !important; }
 
 .panel-header { margin-bottom: 24px; }
 .panel-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
