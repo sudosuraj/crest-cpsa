@@ -1599,6 +1599,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 if (isCorrect) {
                     score++;
                     addXP(10);
+                    updateStreak(); // Update streak on first correct answer of the day
                 }
                 
                 updateCounts();
@@ -1932,6 +1933,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                         score++;
                         correctAnswers++;
                         addXP(10);
+                        updateStreak(); // Update streak on first correct answer of the day
                     }
                     answeredQuestions++;
                     
@@ -2216,6 +2218,13 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         
         if (incorrectEl) incorrectEl.textContent = incorrectCount;
         if (flaggedEl) flaggedEl.textContent = flaggedCount;
+        
+        // Update sidebar review badge (shows total items needing review)
+        const reviewBadge = document.getElementById('review-count');
+        if (reviewBadge) {
+            const totalReviewCount = incorrectCount + flaggedCount;
+            reviewBadge.textContent = totalReviewCount;
+        }
     }
     
     // Mode toggle (Study/Exam)
