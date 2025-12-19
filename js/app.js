@@ -1292,6 +1292,16 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const quizContainer = document.getElementById("quiz-container");
         currentAppendix = { letter: appendixLetter, title: appendixTitle };
         
+        // CRITICAL: Ensure practice panel is active before loading any content
+        // This fixes the blank page bug when navigating to appendix routes
+        const practicePanel = document.getElementById('practice-panel');
+        const practiceTab = document.getElementById('tab-practice');
+        if (practicePanel) practicePanel.classList.add('active');
+        if (practiceTab) {
+            practiceTab.classList.add('active');
+            practiceTab.setAttribute('aria-selected', 'true');
+        }
+        
         // Check if this appendix has been preloaded
         const isPreloaded = QuizDataLoader.isAppendixPreloaded && QuizDataLoader.isAppendixPreloaded(appendixLetter);
         
@@ -2011,51 +2021,6 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 sideNavCollapse.setAttribute('aria-expanded', !isCollapsed);
             });
         }
-        
-                        // Setup focus mode
-                const focusModeBtn = document.getElementById("focus-mode-btn");
-                const focusModeExit = document.getElementById("focus-mode-exit");
-                const appLayout = document.getElementById("app-layout");
-        
-                function setFocusMode(enabled) {
-                    if (!appLayout) return;
-                    if (enabled) {
-                        appLayout.classList.add('focus-mode');
-                        if (focusModeExit) focusModeExit.hidden = false;
-                    } else {
-                        appLayout.classList.remove('focus-mode');
-                        if (focusModeExit) focusModeExit.hidden = true;
-                    }
-                    localStorage.setItem('cpsa_focus_mode', enabled);
-                    if (focusModeBtn) focusModeBtn.setAttribute('aria-pressed', enabled);
-                }
-        
-                function exitFocusMode() {
-                    setFocusMode(false);
-                }
-        
-                if (focusModeBtn && appLayout) {
-                    const savedFocusMode = localStorage.getItem('cpsa_focus_mode') === 'true';
-                    if (savedFocusMode) {
-                        setFocusMode(true);
-                    }
-                    focusModeBtn.addEventListener("click", () => {
-                        const isFocusMode = !appLayout.classList.contains('focus-mode');
-                        setFocusMode(isFocusMode);
-                    });
-                }
-        
-                // Focus mode exit button
-                if (focusModeExit) {
-                    focusModeExit.addEventListener("click", exitFocusMode);
-                }
-        
-                // Keyboard shortcut to exit focus mode (Escape key)
-                document.addEventListener("keydown", (e) => {
-                    if (e.key === "Escape" && appLayout && appLayout.classList.contains('focus-mode')) {
-                        exitFocusMode();
-                    }
-                });
         
         // Setup debounced search
         setupDebouncedSearch();
