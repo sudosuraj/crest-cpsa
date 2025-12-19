@@ -1791,7 +1791,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 </defs>
                 <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-${key})"/>
             </svg>`;
-            explainBtn.addEventListener("click", () => explainAnswer(key, questionObj, explainBtn));
+            explainBtn.addEventListener("click", () => explainAnswer(key));
 
             questionActions.appendChild(flagBtn);
             questionActions.appendChild(explainBtn);
