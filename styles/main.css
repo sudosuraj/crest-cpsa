@@ -103,8 +103,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .mobile-menu-btn { display: none; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); }
 
 .breadcrumbs { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.breadcrumb-item { color: var(--muted); }
+.breadcrumb-item { color: var(--muted); transition: color 0.15s; }
 .breadcrumb-item:hover { color: var(--accent); text-decoration: none; }
+.breadcrumb-item.active { color: var(--text); font-weight: 500; cursor: default; }
+.breadcrumb-separator { color: var(--border); font-size: 12px; }
 .breadcrumbs::after { content: none; }
 
 .search-trigger { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 14px; margin-left: auto; transition: all 0.15s; }

@@ -5,6 +5,143 @@
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
     
+    // ==================== URL ROUTER ====================
+    // Hash-based routing for better student navigation
+    // Supports: #appendix/A, #appendix/B, #tab/review, #tab/insights, #tab/progress
+    const Router = {
+        currentRoute: { type: null, value: null },
+        isNavigating: false,
+        
+        // Parse the current URL hash into a route object
+        parseHash() {
+            const hash = window.location.hash.slice(1); // Remove the #
+            if (!hash) return { type: 'home', value: null };
+            
+            const parts = hash.split('/');
+            if (parts.length >= 2) {
+                const type = parts[0].toLowerCase();
+                const value = parts[1].toUpperCase();
+                
+                if (type === 'appendix' && /^[A-J]$/.test(value)) {
+                    return { type: 'appendix', value: value };
+                }
+                if (type === 'tab' && ['practice', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
+                    return { type: 'tab', value: parts[1].toLowerCase() };
+                }
+            }
+            
+            return { type: 'home', value: null };
+        },
+        
+        // Navigate to a new route (updates URL and triggers navigation)
+        navigate(type, value, options = {}) {
+            const { replace = false, skipHandler = false } = options;
+            
+            let hash = '';
+            if (type === 'appendix' && value) {
+                hash = `#appendix/${value}`;
+            } else if (type === 'tab' && value) {
+                hash = `#tab/${value}`;
+            }
+            
+            // Update URL
+            if (replace) {
+                history.replaceState({ type, value }, '', hash || window.location.pathname);
+            } else {
+                history.pushState({ type, value }, '', hash || window.location.pathname);
+            }
+            
+            this.currentRoute = { type, value };
+            
+            // Update breadcrumbs
+            this.updateBreadcrumbs(type, value);
+            
+            if (!skipHandler) {
+                this.handleRoute({ type, value });
+            }
+        },
+        
+        // Go back to home (appendix selection)
+        goHome(options = {}) {
+            this.navigate('home', null, options);
+        },
+        
+        // Handle route changes (called on popstate and initial load)
+        async handleRoute(route) {
+            if (this.isNavigating) return;
+            this.isNavigating = true;
+            
+            try {
+                if (route.type === 'appendix' && route.value) {
+                    // Load the specific appendix
+                    const appendixTitle = APPENDIX_TITLES[route.value] || `Appendix ${route.value}`;
+                    await loadAppendixQuiz(route.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
+                } else if (route.type === 'tab' && route.value) {
+                    // Switch to the specified tab
+                    if (typeof switchPanel === 'function') {
+                        switchPanel(route.value);
+                    }
+                } else {
+                    // Home - show appendix selection
+                    await loadQuiz();
+                }
+            } finally {
+                this.isNavigating = false;
+            }
+        },
+        
+        // Update breadcrumbs based on current route
+        updateBreadcrumbs(type, value) {
+            const breadcrumbs = document.getElementById('breadcrumbs');
+            if (!breadcrumbs) return;
+            
+            let html = '<a href="#" class="breadcrumb-item" data-nav="home">Home</a>';
+            
+            if (type === 'appendix' && value) {
+                const title = APPENDIX_TITLES[value] || `Appendix ${value}`;
+                html += `<span class="breadcrumb-separator">/</span>`;
+                html += `<span class="breadcrumb-item active">${title}</span>`;
+            } else if (type === 'tab' && value) {
+                const tabName = value.charAt(0).toUpperCase() + value.slice(1);
+                html += `<span class="breadcrumb-separator">/</span>`;
+                html += `<span class="breadcrumb-item active">${tabName}</span>`;
+            }
+            
+            breadcrumbs.innerHTML = html;
+            
+            // Add click handler for home breadcrumb
+            const homeLink = breadcrumbs.querySelector('[data-nav="home"]');
+            if (homeLink) {
+                homeLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    Router.goHome();
+                });
+            }
+        },
+        
+        // Initialize the router
+        init() {
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', (event) => {
+                const route = event.state || this.parseHash();
+                this.currentRoute = route;
+                this.updateBreadcrumbs(route.type, route.value);
+                this.handleRoute(route);
+            });
+            
+            // Handle initial route on page load
+            const initialRoute = this.parseHash();
+            this.currentRoute = initialRoute;
+            this.updateBreadcrumbs(initialRoute.type, initialRoute.value);
+            
+            // Return the initial route so the app can handle it
+            return initialRoute;
+        }
+    };
+    
+    // Make Router available globally for other modules
+    window.Router = Router;
+    
     // HTML escape helper to prevent XSS when inserting untrusted content
     function escapeHtml(str) {
         if (typeof str !== 'string') return str;
@@ -1113,7 +1250,11 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     </div>
                 `;
                 
-                card.addEventListener('click', () => loadAppendixQuiz(appendix.letter, appendix.title));
+                card.addEventListener('click', () => {
+                    // Use Router to navigate - this updates URL and handles navigation
+                    Router.navigate('appendix', appendix.letter, { skipHandler: true });
+                    loadAppendixQuiz(appendix.letter, appendix.title);
+                });
                 grid.appendChild(card);
             });
 
@@ -2493,12 +2634,29 @@ Try it yourself: ${url}`,
         }
     }
 	
-	document.addEventListener("DOMContentLoaded", () => {
+	document.addEventListener("DOMContentLoaded", async () => {
         // Load saved progress first
         loadProgress();
         
-        // Initialize quiz
-        loadQuiz();
+        // Initialize the Router and get the initial route from URL hash
+        const initialRoute = Router.init();
+        
+        // Handle initial route - either load specific appendix or show home
+        if (initialRoute.type === 'appendix' && initialRoute.value) {
+            // Deep link to specific appendix - load it directly
+            const appendixTitle = APPENDIX_TITLES[initialRoute.value] || `Appendix ${initialRoute.value}`;
+            await loadAppendixQuiz(initialRoute.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
+        } else if (initialRoute.type === 'tab' && initialRoute.value) {
+            // Deep link to specific tab - load home first, then switch tab
+            await loadQuiz();
+            if (typeof switchPanel === 'function') {
+                switchPanel(initialRoute.value);
+            }
+        } else {
+            // Default: show appendix selection
+            await loadQuiz();
+        }
+        
         setupUtilities();
         setupChatbot();
         
@@ -3569,7 +3727,9 @@ Try it yourself: ${url}`,
     // ==========================================
     
     // Centralized panel switching function (avoids brittle .click() delegation)
-    function switchPanel(panelName) {
+    // options.updateUrl: whether to update the URL (default: true)
+    function switchPanel(panelName, options = {}) {
+        const { updateUrl = true } = options;
         const toolbarTabs = document.querySelectorAll('.toolbar-tab');
         const toolbarPanels = document.querySelectorAll('.toolbar-panel');
         const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
@@ -3592,6 +3752,11 @@ Try it yourself: ${url}`,
             nav.classList.toggle('active', isActive);
             nav.setAttribute('aria-current', isActive ? 'page' : 'false');
         });
+        
+        // Update URL for deep linking (only for non-practice tabs)
+        if (updateUrl && panelName !== 'practice' && typeof Router !== 'undefined') {
+            Router.navigate('tab', panelName, { skipHandler: true });
+        }
     }
     
     // Update sidebar stats (called from updateAllUI, not setInterval)
