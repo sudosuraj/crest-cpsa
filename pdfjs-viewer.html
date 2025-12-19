@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <link rel="stylesheet" href="vendor/pdfjs/web/pdf_viewer.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        :root {
+            --toolbar-bg: #1a1a2e;
+            --toolbar-border: #2d2d44;
+            --button-hover: #2d2d44;
+            --accent: #0d9488;
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --highlight-color: rgba(255, 255, 0, 0.4);
+            --highlight-selected: rgba(255, 150, 0, 0.6);
+        }
+        
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--toolbar-bg);
+            border-bottom: 1px solid var(--toolbar-border);
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--toolbar-border);
+            margin: 0 8px;
+        }
+        
+        .toolbar button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .toolbar button:hover {
+            background: var(--button-hover);
+        }
+        
+        .toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .toolbar button svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .page-info {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .page-info input {
+            width: 40px;
+            padding: 4px 6px;
+            border: 1px solid var(--toolbar-border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 13px;
+        }
+        
+        .page-info input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+        }
+        
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-input {
+            width: 200px;
+            padding: 6px 32px 6px 10px;
+            border: 1px solid var(--toolbar-border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .search-count {
+            position: absolute;
+            right: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+        
+        .search-nav {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .viewer-container {
+            height: calc(100% - 50px);
+            overflow: auto;
+            background: #525659;
+        }
+        
+        #viewer {
+            padding: 10px;
+        }
+        
+        .page {
+            margin: 0 auto 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            background: white;
+        }
+        
+        .textLayer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: 0.2;
+            line-height: 1.0;
+        }
+        
+        .textLayer span {
+            color: transparent;
+            position: absolute;
+            white-space: pre;
+            cursor: text;
+            transform-origin: 0% 0%;
+        }
+        
+        .textLayer .highlight {
+            margin: -1px;
+            padding: 1px;
+            background-color: var(--highlight-color);
+            border-radius: 2px;
+        }
+        
+        .textLayer .highlight.selected {
+            background-color: var(--highlight-selected);
+        }
+        
+        .annotationLayer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .annotationLayer a {
+            display: block;
+            position: absolute;
+        }
+        
+        .loading-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-primary);
+            font-size: 16px;
+            z-index: 100;
+        }
+        
+        @media (max-width: 600px) {
+            .toolbar {
+                padding: 6px 8px;
+                gap: 4px;
+            }
+            
+            .toolbar-divider {
+                display: none;
+            }
+            
+            .search-input {
+                width: 120px;
+            }
+            
+            .page-info span:not(:first-child):not(:last-child) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <button id="zoomOut" title="Zoom Out">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>
+            </button>
+            <button id="zoomIn" title="Zoom In">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+            <button id="fitWidth" title="Fit Width">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4zm0 14h16v2H4v-2zm0-7h16v2H4v-2z"/></svg>
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-group">
+            <button id="prevPage" title="Previous Page">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <div class="page-info">
+                <input type="number" id="pageNumber" value="1" min="1">
+                <span>/</span>
+                <span id="pageCount">-</span>
+            </div>
+            <button id="nextPage" title="Next Page">
+                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="search-container">
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search in document...">
+                <span id="searchCount" class="search-count"></span>
+            </div>
+            <div class="search-nav">
+                <button id="searchPrev" title="Previous Match">
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                </button>
+                <button id="searchNext" title="Next Match">
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="viewer-container" id="viewerContainer">
+        <div id="viewer" class="pdfViewer"></div>
+    </div>
+    
+    <div class="loading-indicator" id="loadingIndicator">Loading PDF...</div>
+
+    <script type="module">
+        import * as pdfjsLib from './vendor/pdfjs/build/pdf.mjs';
+        import { PDFViewer, EventBus, PDFFindController, PDFLinkService } from './vendor/pdfjs/web/pdf_viewer.mjs';
+        
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/build/pdf.worker.mjs';
+        
+        const DEFAULT_SCALE = 1.0;
+        const MIN_SCALE = 0.25;
+        const MAX_SCALE = 4.0;
+        const SCALE_STEP = 0.25;
+        
+        class PDFViewerApp {
+            constructor() {
+                this.pdfDoc = null;
+                this.currentScale = DEFAULT_SCALE;
+                this.eventBus = new EventBus();
+                this.pdfLinkService = new PDFLinkService({ eventBus: this.eventBus });
+                this.pdfFindController = new PDFFindController({
+                    eventBus: this.eventBus,
+                    linkService: this.pdfLinkService,
+                });
+                
+                this.pdfViewer = new PDFViewer({
+                    container: document.getElementById('viewerContainer'),
+                    eventBus: this.eventBus,
+                    linkService: this.pdfLinkService,
+                    findController: this.pdfFindController,
+                    textLayerMode: 2,
+                    annotationMode: 2,
+                });
+                
+                this.pdfLinkService.setViewer(this.pdfViewer);
+                
+                this.initEventListeners();
+                this.loadPDF();
+            }
+            
+            initEventListeners() {
+                document.getElementById('zoomIn').addEventListener('click', () => this.zoomIn());
+                document.getElementById('zoomOut').addEventListener('click', () => this.zoomOut());
+                document.getElementById('fitWidth').addEventListener('click', () => this.fitWidth());
+                document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
+                document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
+                
+                const pageNumberInput = document.getElementById('pageNumber');
+                pageNumberInput.addEventListener('change', (e) => {
+                    const pageNum = parseInt(e.target.value, 10);
+                    if (pageNum >= 1 && pageNum <= this.pdfDoc.numPages) {
+                        this.pdfViewer.currentPageNumber = pageNum;
+                    }
+                });
+                
+                const searchInput = document.getElementById('searchInput');
+                let searchTimeout;
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        this.search(e.target.value);
+                    }, 300);
+                });
+                
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            this.searchPrev();
+                        } else {
+                            this.searchNext();
+                        }
+                    }
+                });
+                
+                document.getElementById('searchPrev').addEventListener('click', () => this.searchPrev());
+                document.getElementById('searchNext').addEventListener('click', () => this.searchNext());
+                
+                this.eventBus.on('pagechanging', (evt) => {
+                    document.getElementById('pageNumber').value = evt.pageNumber;
+                });
+                
+                this.eventBus.on('updatefindmatchescount', (evt) => {
+                    this.updateSearchCount(evt.matchesCount);
+                });
+                
+                this.eventBus.on('updatefindcontrolstate', (evt) => {
+                    if (evt.state === 0) {
+                        this.updateSearchCount(evt.matchesCount);
+                    }
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                        e.preventDefault();
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                });
+                
+                window.addEventListener('message', (e) => {
+                    if (e.origin !== window.location.origin) return;
+                    if (e.source !== window.parent) return;
+                    if (e.data && e.data.type === 'search') {
+                        searchInput.value = e.data.query;
+                        this.search(e.data.query);
+                    }
+                });
+            }
+            
+            async loadPDF() {
+                const pdfUrl = 'docs/CPSA-Study-Notes-Ravi-Solanki.pdf';
+                
+                try {
+                    const loadingTask = pdfjsLib.getDocument({
+                        url: pdfUrl,
+                        cMapUrl: './vendor/pdfjs/cmaps/',
+                        cMapPacked: true,
+                        standardFontDataUrl: './vendor/pdfjs/standard_fonts/',
+                    });
+                    
+                    this.pdfDoc = await loadingTask.promise;
+                    
+                    document.getElementById('pageCount').textContent = this.pdfDoc.numPages;
+                    document.getElementById('pageNumber').max = this.pdfDoc.numPages;
+                    
+                    this.pdfViewer.setDocument(this.pdfDoc);
+                    this.pdfLinkService.setDocument(this.pdfDoc, null);
+                    
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    
+                    this.fitWidth();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    document.getElementById('loadingIndicator').textContent = 'Error loading PDF';
+                }
+            }
+            
+            zoomIn() {
+                if (this.currentScale < MAX_SCALE) {
+                    this.currentScale = Math.min(this.currentScale + SCALE_STEP, MAX_SCALE);
+                    this.pdfViewer.currentScale = this.currentScale;
+                }
+            }
+            
+            zoomOut() {
+                if (this.currentScale > MIN_SCALE) {
+                    this.currentScale = Math.max(this.currentScale - SCALE_STEP, MIN_SCALE);
+                    this.pdfViewer.currentScale = this.currentScale;
+                }
+            }
+            
+            fitWidth() {
+                this.pdfViewer.currentScaleValue = 'page-width';
+                this.currentScale = this.pdfViewer.currentScale;
+            }
+            
+            prevPage() {
+                if (this.pdfViewer.currentPageNumber > 1) {
+                    this.pdfViewer.currentPageNumber--;
+                }
+            }
+            
+            nextPage() {
+                if (this.pdfViewer.currentPageNumber < this.pdfDoc.numPages) {
+                    this.pdfViewer.currentPageNumber++;
+                }
+            }
+            
+            search(query) {
+                if (!query) {
+                    this.pdfFindController.executeCommand('find', {
+                        query: '',
+                        caseSensitive: false,
+                        highlightAll: true,
+                        findPrevious: false,
+                    });
+                    document.getElementById('searchCount').textContent = '';
+                    return;
+                }
+                
+                this.pdfFindController.executeCommand('find', {
+                    query: query,
+                    caseSensitive: false,
+                    highlightAll: true,
+                    findPrevious: false,
+                });
+            }
+            
+            searchNext() {
+                const query = document.getElementById('searchInput').value;
+                if (query) {
+                    this.pdfFindController.executeCommand('findagain', {
+                        query: query,
+                        caseSensitive: false,
+                        highlightAll: true,
+                        findPrevious: false,
+                    });
+                }
+            }
+            
+            searchPrev() {
+                const query = document.getElementById('searchInput').value;
+                if (query) {
+                    this.pdfFindController.executeCommand('findagain', {
+                        query: query,
+                        caseSensitive: false,
+                        highlightAll: true,
+                        findPrevious: true,
+                    });
+                }
+            }
+            
+            updateSearchCount(matchesCount) {
+                const countEl = document.getElementById('searchCount');
+                if (matchesCount && matchesCount.total > 0) {
+                    countEl.textContent = `${matchesCount.current}/${matchesCount.total}`;
+                } else if (document.getElementById('searchInput').value) {
+                    countEl.textContent = '0/0';
+                } else {
+                    countEl.textContent = '';
+                }
+            }
+        }
+        
+        window.pdfViewerApp = new PDFViewerApp();
+    </script>
+</body>
+</html>

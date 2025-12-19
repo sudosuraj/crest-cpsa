@@ -4052,6 +4052,14 @@ Try it yourself: ${url}`,
                     html += '</div>';
                 }
             
+                if (lowerQuery && lowerQuery.length >= 2) {
+                    html += '<div class="command-group"><div class="command-group-title">Search in PDF</div>';
+                    html += `<button class="command-item" data-action="search-pdf" data-value="${encodeURIComponent(query)}">
+                        <strong>Search in Study Notes:</strong> "${escapeHtml(query)}"
+                    </button>`;
+                    html += '</div>';
+                }
+            
                 if (!html) {
                     html = '<div class="command-group"><div class="command-group-title">No results found</div></div>';
                 }
@@ -4072,6 +4080,14 @@ Try it yourself: ${url}`,
                         } else if (action === 'panel') {
                             if (typeof switchPanel === 'function') {
                                 switchPanel(value);
+                            }
+                        } else if (action === 'search-pdf') {
+                            if (typeof switchPanel === 'function') {
+                                switchPanel('study');
+                            }
+                            const pdfViewer = document.getElementById('pdf-viewer');
+                            if (pdfViewer && pdfViewer.contentWindow) {
+                                pdfViewer.contentWindow.postMessage({ type: 'search', query: decodeURIComponent(value) }, window.location.origin);
                             }
                         }
                     
