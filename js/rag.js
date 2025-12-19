@@ -508,24 +508,37 @@ const RAG = (function() {
             }
         }
         
-        const systemPrompt = `You are a CPSA exam question generator. Generate exactly ${questionsPerChunk} multiple-choice questions based on the provided study material.
+        const systemPrompt = `You are a CPSA (CREST Practitioner Security Analyst) exam question generator. Generate exactly ${questionsPerChunk} challenging multiple-choice questions based on the provided study material.
 
 Output ONLY valid JSON array with this exact structure:
 [{"question":"Question text?","options":["A) Option 1","B) Option 2","C) Option 3","D) Option 4"],"correct":0,"explanation":"Brief explanation"}]
 
+QUESTION DIFFICULTY - Generate HARD exam-level questions:
+- Focus on scenario-based questions: "A penetration tester discovers X. What is the MOST appropriate next step?"
+- Test application of knowledge, not just recall: "Which technique would be MOST effective for..."
+- Include questions about trade-offs and best practices: "What is the PRIMARY advantage of..."
+- Ask about attack chains and methodology: "After gaining initial access via X, which attack would..."
+- Test understanding of when/why to use specific tools or techniques
+- Avoid simple definition questions like "What is X?" - instead ask "In which scenario would X be preferred over Y?"
+
+DISTRACTOR QUALITY - Make wrong answers plausible:
+- All distractors must be real security concepts from the same domain
+- Distractors should be things a less-prepared candidate might choose
+- Include common misconceptions as distractors
+- Never use obviously wrong or joke answers
+
+STRICT OPTION FORMAT - Prevent length-based guessing:
+- ALL 4 options MUST have the same word count (within 1 word difference)
+- Each option: 4-7 words only, no exceptions
+- Use parallel grammatical structure for all options
+- If correct answer needs detail, add equal detail to ALL options
+- Never use "All of the above" or "None of the above"
+
 Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - "correct" is the 0-based index of the correct answer (0-3)
-- Questions must be directly answerable from the provided material
-- Keep questions clear and concise
-
-CRITICAL - Option Length Rules (to prevent answer guessing):
-- ALL 4 options MUST be exactly the same length (within 1-2 words)
-- The correct answer must NEVER be longer than the distractors
-- Each option should be 3-8 words maximum
-- If the correct answer needs more detail, make ALL options equally detailed
-- Never add qualifiers like "specifically", "exactly", "always" to only one option
-- Avoid patterns where correct answers are more complete or technical`;
+- Questions must be answerable from the provided material
+- Explanation should cite the specific concept from the material`;
 
         // Truncate chunk text to fit within token budget
         // Hard cap at 1500 chars to stay well under API limits
@@ -713,26 +726,38 @@ Output ONLY the JSON array.`;
             });
         }
 
-        const systemPrompt = `You are a CPSA exam question generator. Generate exactly ${questionsNeeded} multiple-choice questions based on the provided study material sections.
+        const systemPrompt = `You are a CPSA (CREST Practitioner Security Analyst) exam question generator. Generate exactly ${questionsNeeded} challenging multiple-choice questions based on the provided study material sections.
 
 Output ONLY valid JSON array with this exact structure:
 [{"question":"Question text?","options":["A) Option 1","B) Option 2","C) Option 3","D) Option 4"],"correct":0,"explanation":"Brief explanation","section":1}]
+
+QUESTION DIFFICULTY - Generate HARD exam-level questions:
+- Focus on scenario-based questions: "A penetration tester discovers X. What is the MOST appropriate next step?"
+- Test application of knowledge, not just recall: "Which technique would be MOST effective for..."
+- Include questions about trade-offs and best practices: "What is the PRIMARY advantage of..."
+- Ask about attack chains and methodology: "After gaining initial access via X, which attack would..."
+- Test understanding of when/why to use specific tools or techniques
+- Avoid simple definition questions like "What is X?" - instead ask "In which scenario would X be preferred over Y?"
+
+DISTRACTOR QUALITY - Make wrong answers plausible:
+- All distractors must be real security concepts from the same domain
+- Distractors should be things a less-prepared candidate might choose
+- Include common misconceptions as distractors
+- Never use obviously wrong or joke answers
+
+STRICT OPTION FORMAT - Prevent length-based guessing:
+- ALL 4 options MUST have the same word count (within 1 word difference)
+- Each option: 4-7 words only, no exceptions
+- Use parallel grammatical structure for all options
+- If correct answer needs detail, add equal detail to ALL options
+- Never use "All of the above" or "None of the above"
 
 Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - "correct" is the 0-based index of the correct answer (0-3)
 - "section" is the section number (1, 2, 3, etc.) the question is based on
-- Questions must be directly answerable from the provided material
-- Distribute questions across all sections
-- Keep questions clear and concise
-
-CRITICAL - Option Length Rules (to prevent answer guessing):
-- ALL 4 options MUST be exactly the same length (within 1-2 words)
-- The correct answer must NEVER be longer than the distractors
-- Each option should be 3-8 words maximum
-- If the correct answer needs more detail, make ALL options equally detailed
-- Never add qualifiers like "specifically", "exactly", "always" to only one option
-- Avoid patterns where correct answers are more complete or technical`;
+- Distribute questions evenly across all sections
+- Explanation should cite the specific concept from the material`;
 
         const userPrompt = `Generate ${questionsNeeded} MCQ questions from these CPSA study material sections:
 ${combinedContent}
