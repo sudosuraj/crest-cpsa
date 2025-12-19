@@ -151,7 +151,11 @@
         }
         
         .viewer-container {
-            height: calc(100% - 50px);
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 0;
             overflow: auto;
             background: #525659;
         }
@@ -223,18 +227,35 @@
             .toolbar {
                 padding: 6px 8px;
                 gap: 4px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
             }
             
             .toolbar-divider {
                 display: none;
             }
             
+            .search-container {
+                margin-left: 4px;
+            }
+            
             .search-input {
-                width: 120px;
+                width: 100px;
             }
             
             .page-info span:not(:first-child):not(:last-child) {
                 display: none;
+            }
+            
+            .toolbar button {
+                width: 28px;
+                height: 28px;
+                min-width: 28px;
+            }
+            
+            .toolbar button svg {
+                width: 16px;
+                height: 16px;
             }
         }
     </style>
@@ -461,32 +482,44 @@
             
             search(query) {
                 if (!query) {
-                    this.pdfFindController.executeCommand('find', {
+                    this.eventBus.dispatch('find', {
+                        source: this,
+                        type: '',
                         query: '',
                         caseSensitive: false,
+                        entireWord: false,
                         highlightAll: true,
                         findPrevious: false,
+                        matchDiacritics: false,
                     });
                     document.getElementById('searchCount').textContent = '';
                     return;
                 }
                 
-                this.pdfFindController.executeCommand('find', {
+                this.eventBus.dispatch('find', {
+                    source: this,
+                    type: '',
                     query: query,
                     caseSensitive: false,
+                    entireWord: false,
                     highlightAll: true,
                     findPrevious: false,
+                    matchDiacritics: false,
                 });
             }
             
             searchNext() {
                 const query = document.getElementById('searchInput').value;
                 if (query) {
-                    this.pdfFindController.executeCommand('findagain', {
+                    this.eventBus.dispatch('findagain', {
+                        source: this,
+                        type: '',
                         query: query,
                         caseSensitive: false,
+                        entireWord: false,
                         highlightAll: true,
                         findPrevious: false,
+                        matchDiacritics: false,
                     });
                 }
             }
@@ -494,11 +527,15 @@
             searchPrev() {
                 const query = document.getElementById('searchInput').value;
                 if (query) {
-                    this.pdfFindController.executeCommand('findagain', {
+                    this.eventBus.dispatch('findagain', {
+                        source: this,
+                        type: '',
                         query: query,
                         caseSensitive: false,
+                        entireWord: false,
                         highlightAll: true,
                         findPrevious: true,
+                        matchDiacritics: false,
                     });
                 }
             }
