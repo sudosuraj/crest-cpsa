@@ -645,13 +645,16 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
 
     const pageQuestions = {};
 
-    // P2P-FIRST: Try to get questions from P2P sync before generating from LLM
-    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
-        P2PSync.subscribeToAppendix(appendixLetter);
-        
-        try {
-            const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter);
-            if (p2pQuestions && p2pQuestions.length >= targetCount) {
+        // P2P-FIRST: Try to get questions from P2P sync before generating from LLM
+        // Wait up to 2 seconds for P2P data to arrive from Gun.js network
+        if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+            try {
+                console.log(`P2P-FIRST: Waiting for P2P questions for Appendix ${appendixLetter}...`);
+                const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter, { 
+                    minCount: targetCount, 
+                    timeoutMs: 2000 
+                });
+                if (p2pQuestions && p2pQuestions.length >= targetCount) {
                 console.log(`P2P-FIRST: Found ${p2pQuestions.length} questions from P2P for Appendix ${appendixLetter}`);
                 
                 // Use P2P questions - convert and store them

@@ -1383,7 +1383,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     if (Object.keys(streamedQuestions).length === 0) {
                         quizContainer.innerHTML = `
                             <p class="error">Error generating questions. Please try again.</p>
-                            <button onclick="Router.goBack()">Back to Appendix Selection</button>
+                            <button onclick="Router.goHome()">Back to Appendix Selection</button>
                         `;
                     }
                 }
@@ -1416,7 +1416,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             console.error('Error generating questions:', error);
             quizContainer.innerHTML = `
                 <p class="error">Error generating questions. Please try again.</p>
-                <button onclick="Router.goBack()">Back to Appendix Selection</button>
+                <button onclick="Router.goHome()">Back to Appendix Selection</button>
             `;
         }
     }
@@ -1704,7 +1704,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const backBtn = document.createElement('button');
         backBtn.className = 'back-to-selection back-btn';
         backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg> Back';
-        backBtn.addEventListener('click', () => Router.goBack());
+        backBtn.addEventListener('click', () => Router.goHome());
         header.appendChild(backBtn);
 
         const titleEl = document.createElement('h2');

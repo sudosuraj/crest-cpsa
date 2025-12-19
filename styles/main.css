@@ -43,8 +43,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 
 .side-nav { position: fixed; left: 0; top: 0; bottom: 0; width: var(--side-nav-width); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; transition: width 0.2s ease; }
 .side-nav.collapsed { width: var(--side-nav-collapsed); }
-.side-nav.collapsed .brand-text, .side-nav.collapsed .nav-item span, .side-nav.collapsed .streak-label, .side-nav.collapsed .api-status-text { display: none; }
-.side-nav.collapsed .nav-item { justify-content: center; padding: 12px; }
+.side-nav.collapsed .brand-text, .side-nav.collapsed .nav-item span, .side-nav.collapsed .sidebar-nav-item span:not(.nav-badge), .side-nav.collapsed .streak-label, .side-nav.collapsed .api-status-text { display: none; }
+.side-nav.collapsed .nav-item, .side-nav.collapsed .sidebar-nav-item { justify-content: center; padding: 12px; }
 .side-nav.collapsed .side-nav-footer { padding: 12px; }
 
 .side-nav-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
