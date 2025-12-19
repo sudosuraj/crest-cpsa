@@ -158,10 +158,13 @@
             bottom: 0;
             overflow: auto;
             background: #525659;
+            min-width: 0;
         }
         
         #viewer {
             padding: 10px;
+            min-width: 0;
+            max-width: 100%;
         }
         
         .page {
@@ -442,7 +445,15 @@
                     
                     document.getElementById('loadingIndicator').style.display = 'none';
                     
-                    this.fitWidth();
+                    this.eventBus.on('pagesinit', () => {
+                        this.fitWidth();
+                    });
+                    
+                    window.addEventListener('resize', () => {
+                        if (this.pdfViewer.currentScaleValue === 'page-width') {
+                            this.fitWidth();
+                        }
+                    });
                 } catch (error) {
                     console.error('Error loading PDF:', error);
                     document.getElementById('loadingIndicator').textContent = 'Error loading PDF';
