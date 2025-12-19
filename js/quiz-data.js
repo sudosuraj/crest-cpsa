@@ -644,18 +644,54 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
     });
 
     const pageQuestions = {};
-
-        // P2P-FIRST: Try to get questions from P2P sync before generating from LLM
-        // Wait up to 2 seconds for P2P data to arrive from Gun.js network
-        if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
-            try {
-                console.log(`P2P-FIRST: Waiting for P2P questions for Appendix ${appendixLetter}...`);
-                const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter, { 
-                    minCount: targetCount, 
-                    timeoutMs: 2000 
-                });
-                if (p2pQuestions && p2pQuestions.length >= targetCount) {
-                console.log(`P2P-FIRST: Found ${p2pQuestions.length} questions from P2P for Appendix ${appendixLetter}`);
+    
+    // Check if user has set their own API key (highest priority)
+    const hasUserApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
+    
+    // Check if LLM is available (not in circuit breaker or rate limit cooldown)
+    const isLLMAvailable = () => {
+        if (typeof LLMClient === 'undefined') return false;
+        const status = LLMClient.getStatus();
+        return !status.isCircuitOpen && !status.isInCooldown;
+    };
+    
+    // PRIORITY ORDER:
+    // 1. User API key set -> Always use LLM (most prioritized)
+    // 2. No API key -> Use LLM7 anonymous mode, keep P2P synced
+    // 3. LLM has issues -> Fall back to P2P
+    
+    // Always subscribe to P2P for realtime dual sync (regardless of priority)
+    if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        P2PSync.subscribeToAppendix(appendixLetter);
+    }
+    
+    let useLLM = true;
+    let llmFailed = false;
+    
+    // If user has API key, skip P2P-first and go straight to LLM
+    if (hasUserApiKey) {
+        console.log('LLM-PRIORITY: User API key detected, using LLM directly');
+        useLLM = true;
+    } else if (!isLLMAvailable()) {
+        // LLM7 anonymous mode has issues (circuit breaker or rate limit)
+        console.log('LLM-FALLBACK: LLM7 unavailable (circuit breaker or rate limit), trying P2P first');
+        useLLM = false;
+    } else {
+        // No API key, LLM7 anonymous mode available - try LLM first but be ready to fall back
+        console.log('LLM-ANONYMOUS: Using LLM7 anonymous mode (8k token limit)');
+        useLLM = true;
+    }
+    
+    // If LLM is not available, try P2P first
+    if (!useLLM && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        try {
+            console.log(`P2P-FALLBACK: Waiting for P2P questions for Appendix ${appendixLetter}...`);
+            const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter, { 
+                minCount: targetCount, 
+                timeoutMs: 3000 
+            });
+            if (p2pQuestions && p2pQuestions.length >= targetCount) {
+                console.log(`P2P-FALLBACK: Found ${p2pQuestions.length} questions from P2P for Appendix ${appendixLetter}`);
                 
                 // Use P2P questions - convert and store them
                 const questionsToUse = p2pQuestions.slice(0, targetCount);
@@ -682,7 +718,7 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
                     exhausted: false,
                     chunksProcessed: 0,
                     totalChunks: state.totalChunks,
-                    stats: { p2pHits: questionsToUse.length, apiCalls: 0 }
+                    stats: { p2pHits: questionsToUse.length, apiCalls: 0, source: 'p2p' }
                 };
                 
                 if (onComplete) {
@@ -691,65 +727,129 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
                 
                 return finalResult;
             } else {
-                console.log(`P2P-FIRST: Only ${p2pQuestions ? p2pQuestions.length : 0} questions from P2P, need ${targetCount}. Falling back to LLM.`);
+                console.log(`P2P-FALLBACK: Only ${p2pQuestions ? p2pQuestions.length : 0} questions from P2P, need ${targetCount}. Will try LLM anyway.`);
+                useLLM = true; // Try LLM even if it might fail
             }
         } catch (e) {
-            console.warn('P2P-FIRST: Error getting P2P questions, falling back to LLM', e);
+            console.warn('P2P-FALLBACK: Error getting P2P questions', e);
+            useLLM = true; // Try LLM as last resort
         }
     }
 
-    // Fallback: Use streaming RAG - this calls onQuestion for EACH question as it's generated
-    const result = await RAG.generateQuestionsStreaming(appendixLetter, {
-        targetCount,
-        startChunkIdx: state.nextChunkIdx,
-        existingHashes: state.questionHashes,
-        
-        // THIS IS THE KEY: Called for each question immediately
-        onQuestion: (ragQuestion, currentCount, total) => {
-            const id = String(questionIdCounter++);
-            const converted = convertToQuizFormat(ragQuestion);
-            quizData[id] = converted;
-            state.allQuestions.push({ id, ...converted });
-            pageQuestions[id] = converted;
+    // Use LLM (either with user API key or LLM7 anonymous mode)
+    let result;
+    try {
+        result = await RAG.generateQuestionsStreaming(appendixLetter, {
+            targetCount,
+            startChunkIdx: state.nextChunkIdx,
+            existingHashes: state.questionHashes,
             
-            // Call the UI callback so it can display this question immediately!
-            if (onQuestion) {
-                onQuestion(converted, id, currentCount, total);
+            // Called for each question immediately - REALTIME streaming
+            onQuestion: (ragQuestion, currentCount, total) => {
+                const id = String(questionIdCounter++);
+                const converted = convertToQuizFormat(ragQuestion);
+                quizData[id] = converted;
+                state.allQuestions.push({ id, ...converted });
+                pageQuestions[id] = converted;
+                
+                // Call the UI callback so it can display this question immediately!
+                if (onQuestion) {
+                    onQuestion(converted, id, currentCount, total);
+                }
+                
+                // REALTIME DUAL SYNC: Share each question to P2P as it's generated
+                if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+                    P2PSync.shareQuestions([ragQuestion], appendixLetter).catch(() => {});
+                }
+            },
+            
+            onProgress: (progress) => {
+                if (onProgress) {
+                    onProgress({
+                        ...progress,
+                        appendix: appendixLetter,
+                        totalChunks: state.totalChunks,
+                        source: hasUserApiKey ? 'user_api' : 'llm7_anonymous'
+                    });
+                }
+            },
+            
+            onError: (error) => {
+                console.error('Streaming RAG error:', error);
+                llmFailed = true;
+                if (onError) onError(error);
             }
-        },
+        });
+    } catch (e) {
+        console.error('LLM generation failed:', e);
+        llmFailed = true;
         
-        onProgress: (progress) => {
-            if (onProgress) {
-                onProgress({
-                    ...progress,
-                    appendix: appendixLetter,
-                    totalChunks: state.totalChunks
-                });
-            }
-        },
-        
-        onError: (error) => {
-            console.error('Streaming RAG error:', error);
-            if (onError) onError(error);
-        }
-    });
-
-        // Update state
-        state.nextChunkIdx = result.nextChunkIdx;
-        state.exhausted = result.exhausted;
-        state.currentPage = 1;
-
-        console.log(`Streamed ${result.questions.length} questions for Appendix ${appendixLetter}`);
-    
-        // DUAL P2P SYNC: Share LLM-generated questions back to P2P for other users
-        if (result.questions.length > 0 && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+        // LLM failed - try P2P as final fallback
+        if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+            console.log('LLM-FAILED: Attempting P2P fallback...');
             try {
-                await P2PSync.shareQuestions(result.questions, appendixLetter);
-                console.log(`P2P-SYNC: Shared ${result.questions.length} LLM-generated questions to P2P network`);
-            } catch (e) {
-                console.warn('P2P-SYNC: Failed to share questions to P2P', e);
+                const p2pQuestions = await P2PSync.getQuestionsFromPool(appendixLetter, { 
+                    minCount: Math.max(5, targetCount / 2), // Accept fewer questions as fallback
+                    timeoutMs: 5000 
+                });
+                if (p2pQuestions && p2pQuestions.length > 0) {
+                    console.log(`P2P-RECOVERY: Found ${p2pQuestions.length} questions from P2P after LLM failure`);
+                    
+                    const questionsToUse = p2pQuestions.slice(0, targetCount);
+                    questionsToUse.forEach((q, idx) => {
+                        const id = String(questionIdCounter++);
+                        const converted = convertToQuizFormat(q);
+                        quizData[id] = converted;
+                        state.allQuestions.push({ id, ...converted });
+                        pageQuestions[id] = converted;
+                        state.questionHashes.add(hashQuestion(q.question));
+                        
+                        if (onQuestion) {
+                            onQuestion(converted, id, idx + 1, questionsToUse.length);
+                        }
+                    });
+                    
+                    state.currentPage = 1;
+                    
+                    const finalResult = {
+                        questions: pageQuestions,
+                        hasMore: p2pQuestions.length > targetCount,
+                        currentPage: state.currentPage,
+                        totalQuestions: state.allQuestions.length,
+                        exhausted: false,
+                        chunksProcessed: 0,
+                        totalChunks: state.totalChunks,
+                        stats: { p2pHits: questionsToUse.length, apiCalls: 0, source: 'p2p_fallback', llmFailed: true }
+                    };
+                    
+                    if (onComplete) {
+                        onComplete(finalResult);
+                    }
+                    
+                    return finalResult;
+                }
+            } catch (p2pError) {
+                console.error('P2P fallback also failed:', p2pError);
             }
         }
+        
+        // Both LLM and P2P failed
+        if (onError) onError({ type: 'all_sources_failed', error: e });
+        return { 
+            questions: pageQuestions, 
+            hasMore: false, 
+            currentPage: 0, 
+            totalQuestions: Object.keys(pageQuestions).length,
+            stats: { source: 'failed', llmFailed: true, p2pFailed: true }
+        };
+    }
+
+    // Update state
+    state.nextChunkIdx = result.nextChunkIdx;
+    state.exhausted = result.exhausted;
+    state.currentPage = 1;
+
+    console.log(`Streamed ${result.questions.length} questions for Appendix ${appendixLetter} (source: ${hasUserApiKey ? 'user_api' : 'llm7_anonymous'})`);
 
     const finalResult = {
         questions: pageQuestions,
@@ -759,7 +859,11 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
         exhausted: state.exhausted,
         chunksProcessed: state.nextChunkIdx,
         totalChunks: state.totalChunks,
-        stats: result.stats
+        stats: { 
+            ...result.stats, 
+            source: hasUserApiKey ? 'user_api' : 'llm7_anonymous',
+            p2pSynced: typeof P2PSync !== 'undefined' && P2PSync.isAvailable()
+        }
     };
 
     if (onComplete) {
@@ -816,7 +920,10 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
 
     const pageQuestions = {};
 
-    // Use streaming RAG for next page
+    // Check if user has set their own API key (highest priority)
+    const hasUserApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
+    
+    // Use streaming RAG for next page with REALTIME P2P sync
     const result = await RAG.generateQuestionsStreaming(appendixLetter, {
         targetCount,
         startChunkIdx: state.nextChunkIdx,
@@ -832,28 +939,23 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
             if (onQuestion) {
                 onQuestion(converted, id, currentCount, total);
             }
+            
+            // REALTIME DUAL SYNC: Share each question to P2P as it's generated
+            if (typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
+                P2PSync.shareQuestions([ragQuestion], appendixLetter).catch(() => {});
+            }
         },
         
         onProgress,
         onError
     });
 
-        // Update state
-        state.nextChunkIdx = result.nextChunkIdx;
-        state.exhausted = result.exhausted;
-        state.currentPage++;
+    // Update state
+    state.nextChunkIdx = result.nextChunkIdx;
+    state.exhausted = result.exhausted;
+    state.currentPage++;
 
-        console.log(`Streamed page ${state.currentPage} with ${result.questions.length} questions for Appendix ${appendixLetter}`);
-    
-        // DUAL P2P SYNC: Share LLM-generated questions back to P2P for other users
-        if (result.questions.length > 0 && typeof P2PSync !== 'undefined' && P2PSync.isAvailable()) {
-            try {
-                await P2PSync.shareQuestions(result.questions, appendixLetter);
-                console.log(`P2P-SYNC: Shared ${result.questions.length} LLM-generated questions to P2P network`);
-            } catch (e) {
-                console.warn('P2P-SYNC: Failed to share questions to P2P', e);
-            }
-        }
+    console.log(`Streamed page ${state.currentPage} with ${result.questions.length} questions for Appendix ${appendixLetter} (source: ${hasUserApiKey ? 'user_api' : 'llm7_anonymous'})`);
 
     const finalResult = {
         questions: pageQuestions,
@@ -863,7 +965,11 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
         exhausted: state.exhausted,
         chunksProcessed: state.nextChunkIdx,
         totalChunks: state.totalChunks,
-        stats: result.stats
+        stats: { 
+            ...result.stats, 
+            source: hasUserApiKey ? 'user_api' : 'llm7_anonymous',
+            p2pSynced: typeof P2PSync !== 'undefined' && P2PSync.isAvailable()
+        }
     };
 
     if (onComplete) {
