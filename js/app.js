@@ -2216,6 +2216,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const moreBtn = document.getElementById('more-actions-btn');
         const moreMenu = document.getElementById('more-menu');
         const reviewFlaggedBtn = document.getElementById('review-flagged-btn');
+        const reviewIncorrectBtn = document.getElementById('review-incorrect-btn');
         const mainContent = document.getElementById('main-content');
         
         // Tab switching - use centralized switchPanel for consistent routing
@@ -2302,6 +2303,28 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 showQuestion(0);
                 buildNavigatorDots();
                 showToast(`Reviewing ${flaggedIds.length} flagged questions`);
+            });
+        }
+        
+        // Review incorrect button
+        if (reviewIncorrectBtn) {
+            reviewIncorrectBtn.addEventListener('click', () => {
+                // Get questions that were answered incorrectly
+                const incorrectIds = Object.entries(answerState)
+                    .filter(([_, state]) => !state.correct)
+                    .map(([id, _]) => id);
+                
+                if (incorrectIds.length === 0) {
+                    showToast('No incorrect questions to review! Answer some questions first.');
+                    return;
+                }
+                
+                setView('single');
+                allQuestionIds = incorrectIds;
+                currentQuestionIndex = 0;
+                showQuestion(0);
+                buildNavigatorDots();
+                showToast(`Reviewing ${incorrectIds.length} incorrect questions`);
             });
         }
     }
