@@ -1484,12 +1484,20 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             return;
         }
         
-        // Not preloaded - use STREAMING RAG to show questions immediately as they're generated
-        // This is TRUE RAG: retrieves chunks, generates questions, streams them to UI
+                // Not preloaded - use STREAMING RAG to show questions immediately as they're generated
+                // This is TRUE RAG: retrieves chunks, generates questions, streams them to UI
         
-        // Track questions as they stream in
-        let streamedQuestions = {};
-        let firstQuestionShown = false;
+                // Show API key modal if no API key is set (one-time per session)
+                const hasApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
+                const modalShownThisSession = sessionStorage.getItem('api_key_modal_shown') === 'true';
+                if (!hasApiKey && !modalShownThisSession && typeof window.openApiKeyModal === 'function') {
+                    sessionStorage.setItem('api_key_modal_shown', 'true');
+                    window.openApiKeyModal();
+                }
+        
+                // Track questions as they stream in
+                let streamedQuestions = {};
+                let firstQuestionShown = false;
         
         // Initial loading state - will be replaced as soon as first question arrives
         quizContainer.innerHTML = `
@@ -4364,125 +4372,83 @@ Try it yourself: ${url}`,
         if (mobileAttempted) mobileAttempted.textContent = stats.attempted;
     }
 
-        // ==========================================
-        // API KEY SETTINGS
-        // ==========================================
-        function setupApiKeySettings() {
-            const modal = document.getElementById('api-key-modal');
-            const btn = document.getElementById('api-key-btn');
-            const closeBtn = document.getElementById('api-key-modal-close');
-            const saveBtn = document.getElementById('save-api-key');
-            const clearBtn = document.getElementById('clear-api-key');
-            const input = document.getElementById('api-key-input');
-            const status = document.getElementById('api-key-status');
-            const indicator = document.getElementById('api-key-indicator');
+            // ==========================================
+            // API KEY SETTINGS
+            // ==========================================
+            function setupApiKeySettings() {
+                const modal = document.getElementById('api-key-modal');
+                const btn = document.getElementById('api-key-btn');
+                const closeBtn = document.getElementById('api-key-modal-close');
+                const saveBtn = document.getElementById('save-api-key');
+                const clearBtn = document.getElementById('clear-api-key');
+                const input = document.getElementById('api-key-input');
+                const status = document.getElementById('api-key-status');
+                const indicator = document.getElementById('api-key-indicator');
         
-            const banner = document.getElementById('api-token-banner');
-            const bannerClose = document.getElementById('api-token-banner-close');
-            const bannerForm = document.getElementById('api-token-banner-form');
-            const bannerInput = document.getElementById('api-token-banner-input');
+                if (!modal || !btn) return;
         
-            if (!modal || !btn) return;
-        
-            function updateStatus() {
-                const hasKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
-                if (hasKey) {
-                    status.textContent = 'API key is set';
-                    status.className = 'api-key-status success';
-                    indicator.hidden = false;
-                    if (banner) banner.hidden = true;
-                } else {
-                    status.textContent = 'No API key set (using shared quota)';
-                    status.className = 'api-key-status';
-                    indicator.hidden = true;
-                }
-            }
-        
-            function openModal() {
-                modal.setAttribute('aria-hidden', 'false');
-                modal.classList.add('show');
-                updateStatus();
-            }
-        
-            function closeModal() {
-                modal.setAttribute('aria-hidden', 'true');
-                modal.classList.remove('show');
-                input.value = '';
-            }
-        
-            btn.addEventListener('click', openModal);
-            closeBtn.addEventListener('click', closeModal);
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeModal();
-            });
-        
-            saveBtn.addEventListener('click', () => {
-                const key = input.value.trim();
-                if (key) {
-                    if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
-                        showToast('API key saved successfully');
-                        updateStatus();
-                        input.value = '';
+                function updateStatus() {
+                    if (typeof LLMClient !== 'undefined' && LLMClient.hasApiKey()) {
+                        status.textContent = 'API key is set';
+                        status.className = 'api-key-status success';
+                        indicator.hidden = false;
                     } else {
-                        showToast('Failed to save API key', 'error');
+                        status.textContent = 'No API key set (using shared quota)';
+                        status.className = 'api-key-status';
+                        indicator.hidden = true;
                     }
-                } else {
-                    showToast('Please enter an API key', 'error');
                 }
-            });
         
-            clearBtn.addEventListener('click', () => {
-                if (typeof LLMClient !== 'undefined') {
-                    LLMClient.clearApiKey();
-                    showToast('API key cleared');
+                function openModal() {
+                    modal.setAttribute('aria-hidden', 'false');
+                    modal.classList.add('show');
                     updateStatus();
                 }
-            });
         
-            if (banner && bannerClose && bannerForm && bannerInput) {
-                bannerClose.addEventListener('click', () => {
-                    banner.hidden = true;
-                    sessionStorage.setItem('api_token_banner_dismissed', 'true');
-                });
+                function closeModal() {
+                    modal.setAttribute('aria-hidden', 'true');
+                    modal.classList.remove('show');
+                    input.value = '';
+                }
             
-                bannerForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const key = bannerInput.value.trim();
+                window.openApiKeyModal = openModal;
+        
+                btn.addEventListener('click', openModal);
+                closeBtn.addEventListener('click', closeModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal();
+                });
+        
+                saveBtn.addEventListener('click', () => {
+                    const key = input.value.trim();
                     if (key) {
                         if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
-                            showToast('API token saved successfully');
+                            showToast('API key saved successfully');
                             updateStatus();
-                            bannerInput.value = '';
-                            banner.hidden = true;
+                            input.value = '';
+                            closeModal();
                         } else {
-                            showToast('Failed to save API token', 'error');
+                            showToast('Failed to save API key', 'error');
                         }
                     } else {
-                        showToast('Please enter an API token', 'error');
+                        showToast('Please enter an API key', 'error');
                     }
                 });
+        
+                clearBtn.addEventListener('click', () => {
+                    if (typeof LLMClient !== 'undefined') {
+                        LLMClient.clearApiKey();
+                        showToast('API key cleared');
+                        updateStatus();
+                    }
+                });
+        
+                updateStatus();
             }
-        
-            updateStatus();
-        }
-    
-        function showApiTokenBannerIfNeeded() {
-            const banner = document.getElementById('api-token-banner');
-            if (!banner) return;
-        
-            const hasApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
-            const wasDismissed = sessionStorage.getItem('api_token_banner_dismissed') === 'true';
-        
-            if (!hasApiKey && !wasDismissed) {
-                banner.hidden = false;
-            } else {
-                banner.hidden = true;
-            }
-        }
 
-    // ==========================================
-    // DESKTOP SIDEBAR NAVIGATION
-    // ==========================================
+        // ==========================================
+        // DESKTOP SIDEBAR NAVIGATION
+        // ==========================================
     
     // Centralized panel switching function (avoids brittle .click() delegation)
     // options.updateUrl: whether to update the URL (default: true)
@@ -4754,10 +4720,9 @@ Try it yourself: ${url}`,
                     setupXPSystem();
                     setupShareDropdown();
                     setupMobileNavigation();
-                    setupApiKeySettings();
-                    setupDesktopSidebar();
-                    setupCommandPalette();
-                    showApiTokenBannerIfNeeded();
+                                        setupApiKeySettings();
+                                        setupDesktopSidebar();
+                                        setupCommandPalette();
             
             // Setup "Start Practice" button on Study page
             const goToPracticeBtn = document.getElementById('go-to-practice-btn');
