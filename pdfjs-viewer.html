@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF Viewer</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="vendor/pdfjs/web/pdf_viewer.css">
     <style>
         * {
@@ -421,6 +422,9 @@
                         searchInput.value = e.data.query;
                         this.search(e.data.query);
                     }
+                    if (e.data && e.data.type === 'panelVisible') {
+                        this.fitWidth();
+                    }
                 });
             }
             
@@ -475,6 +479,10 @@
             }
             
             fitWidth() {
+                const container = document.getElementById('viewerContainer');
+                if (!container || !container.offsetParent) {
+                    return;
+                }
                 this.pdfViewer.currentScaleValue = 'page-width';
                 this.currentScale = this.pdfViewer.currentScale;
             }

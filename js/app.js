@@ -552,6 +552,7 @@
     function updateProgressGridPanel() {
         const grid = document.getElementById('progress-grid-panel');
         const stats = calculateStats();
+        const streak = loadStreak();
         
         // Update Progress panel overview stats (correct IDs from HTML)
         const overallProgressEl = document.getElementById('overall-progress');
@@ -566,7 +567,7 @@
         
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
-        if (currentStreakEl) currentStreakEl.textContent = `${currentStreak || 0} days`;
+        if (currentStreakEl) currentStreakEl.textContent = `${streak.count || 0} days`;
         
         // Count appendices started (appendices with at least one question answered)
         const appendicesWithProgress = new Set();
@@ -2904,6 +2905,14 @@ Try it yourself: ${url}`,
 	        if (tab) {
 	            tab.classList.add('active');
 	            tab.setAttribute('aria-selected', 'true');
+	        }
+	        
+	        // Notify PDF viewer iframe when Notes panel becomes visible
+	        if (panelId === 'notes') {
+	            const pdfViewer = document.getElementById('pdf-viewer');
+	            if (pdfViewer && pdfViewer.contentWindow) {
+	                pdfViewer.contentWindow.postMessage({ type: 'panelVisible' }, window.location.origin);
+	            }
 	        }
 	    }
 
