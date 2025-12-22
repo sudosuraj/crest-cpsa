@@ -1,0 +1,25 @@
+# Upptime Configuration for Crest CPSA
+# https://upptime.js.org/docs/configuration
+
+owner: sudosuraj
+repo: crest-cpsa
+
+sites:
+  - name: Crest CPSA
+    url: https://sudosuraj.github.io/crest-cpsa
+    slug: crest-cpsa
+    type: globalping
+    location: World
+    maxResponseTime: 5000
+
+assignees:
+  - sudosuraj
+
+status-website:
+  name: Crest CPSA Status
+  theme: dark
+  baseUrl: /crest-cpsa
+  introMessage: "Official status page for Crest CPSA."
+  favicon: https://sudosuraj.github.io/crest-cpsa/favicon.ico
+
+skipDeleteIssues: false
