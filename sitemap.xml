@@ -8,7 +8,7 @@
     <!-- Main Quiz Page -->
     <url>
         <loc>https://sudosuraj.github.io/crest-cpsa/</loc>
-        <lastmod>2024-12-15</lastmod>
+        <lastmod>2024-12-22</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
         <image:image>
@@ -16,6 +16,86 @@
             <image:title>CREST CPSA Practice Quiz - 803 Free Questions</image:title>
             <image:caption>Free CPSA certification practice quiz with AI-powered explanations</image:caption>
         </image:image>
+    </url>
+    
+    <!-- Appendix A: Soft Skills and Assessment Management -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-a.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix B: Core Technical Skills -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-b.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix C: Background Information Gathering and Open Source -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-c.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix D: Networking Equipment -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-d.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix E: Microsoft Windows Security Assessment -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-e.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix F: Unix Security Assessment -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-f.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix G: Web Technologies -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-g.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix H: Web Testing Methodologies -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-h.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix I: Web Testing Techniques -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-i.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Appendix J: Databases -->
+    <url>
+        <loc>https://sudosuraj.github.io/crest-cpsa/appendix-j.html</loc>
+        <lastmod>2024-12-22</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
     </url>
     
 </urlset>

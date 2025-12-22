@@ -853,7 +853,8 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
 
     const finalResult = {
         questions: pageQuestions,
-        hasMore: !state.exhausted && state.allQuestions.length < MIN_QUESTIONS_TARGET,
+        // Fixed: hasMore should check if more chunks exist, not if we're under 20 questions
+        hasMore: !state.exhausted && state.nextChunkIdx < state.totalChunks,
         currentPage: state.currentPage,
         totalQuestions: state.allQuestions.length,
         exhausted: state.exhausted,
@@ -959,7 +960,8 @@ async function loadAppendixNextPageStreaming(appendixLetter, options = {}) {
 
     const finalResult = {
         questions: pageQuestions,
-        hasMore: !state.exhausted && state.allQuestions.length < MIN_QUESTIONS_TARGET,
+        // Fixed: hasMore should check if more chunks exist, not if we're under 20 questions
+        hasMore: !state.exhausted && state.nextChunkIdx < state.totalChunks,
         currentPage: state.currentPage,
         totalQuestions: state.allQuestions.length,
         exhausted: state.exhausted,

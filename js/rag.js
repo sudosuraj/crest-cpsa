@@ -251,6 +251,59 @@ const RAG = (function() {
             .slice(0, topK)
             .map(item => item.chunk);
     }
+    
+    /**
+     * Search with scores - returns chunks with their BM25 scores
+     * Used for conditional RAG (only attach context if score is high enough)
+     */
+    function searchWithScores(query, topK = 5) {
+        if (!isInitialized || !index) {
+            console.warn('RAG not initialized');
+            return [];
+        }
+
+        const queryTokens = tokenize(query);
+        if (queryTokens.length === 0) return [];
+
+        // Calculate scores for all documents
+        const scores = chunks.map((chunk, docId) => ({
+            chunk,
+            score: bm25Score(queryTokens, docId, index)
+        }));
+
+        // Sort by score and return top K with scores
+        return scores
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, topK);
+    }
+    
+    /**
+     * Get a specific chunk by ID
+     * Used for explain buttons to get the source chunk directly
+     */
+    function getChunkById(chunkId) {
+        if (!isInitialized) return null;
+        return chunks.find(chunk => chunk.id === chunkId) || null;
+    }
+    
+    /**
+     * Check if a query is likely CPSA-specific
+     * Used to decide whether to attach RAG context
+     */
+    function isCPSAQuery(query) {
+        if (!query) return false;
+        const lowerQuery = query.toLowerCase();
+        const cpsakeywords = [
+            'cpsa', 'crest', 'appendix', 'penetration', 'pentest',
+            'vulnerability', 'exploit', 'security', 'audit', 'assessment',
+            'nmap', 'burp', 'metasploit', 'wireshark', 'sqlmap',
+            'xss', 'csrf', 'sql injection', 'buffer overflow',
+            'reconnaissance', 'enumeration', 'privilege escalation',
+            'osint', 'footprinting', 'scanning', 'exploitation'
+        ];
+        return cpsakeywords.some(keyword => lowerQuery.includes(keyword));
+    }
 
     /**
      * Estimate token count from text (approximate: ~4 chars per token)
@@ -538,14 +591,64 @@ const RAG = (function() {
         return { ...TOKEN_CONFIG };
     }
 
+    // Session seed for chunk shuffling - different each page load
+    const sessionSeed = Date.now() + Math.random();
+    
+    /**
+     * Seeded random number generator (mulberry32)
+     * Produces consistent results for the same seed
+     */
+    function seededRandom(seed) {
+        return function() {
+            let t = seed += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+    }
+    
+    /**
+     * Shuffle array using Fisher-Yates with seeded random
+     * Same seed + same array = same shuffle result
+     */
+    function shuffleWithSeed(array, seed) {
+        const result = [...array];
+        const random = seededRandom(seed);
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+    }
+    
+    // Cache shuffled chunks per appendix for consistent paging within session
+    const shuffledChunksCache = {};
+
     /**
      * Get chunks for a specific appendix (filters out meta-content chunks)
+     * Chunks are shuffled per session so users see different questions each time
      */
     function getChunksForAppendix(appendixLetter) {
         if (!isInitialized) return [];
-        return chunks.filter(chunk => 
+        
+        // Return cached shuffled chunks if available (for consistent paging)
+        if (shuffledChunksCache[appendixLetter]) {
+            return shuffledChunksCache[appendixLetter];
+        }
+        
+        // Filter chunks for this appendix
+        const appendixChunks = chunks.filter(chunk => 
             chunk.appendix === appendixLetter && !isMetaContentChunk(chunk)
         );
+        
+        // Shuffle with session seed + appendix letter for variety
+        const seed = sessionSeed + appendixLetter.charCodeAt(0);
+        const shuffled = shuffleWithSeed(appendixChunks, seed);
+        
+        // Cache for consistent paging within this session
+        shuffledChunksCache[appendixLetter] = shuffled;
+        
+        return shuffled;
     }
 
     /**
@@ -1461,6 +1564,9 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
         initialize,
         search,
         searchWithFilter,
+        searchWithScores,       // Returns chunks with BM25 scores for conditional RAG
+        getChunkById,           // Get specific chunk by ID for explain buttons
+        isCPSAQuery,            // Check if query is CPSA-specific
         formatContext,
         formatSources,
         getAppendices,
