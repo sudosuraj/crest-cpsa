@@ -995,7 +995,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
 
     // Help chatbot API wrapper (keeps conversation history) - Now with CONDITIONAL RAG support
-    // Only attaches RAG context if query is CPSA-specific OR BM25 score is high enough
+    // Only does RAG search if query is CPSA-specific (avoids unnecessary search for general questions)
     async function callTutor(messages, options = {}) {
         const { useRAG = true, scoreThreshold = 5.0 } = options;
         
@@ -1007,26 +1007,29 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         let sources = [];
         let contextMessage = null;
         
-        // CONDITIONAL RAG: Only attach context if query is CPSA-specific OR has high BM25 score
-        // This avoids unnecessary token usage for general questions
+        // CONDITIONAL RAG: Only do RAG search if query is CPSA-specific
+        // This avoids unnecessary BM25 search for general questions like "hello" or "thanks"
         if (useRAG && typeof RAG !== 'undefined' && RAG.isReady() && ragQuery) {
+            // First check if query is CPSA-specific BEFORE doing any search
             const isCPSASpecific = RAG.isCPSAQuery(ragQuery);
-            const scoredResults = RAG.searchWithScores(ragQuery, 5);
-            const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
             
-            // Only attach RAG context if:
-            // 1. Query contains CPSA-specific keywords, OR
-            // 2. Top BM25 score exceeds threshold (indicates strong relevance)
-            if (isCPSASpecific || topScore >= scoreThreshold) {
-                const retrievedChunks = scoredResults.map(r => r.chunk);
+            // Only do BM25 search if query is CPSA-specific
+            if (isCPSASpecific) {
+                const scoredResults = RAG.searchWithScores(ragQuery, 5);
+                const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
                 
-                if (retrievedChunks.length > 0) {
-                    // Use token-budgeted context formatting
-                    const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
-                    sources = RAG.formatSources(retrievedChunks);
+                // Only attach RAG context if BM25 score is high enough
+                if (topScore >= scoreThreshold) {
+                    const retrievedChunks = scoredResults.map(r => r.chunk);
                     
-                    // Add context as a separate message to save system prompt tokens
-                    contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
+                    if (retrievedChunks.length > 0) {
+                        // Use token-budgeted context formatting
+                        const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
+                        sources = RAG.formatSources(retrievedChunks);
+                        
+                        // Add context as a separate message to save system prompt tokens
+                        contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
+                    }
                 }
             }
         }
@@ -1856,8 +1859,12 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         questionsContainer.className = 'questions-container flat-list';
 
         // Render questions as flat list (no category grouping)
+        // Shuffle question order for variety (options are also shuffled within each question)
+        const questionKeys = Object.keys(questions);
+        shuffleArray(questionKeys);
+        
         let questionNumber = 1;
-        Object.keys(questions).forEach(key => {
+        questionKeys.forEach(key => {
             const questionObj = questions[key];
             
             // Create modern question card
