@@ -1255,7 +1255,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 <p>Master penetration testing concepts with AI-generated questions from the study notes</p>
                 <div class="hero-stats">
                     <div class="hero-stat">
-                        <span class="hero-stat-value">10</span>
+                        <span class="hero-stat-value">11</span>
                         <span class="hero-stat-label">Appendices</span>
                     </div>
                     <div class="hero-stat">
@@ -1681,12 +1681,15 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             nextPageBtn.textContent = 'Generating next batch...';
         }
 
-        // Show streaming indicator
-        const streamingIndicator = document.getElementById('streaming-indicator');
-        if (streamingIndicator) {
-            streamingIndicator.classList.remove('hidden');
-            streamingIndicator.querySelector('.streaming-text').textContent = 'Generating more questions...';
-        }
+            // Show streaming indicator
+            const streamingIndicator = document.getElementById('streaming-indicator');
+            if (streamingIndicator) {
+                streamingIndicator.classList.remove('hidden');
+                const streamingText = streamingIndicator.querySelector('.streaming-text');
+                if (streamingText) {
+                    streamingText.textContent = 'Generating more questions...';
+                }
+            }
 
         // Get current question count to know where to start numbering
         const questionsContainer = document.getElementById('questions-list');
@@ -1711,8 +1714,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                         nextPageBtn.textContent = `Generating... (${progress.questionsGenerated}/${progress.targetCount})`;
                     }
                     if (streamingIndicator) {
-                        streamingIndicator.querySelector('.streaming-text').textContent = 
-                            `Generating questions... ${progress.questionsGenerated}/${progress.targetCount}`;
+                        const streamingText = streamingIndicator.querySelector('.streaming-text');
+                        if (streamingText) {
+                            streamingText.textContent = `Generating questions... ${progress.questionsGenerated}/${progress.targetCount}`;
+                        }
                     }
                 },
                 onComplete: (finalResult) => {
@@ -1839,7 +1844,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             const progress = paginationResult.streamProgress || { current: 0, target: 20 };
             streamingIndicator.innerHTML = `
                 <span class="streaming-pulse"></span>
-                <span>Generating: ${progress.current}/${progress.target} questions</span>
+                <span class="streaming-text">Generating: ${progress.current}/${progress.target} questions</span>
             `;
             quizContainer.appendChild(streamingIndicator);
         }
