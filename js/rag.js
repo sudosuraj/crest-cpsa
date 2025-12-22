@@ -11,6 +11,77 @@ const RAG = (function() {
     const K1 = 1.5;  // Term frequency saturation parameter
     const B = 0.75;  // Length normalization parameter
 
+    // Meta-content patterns to filter out - these generate irrelevant questions
+    // about syllabus structure instead of actual exam content
+    const META_CONTENT_PATTERNS = [
+        /missing from the official crest cpsa syllabus/i,
+        /author'?s? notes?:/i,
+        /couldn'?t find any/i,
+        /\[placeholder\]/i,
+        /\[to be added\]/i,
+        /\[section missing\]/i
+    ];
+
+    // Meta-question patterns to filter out - questions about syllabus structure
+    const META_QUESTION_PATTERNS = [
+        /primary focus of appendix/i,
+        /missing from the official.*syllabus/i,
+        /indicated as missing/i,
+        /considered important in the context of.*certification/i,
+        /inferred.*based on the.*study material/i,
+        /true regarding the official.*syllabus/i,
+        /what is appendix [a-j]/i,
+        /which appendix/i,
+        /the syllabus document/i,
+        /the study material/i,
+        /the provided material/i,
+        /according to the.*material/i
+    ];
+
+    /**
+     * Check if a chunk contains meta-content that shouldn't be used for question generation
+     * @param {Object} chunk - The chunk to check
+     * @returns {boolean} - True if chunk should be skipped
+     */
+    function isMetaContentChunk(chunk) {
+        if (!chunk || !chunk.text) return true;
+        
+        // Skip very short chunks (likely placeholders)
+        if (chunk.text.trim().length < 100) return true;
+        
+        // Check for meta-content patterns
+        for (const pattern of META_CONTENT_PATTERNS) {
+            if (pattern.test(chunk.text)) {
+                console.log(`Skipping meta-content chunk: ${chunk.section_id}`);
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if a question is about meta-content (syllabus structure, appendix organization, etc.)
+     * @param {Object} question - The question to check
+     * @returns {boolean} - True if question should be filtered out
+     */
+    function isMetaQuestion(question) {
+        if (!question || !question.question) return true;
+        
+        const questionText = question.question;
+        const explanationText = question.explanation || '';
+        
+        // Check question text against meta-question patterns
+        for (const pattern of META_QUESTION_PATTERNS) {
+            if (pattern.test(questionText) || pattern.test(explanationText)) {
+                console.log(`Filtering meta-question: ${questionText.substring(0, 60)}...`);
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     // Token budget configuration (8000 total limit)
     const TOKEN_CONFIG = {
         totalLimit: 8000,           // Total token limit for API
@@ -468,11 +539,13 @@ const RAG = (function() {
     }
 
     /**
-     * Get chunks for a specific appendix
+     * Get chunks for a specific appendix (filters out meta-content chunks)
      */
     function getChunksForAppendix(appendixLetter) {
         if (!isInitialized) return [];
-        return chunks.filter(chunk => chunk.appendix === appendixLetter);
+        return chunks.filter(chunk => 
+            chunk.appendix === appendixLetter && !isMetaContentChunk(chunk)
+        );
     }
 
     /**
@@ -544,11 +617,19 @@ STRICT OPTION FORMAT:
 - If one option has a technical term, others should have equally technical terms
 - Never use "All of the above" or "None of the above"
 
+FORBIDDEN QUESTION TYPES - NEVER generate these:
+- Questions about the syllabus structure, appendix organization, or document format
+- Questions asking "What is the focus of Appendix X?" or "Which section covers Y?"
+- Questions about what is "missing" from the syllabus or study material
+- Questions referencing "the provided material" or "according to the study notes"
+- Meta-questions about the certification exam itself rather than technical content
+- Questions that could only be answered by reading the document structure, not security knowledge
+
 Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - "correct" is the 0-based index of the correct answer (0-3)
-- Questions must be answerable from the provided material
-- Explanation should cite the specific concept from the material`;
+- Questions must test TECHNICAL SECURITY KNOWLEDGE, not document structure
+- Explanation should cite the specific security concept being tested`;
 
         // Truncate chunk text to fit within token budget
         // Hard cap at 1500 chars to stay well under API limits
@@ -593,10 +674,14 @@ Output ONLY the JSON array.`;
 
             const questions = JSON.parse(content);
 
-            // Separate valid and invalid questions
+            // Separate valid and invalid questions, filtering out meta-questions
             const validQuestions = [];
             const invalidQuestions = [];
             for (const q of questions) {
+                // First check if it's a meta-question (about syllabus structure, etc.)
+                if (isMetaQuestion(q)) {
+                    continue; // Skip meta-questions entirely
+                }
                 if (validateQuestion(q)) {
                     validQuestions.push(q);
                 } else {
@@ -919,12 +1004,20 @@ STRICT OPTION FORMAT:
 - If one option has a technical term, others should have equally technical terms
 - Never use "All of the above" or "None of the above"
 
+FORBIDDEN QUESTION TYPES - NEVER generate these:
+- Questions about the syllabus structure, appendix organization, or document format
+- Questions asking "What is the focus of Appendix X?" or "Which section covers Y?"
+- Questions about what is "missing" from the syllabus or study material
+- Questions referencing "the provided material" or "according to the study notes"
+- Meta-questions about the certification exam itself rather than technical content
+- Questions that could only be answered by reading the document structure, not security knowledge
+
 Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - "correct" is the 0-based index of the correct answer (0-3)
 - "section" is the section number (1, 2, 3, etc.) the question is based on
 - Distribute questions evenly across all sections
-- Explanation should cite the specific concept from the material`;
+- Questions must test TECHNICAL SECURITY KNOWLEDGE, not document structure`;
 
         const userPrompt = `Generate ${questionsNeeded} MCQ questions from these CPSA study material sections:
 ${combinedContent}
@@ -959,10 +1052,14 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
 
             const questions = JSON.parse(content);
             
-            // Separate valid and invalid questions
+            // Separate valid and invalid questions, filtering out meta-questions
             const validQuestions = [];
             const invalidQuestions = [];
             for (const q of questions) {
+                // First check if it's a meta-question (about syllabus structure, etc.)
+                if (isMetaQuestion(q)) {
+                    continue; // Skip meta-questions entirely
+                }
                 if (validateQuestion(q)) {
                     validQuestions.push(q);
                 } else {
