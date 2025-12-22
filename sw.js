@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v29';
+const CACHE_NAME = 'cpsa-quiz-v30';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [
@@ -19,6 +19,7 @@ const ASSETS_TO_CACHE = [
     'icon-512.svg',
     'og-image.svg',
     'rag/index.json',
+    'rag/chunks.json',
     'vendor/pdfjs/build/pdf.mjs',
     'vendor/pdfjs/build/pdf.worker.mjs',
     'vendor/pdfjs/web/pdf_viewer.mjs',

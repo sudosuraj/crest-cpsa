@@ -39,21 +39,29 @@ const RAG = (function() {
     ];
 
     /**
-     * Check if a chunk contains meta-content that shouldn't be used for question generation
+     * ENHANCED: Check if a chunk contains meta-content that shouldn't be used for question generation
+     * Now less aggressive - only skips true placeholder content, not short but valid chunks
      * @param {Object} chunk - The chunk to check
      * @returns {boolean} - True if chunk should be skipped
      */
     function isMetaContentChunk(chunk) {
         if (!chunk || !chunk.text) return true;
         
-        // Skip very short chunks (likely placeholders)
-        if (chunk.text.trim().length < 100) return true;
+        const text = chunk.text.trim();
+        
+        // ENHANCED: Only skip truly empty or placeholder chunks
+        // Reduced threshold from 100 to 50 chars to preserve short but valid content
+        if (text.length < 50) return true;
         
         // Check for meta-content patterns
         for (const pattern of META_CONTENT_PATTERNS) {
-            if (pattern.test(chunk.text)) {
-                console.log(`Skipping meta-content chunk: ${chunk.section_id}`);
-                return true;
+            if (pattern.test(text)) {
+                // Only skip if the chunk is primarily placeholder content
+                // (i.e., the placeholder text is a significant portion of the chunk)
+                if (text.length < 200) {
+                    console.log(`Skipping meta-content chunk: ${chunk.section_id}`);
+                    return true;
+                }
             }
         }
         
@@ -83,13 +91,15 @@ const RAG = (function() {
     }
 
     // Token budget configuration (8000 total limit)
+    // ENHANCED: Increased context budget for better coverage
     const TOKEN_CONFIG = {
         totalLimit: 8000,           // Total token limit for API
         systemPromptReserve: 800,   // Reserve for system prompt
-        userQueryReserve: 400,      // Reserve for user query
-        responseReserve: 500,       // Reserve for model response
-        contextBudget: 2500,        // Max tokens for RAG context (~10000 chars)
-        charsPerToken: 4            // Approximate chars per token
+        userQueryReserve: 300,      // Reserve for user query (reduced)
+        responseReserve: 1200,      // Reserve for model response (increased for more questions)
+        contextBudget: 4000,        // Max tokens for RAG context (~16000 chars) - INCREASED
+        charsPerToken: 4,           // Approximate chars per token
+        maxChunkChars: 3000         // Max chars per chunk before splitting (no hard truncation)
     };
 
     // State
@@ -113,16 +123,78 @@ const RAG = (function() {
         'could', 'might', 'must', 'shall', 'may', 'need', 'used', 'using'
     ]);
 
+    // ENHANCED: Security-specific terms to preserve during tokenization
+    // These patterns are extracted before general tokenization to preserve their meaning
+    const SECURITY_TERM_PATTERNS = [
+        // Nmap flags and options
+        /-s[STUFNAXWMP]/gi,           // -sS, -sT, -sU, -sF, -sN, -sA, -sX, -sW, -sM, -sP
+        /-p[\d,-]+/gi,                // -p80, -p1-1000, -p-
+        /-[oOAT]\d?/gi,               // -oA, -O, -T4, etc.
+        /-P[NnSsAaUuYy]/gi,           // -Pn, -PS, -PA, etc.
+        // Port specifications
+        /\d{1,5}\/(?:tcp|udp)/gi,     // 80/tcp, 443/tcp, 53/udp
+        // CVE identifiers
+        /CVE-\d{4}-\d+/gi,            // CVE-2021-44228
+        // File permissions
+        /-?[rwx-]{9,10}/g,            // -rw-r--r--, rwxr-xr-x
+        // IP addresses and CIDR
+        /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:\/\d{1,2})?/g,
+        // Common security acronyms (preserve case-insensitive)
+        /\b(?:XSS|CSRF|SQLi|LFI|RFI|SSRF|XXE|IDOR|RCE|DOS|DDOS)\b/gi,
+        // HTTP methods
+        /\b(?:GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|TRACE)\b/g,
+        // Registry paths
+        /HKEY_[A-Z_]+/gi,
+        // Common tool names
+        /\b(?:nmap|burp|metasploit|wireshark|sqlmap|nikto|dirb|gobuster|hydra|john|hashcat)\b/gi
+    ];
+
     /**
-     * Tokenize and normalize text
+     * Extract security-specific terms from text before general tokenization
+     * @param {string} text - Input text
+     * @returns {Array} - Array of extracted security terms
+     */
+    function extractSecurityTerms(text) {
+        if (!text) return [];
+        const terms = [];
+        for (const pattern of SECURITY_TERM_PATTERNS) {
+            const matches = text.match(pattern);
+            if (matches) {
+                terms.push(...matches.map(m => m.toLowerCase().replace(/[^\w/-]/g, '')));
+            }
+        }
+        return terms;
+    }
+
+    /**
+     * ENHANCED: Tokenize and normalize text while preserving security-specific terms
+     * Improvements:
+     * 1. Extracts security terms (flags, ports, CVEs) before normalization
+     * 2. Preserves important punctuation in technical terms
+     * 3. Handles hyphenated terms better
      */
     function tokenize(text) {
         if (!text) return [];
-        return text
+        
+        // First extract security-specific terms
+        const securityTerms = extractSecurityTerms(text);
+        
+        // Then do general tokenization
+        const generalTokens = text
             .toLowerCase()
-            .replace(/[^\w\s]/g, ' ')  // Remove punctuation
+            // Preserve hyphens in compound words but remove other punctuation
+            .replace(/[^\w\s-]/g, ' ')
+            // Split on whitespace
             .split(/\s+/)
-            .filter(token => token.length > 1 && !STOPWORDS.has(token));
+            // Filter out stopwords and very short tokens
+            .filter(token => {
+                const cleaned = token.replace(/-/g, '');
+                return cleaned.length > 1 && !STOPWORDS.has(cleaned);
+            });
+        
+        // Combine and deduplicate
+        const allTokens = [...new Set([...securityTerms, ...generalTokens])];
+        return allTokens;
     }
 
     /**
@@ -734,10 +806,27 @@ Rules:
 - Questions must test TECHNICAL SECURITY KNOWLEDGE, not document structure
 - Explanation should cite the specific security concept being tested`;
 
-        // Truncate chunk text to fit within token budget
-        // Hard cap at 1500 chars to stay well under API limits
-        const maxChunkChars = 1500;
-        const truncatedText = chunk.text.substring(0, maxChunkChars);
+        // ENHANCED: Dynamic token budgeting instead of hard truncation
+        // Calculate available chars based on token budget
+        // System prompt ~800 tokens, response ~1200 tokens, leaving ~6000 tokens for context
+        const availableTokens = TOKEN_CONFIG.totalLimit - TOKEN_CONFIG.systemPromptReserve - TOKEN_CONFIG.responseReserve - TOKEN_CONFIG.userQueryReserve;
+        const maxChunkChars = Math.min(
+            availableTokens * TOKEN_CONFIG.charsPerToken,  // Token-based limit
+            TOKEN_CONFIG.maxChunkChars                      // Config-based limit (3000 chars)
+        );
+        
+        // Use full chunk text if within budget, otherwise truncate at sentence boundary
+        let chunkText = chunk.text;
+        if (chunkText.length > maxChunkChars) {
+            // Try to truncate at a sentence boundary for better context
+            const truncateAt = chunkText.lastIndexOf('.', maxChunkChars);
+            if (truncateAt > maxChunkChars * 0.7) {
+                chunkText = chunkText.substring(0, truncateAt + 1);
+            } else {
+                chunkText = chunkText.substring(0, maxChunkChars);
+            }
+            console.log(`Chunk ${chunk.id} truncated from ${chunk.text.length} to ${chunkText.length} chars`);
+        }
 
         const userPrompt = `Generate ${questionsPerChunk} MCQ questions from this CPSA study material:
 
@@ -745,7 +834,7 @@ Section: ${chunk.section_id} - ${chunk.section_title}
 Appendix: ${chunk.appendix} - ${chunk.appendix_title}
 
 Content:
-${truncatedText}
+${chunkText}
 
 Output ONLY the JSON array.`;
 
@@ -1051,19 +1140,34 @@ Output ONLY the JSON array with repaired questions. Keep the same structure, jus
         const questionsNeeded = totalQuestions - cachedQuestions.length;
         const questionsPerChunk = Math.ceil(questionsNeeded / uncachedChunks.length);
 
-        // Build combined prompt with multiple chunks
-        // Token budget: 8000 total - 800 system - 400 query - 1500 response = ~5300 for context
-        // Hard cap at 1500 chars per chunk to stay well under API limits
-        // With 4 chunks max, total context ~6000 chars which is safe
-        const maxCharsPerChunk = Math.min(1500, Math.floor(6000 / Math.max(uncachedChunks.length, 1)));
+        // ENHANCED: Dynamic token budgeting for multi-chunk context
+        // Calculate available tokens for context based on config
+        const availableTokens = TOKEN_CONFIG.totalLimit - TOKEN_CONFIG.systemPromptReserve - TOKEN_CONFIG.responseReserve - TOKEN_CONFIG.userQueryReserve;
+        const totalAvailableChars = availableTokens * TOKEN_CONFIG.charsPerToken;
+        
+        // Distribute available chars across chunks, with minimum per chunk
+        const minCharsPerChunk = 500;
+        const maxCharsPerChunk = Math.max(
+            minCharsPerChunk,
+            Math.floor(totalAvailableChars / Math.max(uncachedChunks.length, 1))
+        );
         
         let combinedContent = '';
         const chunkMetadata = [];
         
         for (let i = 0; i < uncachedChunks.length; i++) {
             const chunk = uncachedChunks[i];
-            const truncatedText = chunk.text.substring(0, maxCharsPerChunk);
-            combinedContent += `\n--- SECTION ${i + 1}: ${chunk.section_id} - ${chunk.section_title} ---\n${truncatedText}\n`;
+            // Use full chunk text if within budget, otherwise truncate at sentence boundary
+            let chunkText = chunk.text;
+            if (chunkText.length > maxCharsPerChunk) {
+                const truncateAt = chunkText.lastIndexOf('.', maxCharsPerChunk);
+                if (truncateAt > maxCharsPerChunk * 0.7) {
+                    chunkText = chunkText.substring(0, truncateAt + 1);
+                } else {
+                    chunkText = chunkText.substring(0, maxCharsPerChunk);
+                }
+            }
+            combinedContent += `\n--- SECTION ${i + 1}: ${chunk.section_id} - ${chunk.section_title} ---\n${chunkText}\n`;
             chunkMetadata.push({
                 index: i + 1,
                 chunk: chunk,
