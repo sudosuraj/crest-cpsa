@@ -42,6 +42,13 @@ jobs:
           command: "update-template"
         env:
           GH_PAT: ${{ secrets.GH_PAT || github.token }}
+      - name: Check endpoint status (creates initial data)
+        uses: upptime/uptime-monitor@v1.41.0
+        with:
+          command: "update"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+          SECRETS_CONTEXT: ${{ toJson(secrets) }}
       - name: Update response time
         uses: upptime/uptime-monitor@v1.41.0
         with:

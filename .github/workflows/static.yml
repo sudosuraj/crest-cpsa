@@ -45,8 +45,18 @@ jobs:
           find . -maxdepth 1 -not -name '.' -not -name '..*' -not -name '_site' -not -name 'site' -not -name 'node_modules' -exec cp -r {} _site/ \;
           # Copy Upptime status page to /status/ subdirectory
           if [ -d "site/status-page/__sapper__/export" ]; then
+            echo "Found Upptime status page export, copying to _site/status/"
             mkdir -p _site/status
-            cp -r site/status-page/__sapper__/export/* _site/status/
+            # Use cp -a with /. to include dotfiles like .nojekyll
+            cp -a site/status-page/__sapper__/export/. _site/status/
+            # Ensure .nojekyll exists at root for underscore directories
+            touch _site/.nojekyll
+            echo "Status page files:"
+            ls -la _site/status/ | head -20
+          else
+            echo "WARNING: Upptime status page not generated (site/status-page/__sapper__/export not found)"
+            echo "This is expected if no uptime data exists yet (history/ and api/ directories)"
+            echo "Run 'Setup CI' workflow first to generate initial uptime data"
           fi
       - name: Setup Pages
         uses: actions/configure-pages@v5
