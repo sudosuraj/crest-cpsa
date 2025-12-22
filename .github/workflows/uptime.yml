@@ -20,6 +20,10 @@ on:
     types: [uptime]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   release:
     name: Check status
