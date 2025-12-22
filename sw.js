@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v28';
+const CACHE_NAME = 'cpsa-quiz-v29';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [
@@ -22,7 +22,20 @@ const ASSETS_TO_CACHE = [
     'vendor/pdfjs/build/pdf.mjs',
     'vendor/pdfjs/build/pdf.worker.mjs',
     'vendor/pdfjs/web/pdf_viewer.mjs',
-    'vendor/pdfjs/web/pdf_viewer.css'
+    'vendor/pdfjs/web/pdf_viewer.css',
+    // SEO landing pages for each appendix
+    'appendix-a.html',
+    'appendix-b.html',
+    'appendix-c.html',
+    'appendix-d.html',
+    'appendix-e.html',
+    'appendix-f.html',
+    'appendix-g.html',
+    'appendix-h.html',
+    'appendix-i.html',
+    'appendix-j.html',
+    'sitemap.xml',
+    'robots.txt'
 ];
 
 // Install event - cache resources with absolute URLs derived from SW scope

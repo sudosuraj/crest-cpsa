@@ -921,19 +921,40 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return "Unknown Appendix";
     }
 
-    // Function to call LLM API (no key required)
+    // Function to call LLM API (no key required) - Now with CONDITIONAL RAG support
+    // For explain buttons: uses source_chunk_id directly if provided (more accurate, fewer tokens)
+    // For general queries: only attaches RAG if query is CPSA-specific OR has high BM25 score
     async function callOpenAI(prompt, options = {}) {
-        const { useRAG = false, ragQuery = null, topK = 5 } = options;
+        const { useRAG = false, ragQuery = null, topK = 5, sourceChunkId = null, scoreThreshold = 5.0 } = options;
         
         try {
             let systemContent = 'You are a CPSA tutor. Be concise. Plain text only, no markdown. Created by Suraj Sharma (sudosuraj).';
             let userContent = prompt;
             let sources = [];
             
-            // If RAG is enabled and available, retrieve relevant context
+            // OPTIMIZED RAG: Use source_chunk_id directly if provided (for explain buttons)
+            // This is more accurate and uses fewer tokens than broad search
             if (useRAG && typeof RAG !== 'undefined' && RAG.isReady()) {
-                const query = ragQuery || prompt;
-                const retrievedChunks = RAG.search(query, topK);
+                let retrievedChunks = [];
+                
+                if (sourceChunkId) {
+                    // Direct chunk lookup - most efficient for explain buttons
+                    const sourceChunk = RAG.getChunkById(sourceChunkId);
+                    if (sourceChunk) {
+                        retrievedChunks = [sourceChunk];
+                    }
+                } else {
+                    // Conditional RAG for general queries
+                    const query = ragQuery || prompt;
+                    const isCPSASpecific = RAG.isCPSAQuery(query);
+                    const scoredResults = RAG.searchWithScores(query, topK);
+                    const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
+                    
+                    // Only attach RAG context if query is CPSA-specific OR has high BM25 score
+                    if (isCPSASpecific || topScore >= scoreThreshold) {
+                        retrievedChunks = scoredResults.map(r => r.chunk);
+                    }
+                }
                 
                 if (retrievedChunks.length > 0) {
                     // Use token-budgeted context formatting
@@ -972,9 +993,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
-    // Help chatbot API wrapper (keeps conversation history) - Now with RAG support
+    // Help chatbot API wrapper (keeps conversation history) - Now with CONDITIONAL RAG support
+    // Only attaches RAG context if query is CPSA-specific OR BM25 score is high enough
     async function callTutor(messages, options = {}) {
-        const { useRAG = true } = options;
+        const { useRAG = true, scoreThreshold = 5.0 } = options;
         
         // Get the last user message for RAG query
         const lastUserMessage = messages.filter(m => m.role === 'user').pop();
@@ -984,17 +1006,27 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         let sources = [];
         let contextMessage = null;
         
-        // If RAG is enabled and available, retrieve relevant context
+        // CONDITIONAL RAG: Only attach context if query is CPSA-specific OR has high BM25 score
+        // This avoids unnecessary token usage for general questions
         if (useRAG && typeof RAG !== 'undefined' && RAG.isReady() && ragQuery) {
-            const retrievedChunks = RAG.search(ragQuery, 5);
+            const isCPSASpecific = RAG.isCPSAQuery(ragQuery);
+            const scoredResults = RAG.searchWithScores(ragQuery, 5);
+            const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
             
-            if (retrievedChunks.length > 0) {
-                // Use token-budgeted context formatting
-                const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
-                sources = RAG.formatSources(retrievedChunks);
+            // Only attach RAG context if:
+            // 1. Query contains CPSA-specific keywords, OR
+            // 2. Top BM25 score exceeds threshold (indicates strong relevance)
+            if (isCPSASpecific || topScore >= scoreThreshold) {
+                const retrievedChunks = scoredResults.map(r => r.chunk);
                 
-                // Add context as a separate message to save system prompt tokens
-                contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
+                if (retrievedChunks.length > 0) {
+                    // Use token-budgeted context formatting
+                    const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
+                    sources = RAG.formatSources(retrievedChunks);
+                    
+                    // Add context as a separate message to save system prompt tokens
+                    contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
+                }
             }
         }
         
@@ -1042,26 +1074,31 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
-    // Function to explain question context - Now with RAG support
+    // Function to explain question context - OPTIMIZED: uses source_chunk_id for direct lookup
     async function explainQuestion(questionText, questionId) {
         const explanationDiv = document.getElementById(`question-explanation-${questionId}`);
         const button = document.getElementById(`explain-question-btn-${questionId}`);
         
         if (explanationDiv.classList.contains('show')) {
             explanationDiv.classList.remove('show');
-            button.textContent = '[AI+RAG] Explain Question';
+            button.textContent = '[AI] Explain Question';
             return;
         }
 
         button.disabled = true;
         button.textContent = 'Loading...';
         explanationDiv.classList.add('show', 'loading');
-        explanationDiv.textContent = 'Searching study notes and generating explanation...';
+        explanationDiv.textContent = 'Generating explanation...';
+
+        // Get source_chunk_id from question data for direct lookup (more efficient than search)
+        const questionData = quizData[questionId];
+        const sourceChunkId = questionData?.source_chunk_id || null;
 
         const prompt = `For this cybersecurity question: "${questionText}" - Provide background context and key concepts/terms that are relevant to understanding this question. Use the reference material provided to give accurate information from the CPSA study notes. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
         
         const result = await callOpenAI(prompt, { 
             useRAG: true, 
+            sourceChunkId,  // Direct chunk lookup - more efficient than broad search
             ragQuery: questionText,
             topK: 3 
         });
@@ -1086,7 +1123,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         button.textContent = '[AI+RAG] Hide Explanation';
     }
 
-    // Function to explain answer on demand - Now with RAG support
+    // Function to explain answer on demand - OPTIMIZED: uses source_chunk_id for direct lookup
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
         const explanationDiv = document.getElementById(`answer-explanation-${questionId}`);
@@ -1101,7 +1138,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
         if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
             explanationDiv.classList.remove('show');
-            button.textContent = '[AI+RAG] Explain Answer';
+            button.textContent = '[AI] Explain Answer';
             return;
         }
 
@@ -1111,6 +1148,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const questionText = state.questionText || (questionData ? questionData.question : '');
         const selectedAnswer = state.selectedAnswer || state.selected || '';
         const correctAnswer = state.correctAnswer || (questionData ? questionData.answer : '');
+        const sourceChunkId = questionData?.source_chunk_id || null;
 
         if (!questionText || !correctAnswer) {
             explanationDiv.classList.add('show');
@@ -1120,7 +1158,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
         explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
         explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
-        explanationDiv.textContent = 'Searching study notes and generating explanation...';
+        explanationDiv.textContent = 'Generating explanation...';
         button.disabled = true;
         button.textContent = 'Loading...';
 
@@ -1136,6 +1174,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
             const result = await callOpenAI(prompt, {
                 useRAG: true,
+                sourceChunkId,  // Direct chunk lookup - more efficient than broad search
                 ragQuery: ragQuery,
                 topK: 3
             });
