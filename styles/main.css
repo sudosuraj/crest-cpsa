@@ -493,6 +493,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .streaming-pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 .streaming-text { font-size: 14px; color: var(--accent); font-weight: 500; }
+.continuous-generation-indicator { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--accent-soft); border-radius: var(--radius-sm); margin-top: 16px; }
+.continuous-generation-indicator.hidden { display: none; }
 
 .questions-container { display: flex; flex-direction: column; gap: 20px; }
 .questions-container.flat-list { }
