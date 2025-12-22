@@ -1501,12 +1501,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 streamingIndicator.remove();
             }
             
-            // Start loading next batch in background
-            setTimeout(() => {
-                QuizDataLoader.loadAppendixNextPage(appendixLetter, null).then(() => {
-                    console.log(`Background: Next batch ready for Appendix ${appendixLetter}`);
-                });
-            }, 500);
+            // Automatically continue generating more questions if available
+            if (result.hasMore && !result.exhausted) {
+                continuouslyGenerateMoreQuestions(appendixLetter);
+            }
             
         } catch (error) {
             console.error('Error generating questions:', error);
@@ -1773,6 +1771,97 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
+    /**
+     * Continuously generate more questions until all content is exhausted
+     * This replaces the manual "Next Page" button with automatic generation
+     */
+    async function continuouslyGenerateMoreQuestions(appendixLetter) {
+        const questionsContainer = document.getElementById('questions-list');
+        if (!questionsContainer) return;
+
+        let currentQuestionCount = questionsContainer.children.length;
+        
+        // Show a subtle indicator that more questions are being generated
+        let continuousIndicator = document.getElementById('continuous-generation-indicator');
+        if (!continuousIndicator) {
+            continuousIndicator = document.createElement('div');
+            continuousIndicator.id = 'continuous-generation-indicator';
+            continuousIndicator.className = 'continuous-generation-indicator';
+            continuousIndicator.innerHTML = `
+                <span class="streaming-pulse"></span>
+                <span class="streaming-text">Generating more questions...</span>
+            `;
+            questionsContainer.parentNode.appendChild(continuousIndicator);
+        }
+        continuousIndicator.classList.remove('hidden');
+
+        try {
+            const result = await QuizDataLoader.loadAppendixNextPageStreaming(appendixLetter, {
+                onQuestion: (question, id) => {
+                    currentQuestionCount++;
+                    addStreamedQuestion(question, id, currentQuestionCount);
+                    
+                    // Update total questions count as each arrives
+                    totalQuestions = QuizDataLoader.getTotalQuestionCount();
+                    const totalElement = document.getElementById("total-questions");
+                    if (totalElement) {
+                        totalElement.textContent = totalQuestions;
+                    }
+                    
+                    // Update pagination info
+                    const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
+                    const infoEl = document.querySelector('.pagination-info');
+                    if (infoEl && paginationInfo) {
+                        infoEl.innerHTML = `
+                            <span class="page-counter">Page ${paginationInfo.currentPage} | ${paginationInfo.totalQuestions} questions loaded</span>
+                            <span class="chunk-progress">Chunks: ${paginationInfo.chunksProcessed}/${paginationInfo.totalChunks}</span>
+                            ${paginationInfo.exhausted ? '<span class="exhausted-badge">All content processed</span>' : ''}
+                        `;
+                    }
+                },
+                onProgress: (progress) => {
+                    const streamingText = continuousIndicator.querySelector('.streaming-text');
+                    if (streamingText) {
+                        streamingText.textContent = `Generating questions... ${progress.questionsGenerated}/${progress.targetCount}`;
+                    }
+                },
+                onComplete: (finalResult) => {
+                    // If there are more questions to generate, continue automatically
+                    if (finalResult.hasMore && !finalResult.exhausted) {
+                        // Small delay to prevent overwhelming the API
+                        setTimeout(() => {
+                            continuouslyGenerateMoreQuestions(appendixLetter);
+                        }, 500);
+                    } else {
+                        // All done - hide the indicator and show completion message
+                        continuousIndicator.classList.add('hidden');
+                        
+                        // Update pagination info to show completion
+                        const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
+                        const infoEl = document.querySelector('.pagination-info');
+                        if (infoEl && paginationInfo) {
+                            infoEl.innerHTML = `
+                                <span class="page-counter">${paginationInfo.totalQuestions} questions generated</span>
+                                <span class="chunk-progress">Chunks: ${paginationInfo.chunksProcessed}/${paginationInfo.totalChunks}</span>
+                                <span class="exhausted-badge">All content processed</span>
+                            `;
+                        }
+                        
+                        console.log(`Continuous generation complete for Appendix ${appendixLetter}: ${paginationInfo.totalQuestions} questions`);
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error in continuous generation:', error);
+                    continuousIndicator.classList.add('hidden');
+                    // Don't show error toast for continuous generation - questions already generated are still usable
+                }
+            });
+        } catch (error) {
+            console.error('Error in continuous generation:', error);
+            continuousIndicator.classList.add('hidden');
+        }
+    }
+
     function displayQuestionsWithPagination(questions, appendixLetter, appendixTitle, paginationResult) {
         const quizContainer = document.getElementById("quiz-container");
         const scoreElement = document.getElementById("score");
@@ -2015,26 +2104,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
         quizContainer.appendChild(questionsContainer);
 
-        // Add Next Page button if more questions available
-        if (paginationInfo.hasMore || !paginationInfo.exhausted) {
-            const nextPageContainer = document.createElement('div');
-            nextPageContainer.className = 'next-page-container';
-            
-            const nextPageBtn = document.createElement('button');
-            nextPageBtn.id = 'next-page-btn';
-            nextPageBtn.className = 'next-page-btn';
-            nextPageBtn.textContent = 'Next Page (Generate 20 More Questions)';
-            nextPageBtn.addEventListener('click', loadNextPage);
-            
-            const progressNote = document.createElement('p');
-            progressNote.className = 'progress-note';
-            progressNote.textContent = `Target: ${paginationInfo.minTarget} questions minimum | Currently: ${paginationInfo.totalQuestions} questions`;
-            
-            nextPageContainer.appendChild(nextPageBtn);
-            nextPageContainer.appendChild(progressNote);
-            quizContainer.appendChild(nextPageContainer);
-        } else {
-            // Show completion message
+        // Show completion message only when all content is exhausted
+        // (No "Next Page" button - questions are generated continuously)
+        if (paginationInfo.exhausted) {
             const completionMsg = document.createElement('div');
             completionMsg.className = 'completion-message';
             completionMsg.innerHTML = `
