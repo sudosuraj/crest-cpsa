@@ -714,7 +714,7 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
                 
                 const finalResult = {
                     questions: pageQuestions,
-                    hasMore: p2pQuestions.length > targetCount,
+                    hasMore: state.totalChunks > 0,
                     currentPage: state.currentPage,
                     totalQuestions: state.allQuestions.length,
                     exhausted: false,
@@ -815,7 +815,7 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
                     
                     const finalResult = {
                         questions: pageQuestions,
-                        hasMore: p2pQuestions.length > targetCount,
+                        hasMore: state.totalChunks > 0,
                         currentPage: state.currentPage,
                         totalQuestions: state.allQuestions.length,
                         exhausted: false,

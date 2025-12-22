@@ -1776,7 +1776,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
      * Continuously generate more questions until all content is exhausted
      * This replaces the manual "Next Page" button with automatic generation
      */
-    async function continuouslyGenerateMoreQuestions(appendixLetter) {
+    async function continuouslyGenerateMoreQuestions(appendixLetter, retryCount = 0) {
+        const MAX_RETRIES = 3;
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
 
@@ -1831,7 +1832,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     if (finalResult.hasMore && !finalResult.exhausted) {
                         // Small delay to prevent overwhelming the API
                         setTimeout(() => {
-                            continuouslyGenerateMoreQuestions(appendixLetter);
+                            continuouslyGenerateMoreQuestions(appendixLetter, 0);
                         }, 500);
                     } else {
                         // All done - hide the indicator and show completion message
@@ -1848,18 +1849,33 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                             `;
                         }
                         
-                        console.log(`Continuous generation complete for Appendix ${appendixLetter}: ${paginationInfo.totalQuestions} questions`);
+                        console.log(`Continuous generation complete for Appendix ${appendixLetter}: ${paginationInfo ? paginationInfo.totalQuestions : 'unknown'} questions`);
                     }
                 },
                 onError: (error) => {
                     console.error('Error in continuous generation:', error);
-                    continuousIndicator.classList.add('hidden');
-                    // Don't show error toast for continuous generation - questions already generated are still usable
+                    // Retry on error if we haven't exceeded max retries
+                    if (retryCount < MAX_RETRIES) {
+                        console.log(`Retrying continuous generation (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+                        setTimeout(() => {
+                            continuouslyGenerateMoreQuestions(appendixLetter, retryCount + 1);
+                        }, 2000 * (retryCount + 1));
+                    } else {
+                        continuousIndicator.classList.add('hidden');
+                    }
                 }
             });
         } catch (error) {
             console.error('Error in continuous generation:', error);
-            continuousIndicator.classList.add('hidden');
+            // Retry on error if we haven't exceeded max retries
+            if (retryCount < MAX_RETRIES) {
+                console.log(`Retrying continuous generation (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+                setTimeout(() => {
+                    continuouslyGenerateMoreQuestions(appendixLetter, retryCount + 1);
+                }, 2000 * (retryCount + 1));
+            } else {
+                continuousIndicator.classList.add('hidden');
+            }
         }
     }
 
@@ -2444,11 +2460,17 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     function setView(view) {
-        currentView = view;
         const listBtn = document.getElementById('list-view-btn');
         const singleBtn = document.getElementById('single-view-btn');
         const singleNav = document.getElementById('single-question-nav');
         const navigator = document.getElementById('question-navigator');
+        
+        // Guard: view toggle elements only exist when quiz is displayed
+        if (!listBtn || !singleBtn || !singleNav || !navigator) {
+            return;
+        }
+        
+        currentView = view;
         const categories = document.querySelectorAll('.category-section');
         const questions = document.querySelectorAll('.question-container');
         
@@ -4091,6 +4113,11 @@ Try it yourself: ${url}`,
         sidebarNavItems.forEach(item => {
             item.addEventListener('click', () => {
                 const panel = item.dataset.panel;
+                if (panel === 'practice') {
+                    // Always go to appendix cards page and update URL
+                    Router.navigate('home', null, { skipHandler: true });
+                    loadQuiz();
+                }
                 switchPanel(panel);
             });
         });

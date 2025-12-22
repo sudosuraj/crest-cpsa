@@ -151,11 +151,14 @@ const P2PSync = (function() {
     }
 
     // Default relay servers for P2P sync
-    // These are community-run Gun.js relays - updated for reliability
+    // These are community-run Gun.js relays from the official volunteer DHT list
+    // https://github.com/amark/gun/wiki/volunteer.dht
     const DEFAULT_RELAY_SERVERS = [
-        'https://relay.peer.ooo/gun',
-        'https://gun-relay.meething.space/gun',
-        'https://peer.wallie.io/gun'
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://peer.wallie.io/gun',
+        'https://gundb-relay-mlccl.ondigitalocean.app/gun',
+        'https://plankton-app-6qfp3.ondigitalocean.app/',
+        'https://gun.defucc.me/gun'
     ];
 
     /**
@@ -700,10 +703,7 @@ const P2PSync = (function() {
             return false;
         }
         
-        const relayUrls = customRelays || [
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://gun-us.herokuapp.com/gun'
-        ];
+        const relayUrls = customRelays || DEFAULT_RELAY_SERVERS;
         
         console.log('P2PSync: Attempting to connect to relays:', relayUrls);
         
