@@ -1,4 +1,5 @@
 # Simple workflow for deploying static content to GitHub Pages
+# Also includes Upptime status page at /status/
 name: Deploy static content to Pages
 
 on:
@@ -31,13 +32,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Generate Upptime status site
+        uses: upptime/uptime-monitor@v1.41.0
+        with:
+          command: "site"
+        env:
+          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p _site
+          # Copy main app files (excluding hidden files and _site itself)
+          find . -maxdepth 1 -not -name '.' -not -name '..*' -not -name '_site' -not -name 'site' -not -name 'node_modules' -exec cp -r {} _site/ \;
+          # Copy Upptime status page to /status/ subdirectory
+          if [ -d "site/status-page/__sapper__/export" ]; then
+            mkdir -p _site/status
+            cp -r site/status-page/__sapper__/export/* _site/status/
+          fi
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          path: '_site'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

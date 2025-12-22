@@ -18,7 +18,7 @@ assignees:
 status-website:
   name: Crest CPSA Status
   theme: dark
-  baseUrl: /crest-cpsa
+  baseUrl: /crest-cpsa/status
   introMessage: "Official status page for Crest CPSA."
   favicon: https://sudosuraj.github.io/crest-cpsa/favicon.ico
 

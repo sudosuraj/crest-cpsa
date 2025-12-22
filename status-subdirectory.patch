@@ -1,0 +1,135 @@
+From 0acc4e75cec2b8e988b2a996d7249db2e0df7cb7 Mon Sep 17 00:00:00 2001
+From: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date: Mon, 22 Dec 2025 11:50:55 +0000
+Subject: [PATCH] feat: deploy status page to /status/ subdirectory
+
+- Update baseUrl in .upptimerc.yml to /crest-cpsa/status
+- Modify static.yml to generate Upptime status site and deploy to /status/
+- Disable site.yml to avoid deployment conflicts with main app
+- Remove site deployment from setup.yml (now handled by static.yml)
+
+Status page will be available at: https://sudosuraj.github.io/crest-cpsa/status/
+
+Co-Authored-By: mailsurajzso7+000095i349qo@gmail.com <mailsurajzso7@gmail.com>
+---
+ .github/workflows/setup.yml  | 17 +++--------------
+ .github/workflows/site.yml   | 13 ++++++++-----
+ .github/workflows/static.yml | 20 ++++++++++++++++++--
+ .upptimerc.yml               |  2 +-
+ 4 files changed, 30 insertions(+), 22 deletions(-)
+
+diff --git a/.github/workflows/setup.yml b/.github/workflows/setup.yml
+index 82bd8e6..fa8e4e1 100644
+--- a/.github/workflows/setup.yml
++++ b/.github/workflows/setup.yml
+@@ -61,17 +61,6 @@ jobs:
+           command: "graphs"
+         env:
+           GH_PAT: ${{ secrets.GH_PAT || github.token }}
+-      - name: Generate site
+-        uses: upptime/uptime-monitor@v1.41.0
+-        with:
+-          command: "site"
+-        env:
+-          GH_PAT: ${{ secrets.GH_PAT || github.token }}
+-      - uses: peaceiris/actions-gh-pages@v4
+-        name: GitHub Pages Deploy
+-        with:
+-          github_token: ${{ secrets.GH_PAT || github.token }}
+-          publish_dir: "site/status-page/__sapper__/export/"
+-          force_orphan: "false"
+-          user_name: "Upptime Bot"
+-          user_email: "73812536+upptime-bot@users.noreply.github.com"
++      # Note: Status page is deployed via static.yml to /status/ subdirectory
++      # The site generation and deployment steps have been removed from here
++      # to avoid conflicts with the main app deployment
+diff --git a/.github/workflows/site.yml b/.github/workflows/site.yml
+index 166ab06..99413e3 100644
+--- a/.github/workflows/site.yml
++++ b/.github/workflows/site.yml
+@@ -12,10 +12,13 @@
+ # * Docs and more: https://upptime.js.org
+ # * More by Anand Chowdhary: https://anandchowdhary.com
+ 
+-name: Static Site CI
++# DISABLED: Status page is now deployed via static.yml to /status/ subdirectory
++# This workflow is kept for reference but disabled to avoid deployment conflicts
++name: Static Site CI (Disabled)
+ on:
+-  schedule:
+-    - cron: "0 1 * * *"
++  # Disabled - status page deployed via static.yml
++  # schedule:
++  #   - cron: "0 1 * * *"
+   repository_dispatch:
+     types: [static_site]
+   workflow_dispatch:
+@@ -25,9 +28,9 @@ permissions:
+ 
+ jobs:
+   release:
+-    name: Build and deploy site
++    name: Build and deploy site (Disabled)
+     runs-on: ubuntu-latest
+-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
++    if: false  # Disabled - status page deployed via static.yml
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+diff --git a/.github/workflows/static.yml b/.github/workflows/static.yml
+index f2c9e97..43570f6 100644
+--- a/.github/workflows/static.yml
++++ b/.github/workflows/static.yml
+@@ -1,4 +1,5 @@
+ # Simple workflow for deploying static content to GitHub Pages
++# Also includes Upptime status page at /status/
+ name: Deploy static content to Pages
+ 
+ on:
+@@ -31,13 +32,28 @@ jobs:
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
++      - name: Generate Upptime status site
++        uses: upptime/uptime-monitor@v1.41.0
++        with:
++          command: "site"
++        env:
++          GH_PAT: ${{ secrets.GH_PAT || github.token }}
++      - name: Prepare deployment directory
++        run: |
++          mkdir -p _site
++          # Copy main app files (excluding hidden files and _site itself)
++          find . -maxdepth 1 -not -name '.' -not -name '..*' -not -name '_site' -not -name 'site' -not -name 'node_modules' -exec cp -r {} _site/ \;
++          # Copy Upptime status page to /status/ subdirectory
++          if [ -d "site/status-page/__sapper__/export" ]; then
++            mkdir -p _site/status
++            cp -r site/status-page/__sapper__/export/* _site/status/
++          fi
+       - name: Setup Pages
+         uses: actions/configure-pages@v5
+       - name: Upload artifact
+         uses: actions/upload-pages-artifact@v3
+         with:
+-          # Upload entire repository
+-          path: '.'
++          path: '_site'
+       - name: Deploy to GitHub Pages
+         id: deployment
+         uses: actions/deploy-pages@v4
+diff --git a/.upptimerc.yml b/.upptimerc.yml
+index a8fcac5..c9de12a 100644
+--- a/.upptimerc.yml
++++ b/.upptimerc.yml
+@@ -18,7 +18,7 @@ assignees:
+ status-website:
+   name: Crest CPSA Status
+   theme: dark
+-  baseUrl: /crest-cpsa
++  baseUrl: /crest-cpsa/status
+   introMessage: "Official status page for Crest CPSA."
+   favicon: https://sudosuraj.github.io/crest-cpsa/favicon.ico
+ 
+-- 
+2.34.1
+

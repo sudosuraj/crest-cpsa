@@ -12,10 +12,13 @@
 # * Docs and more: https://upptime.js.org
 # * More by Anand Chowdhary: https://anandchowdhary.com
 
-name: Static Site CI
+# DISABLED: Status page is now deployed via static.yml to /status/ subdirectory
+# This workflow is kept for reference but disabled to avoid deployment conflicts
+name: Static Site CI (Disabled)
 on:
-  schedule:
-    - cron: "0 1 * * *"
+  # Disabled - status page deployed via static.yml
+  # schedule:
+  #   - cron: "0 1 * * *"
   repository_dispatch:
     types: [static_site]
   workflow_dispatch:
@@ -25,9 +28,9 @@ permissions:
 
 jobs:
   release:
-    name: Build and deploy site
+    name: Build and deploy site (Disabled)
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: false  # Disabled - status page deployed via static.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
