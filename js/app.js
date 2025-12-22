@@ -2460,11 +2460,17 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     function setView(view) {
-        currentView = view;
         const listBtn = document.getElementById('list-view-btn');
         const singleBtn = document.getElementById('single-view-btn');
         const singleNav = document.getElementById('single-question-nav');
         const navigator = document.getElementById('question-navigator');
+        
+        // Guard: view toggle elements only exist when quiz is displayed
+        if (!listBtn || !singleBtn || !singleNav || !navigator) {
+            return;
+        }
+        
+        currentView = view;
         const categories = document.querySelectorAll('.category-section');
         const questions = document.querySelectorAll('.question-container');
         
@@ -4107,6 +4113,11 @@ Try it yourself: ${url}`,
         sidebarNavItems.forEach(item => {
             item.addEventListener('click', () => {
                 const panel = item.dataset.panel;
+                if (panel === 'practice') {
+                    // Always go to appendix cards page and update URL
+                    Router.navigate('home', null, { skipHandler: true });
+                    loadQuiz();
+                }
                 switchPanel(panel);
             });
         });
