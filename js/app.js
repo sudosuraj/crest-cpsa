@@ -368,7 +368,11 @@
         if (newBadges.length > 0) {
             saveBadges(earnedBadges);
             newBadges.forEach(badge => {
-                showToast(`Badge earned: ${badge.icon} ${badge.name}!`);
+                showToast(`${badge.icon} ${badge.name}`, {
+                    variant: 'badge',
+                    title: 'Badge Earned!',
+                    duration: 5000
+                });
             });
         }
         
@@ -405,7 +409,13 @@
     }
     
     // ==================== TOAST NOTIFICATIONS ====================
-    function showToast(message, duration = 3000) {
+    // Enhanced toast notification system with interactive SVG animations
+    function showToast(message, options = {}) {
+        const duration = typeof options === 'number' ? options : (options.duration || 4000);
+        const variant = options.variant || 'info';
+        const title = options.title || null;
+        const action = options.action || null;
+        
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
@@ -414,19 +424,84 @@
         }
         
         const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = message;
+        toast.className = `toast toast-${variant}`;
+        
+        // SVG icons for different variants
+        const icons = {
+            info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+            success: `<svg class="toast-icon toast-icon-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" class="success-circle"/><path d="M9 12l2 2 4-4" class="success-check"/></svg>`,
+            error: `<svg class="toast-icon toast-icon-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15" class="error-x"/><line x1="9" y1="9" x2="15" y2="15" class="error-x"/></svg>`,
+            badge: `<svg class="toast-icon toast-icon-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" class="badge-star"/></svg>
+                    <div class="toast-sparkles">
+                        <span class="sparkle s1"></span><span class="sparkle s2"></span><span class="sparkle s3"></span><span class="sparkle s4"></span>
+                    </div>`,
+            levelup: `<svg class="toast-icon toast-icon-levelup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" class="levelup-ring"/><path d="M12 16V8M8 12l4-4 4 4" class="levelup-arrow"/></svg>
+                      <div class="toast-glow"></div>`,
+            streak: `<svg class="toast-icon toast-icon-streak" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" class="flame-outer"/><path d="M12 8c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5z" class="flame-inner"/></svg>`
+        };
+        
+        // Build toast content
+        let content = `
+            <div class="toast-icon-wrapper">
+                ${icons[variant] || icons.info}
+            </div>
+            <div class="toast-content">
+                ${title ? `<div class="toast-title">${title}</div>` : ''}
+                <div class="toast-message">${message}</div>
+                ${action ? `<button class="toast-action" data-action="${action.id || 'default'}">${action.label}</button>` : ''}
+            </div>
+            <button class="toast-close" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        `;
+        
+        // Add confetti for badge/levelup variants
+        if (variant === 'badge' || variant === 'levelup') {
+            content += `<div class="toast-confetti">
+                <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span>
+                <span class="confetti c4"></span><span class="confetti c5"></span><span class="confetti c6"></span>
+            </div>`;
+        }
+        
+        toast.innerHTML = content;
         container.appendChild(toast);
+        
+        // Auto-dismiss timer
+        let timeoutId;
+        const startTimer = () => {
+            timeoutId = setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        };
+        
+        // Pause on hover for interactivity
+        toast.addEventListener('mouseenter', () => clearTimeout(timeoutId));
+        toast.addEventListener('mouseleave', startTimer);
+        
+        // Close button
+        toast.querySelector('.toast-close').addEventListener('click', () => {
+            clearTimeout(timeoutId);
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        });
+        
+        // Action button handler
+        const actionBtn = toast.querySelector('.toast-action');
+        if (actionBtn && action && action.onClick) {
+            actionBtn.addEventListener('click', () => {
+                action.onClick();
+                clearTimeout(timeoutId);
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            });
+        }
         
         // Trigger animation
         requestAnimationFrame(() => {
             toast.classList.add('show');
+            startTimer();
         });
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
     }
     
     // ==================== BACK TO TOP ====================
@@ -1419,13 +1494,54 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         // Initial loading state - will be replaced as soon as first question arrives
         quizContainer.innerHTML = `
             <div class="generation-progress" id="streaming-progress">
+                <div class="ai-loader">
+                    <svg class="neural-network" viewBox="0 0 200 120" width="200" height="120">
+                        <!-- Neural network nodes -->
+                        <circle class="node node-1" cx="30" cy="30" r="8"/>
+                        <circle class="node node-2" cx="30" cy="60" r="8"/>
+                        <circle class="node node-3" cx="30" cy="90" r="8"/>
+                        <circle class="node node-4" cx="100" cy="45" r="10"/>
+                        <circle class="node node-5" cx="100" cy="75" r="10"/>
+                        <circle class="node node-6" cx="170" cy="60" r="12"/>
+                        <!-- Connection lines -->
+                        <line class="connection c1" x1="38" y1="30" x2="90" y2="45"/>
+                        <line class="connection c2" x1="38" y1="30" x2="90" y2="75"/>
+                        <line class="connection c3" x1="38" y1="60" x2="90" y2="45"/>
+                        <line class="connection c4" x1="38" y1="60" x2="90" y2="75"/>
+                        <line class="connection c5" x1="38" y1="90" x2="90" y2="45"/>
+                        <line class="connection c6" x1="38" y1="90" x2="90" y2="75"/>
+                        <line class="connection c7" x1="110" y1="45" x2="158" y2="60"/>
+                        <line class="connection c8" x1="110" y1="75" x2="158" y2="60"/>
+                        <!-- Data flow particles -->
+                        <circle class="particle p1" r="3"/>
+                        <circle class="particle p2" r="3"/>
+                        <circle class="particle p3" r="3"/>
+                    </svg>
+                    <div class="ai-loader-text">
+                        <span class="ai-status">AI Processing</span>
+                        <span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>
+                    </div>
+                </div>
                 <h2>Generating Questions for Appendix ${appendixLetter}</h2>
-                <p>${appendixTitle}</p>
-                <p class="generation-info">Using RAG to generate questions from study notes...</p>
+                <p class="appendix-subtitle">${appendixTitle}</p>
+                <div class="generation-stages">
+                    <div class="stage active" id="stage-retrieve">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <span>Retrieving content</span>
+                    </div>
+                    <div class="stage" id="stage-generate">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3m6.366 1.634-2.122 2.122M21 12h-3m-1.634 6.366-2.122-2.122M12 21v-3m-6.366-1.634 2.122-2.122M3 12h3m1.634-6.366 2.122 2.122"/></svg>
+                        <span>Generating questions</span>
+                    </div>
+                    <div class="stage" id="stage-validate">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span>Validating output</span>
+                    </div>
+                </div>
                 <div class="progress-bar-container">
                     <div class="progress-bar" id="generation-progress-bar"></div>
                 </div>
-                <p id="generation-status">Retrieving relevant content...</p>
+                <p id="generation-status" class="status-text">Analyzing study materials...</p>
                 <p class="streaming-hint">Questions will appear as they're generated!</p>
             </div>
         `;
@@ -1755,7 +1871,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                         nextPageBtn.disabled = false;
                         nextPageBtn.textContent = 'Next Page (Generate More)';
                     }
-                    showToast('Error generating questions. Please try again.', 'error');
+                    showToast('Error generating questions. Please try again.', { variant: 'error' });
                 }
             });
             
@@ -1954,6 +2070,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             streamingIndicator.innerHTML = `
                 <span class="streaming-pulse"></span>
                 <span class="streaming-text">Generating: ${progress.current}/${progress.target} questions</span>
+                <div class="mini-loader"><span></span><span></span><span></span></div>
             `;
             quizContainer.appendChild(streamingIndicator);
         }
@@ -2355,18 +2472,19 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         if (totalCorrectEl) totalCorrectEl.textContent = correct;
         if (overallAccuracyEl) overallAccuracyEl.textContent = `${accuracy}%`;
         
-        // Update study time
+        // Update study time (getStudyTime() returns seconds, not minutes)
         if (studyTimeEl) {
-            const totalMinutes = getStudyTime();
+            const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const totalSeconds = getStudyTime() + currentSession;
+            const totalMinutes = Math.floor(totalSeconds / 60);
             const hours = Math.floor(totalMinutes / 60);
             const minutes = totalMinutes % 60;
-            studyTimeEl.textContent = `${hours}h ${minutes}m`;
+            studyTimeEl.textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
         }
         
-        // Render category performance breakdown
+        // Render charts and stats
+        renderAccuracyDonut();
         renderCategoryStats();
-        
-        // Render weak areas analysis
         renderWeakAreas();
     }
     
@@ -2389,6 +2507,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             const totalReviewCount = incorrectCount + flaggedCount;
             reviewBadge.textContent = totalReviewCount;
         }
+        
+        // Render review donut chart
+        renderReviewDonut();
     }
     
     // Render questions into the review panel's #review-list container
@@ -2574,6 +2695,111 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         html += '</ul>';
         
         weakAreasEl.innerHTML = html;
+    }
+    
+    // Render SVG donut chart for accuracy visualization
+    function renderAccuracyDonut() {
+        const container = document.getElementById('accuracy-donut');
+        if (!container) return;
+        
+        const attempted = Object.keys(answerState).length;
+        const correct = Object.values(answerState).filter(s => s.correct).length;
+        const incorrect = attempted - correct;
+        
+        if (attempted === 0) {
+            container.innerHTML = `
+                <div class="donut-placeholder">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="12"/>
+                    </svg>
+                    <div class="donut-center">
+                        <span class="donut-value">--</span>
+                        <span class="donut-label">No data</span>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        const accuracy = Math.round((correct / attempted) * 100);
+        const circumference = 2 * Math.PI * 50;
+        const correctDash = (correct / attempted) * circumference;
+        const incorrectDash = (incorrect / attempted) * circumference;
+        
+        // Color based on accuracy
+        const accuracyColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
+        
+        container.innerHTML = `
+            <div class="donut-chart">
+                <svg width="160" height="160" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" stroke-width="12"/>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="${accuracyColor}" stroke-width="12"
+                        stroke-dasharray="${correctDash} ${circumference}"
+                        stroke-dashoffset="0"
+                        transform="rotate(-90 60 60)"
+                        style="transition: stroke-dasharray 0.5s ease"/>
+                </svg>
+                <div class="donut-center">
+                    <span class="donut-value">${accuracy}%</span>
+                    <span class="donut-label">Accuracy</span>
+                </div>
+            </div>
+            <div class="donut-legend">
+                <div class="legend-item">
+                    <span class="legend-dot correct"></span>
+                    <span class="legend-text">Correct: ${correct}</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot incorrect"></span>
+                    <span class="legend-text">Incorrect: ${incorrect}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render SVG donut chart for review panel
+    function renderReviewDonut() {
+        const container = document.getElementById('review-donut');
+        if (!container) return;
+        
+        const attempted = Object.keys(answerState).length;
+        const correct = Object.values(answerState).filter(s => s.correct).length;
+        const incorrect = attempted - correct;
+        const flagged = flaggedQuestions.size;
+        
+        if (attempted === 0) {
+            container.innerHTML = `
+                <div class="donut-placeholder small">
+                    <svg width="100" height="100" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="10"/>
+                    </svg>
+                    <div class="donut-center small">
+                        <span class="donut-value">--</span>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        const accuracy = Math.round((correct / attempted) * 100);
+        const circumference = 2 * Math.PI * 40;
+        const correctDash = (correct / attempted) * circumference;
+        
+        container.innerHTML = `
+            <div class="donut-chart small">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="var(--danger)" stroke-width="10" opacity="0.2"/>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="var(--success)" stroke-width="10"
+                        stroke-dasharray="${correctDash} ${circumference}"
+                        stroke-dashoffset="0"
+                        transform="rotate(-90 50 50)"
+                        style="transition: stroke-dasharray 0.5s ease"/>
+                </svg>
+                <div class="donut-center small">
+                    <span class="donut-value">${accuracy}%</span>
+                </div>
+            </div>
+        `;
     }
     
     // Mode toggle (Study/Exam)
@@ -2790,7 +3016,11 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const newLevel = Math.floor(xp / XP_PER_LEVEL) + 1;
         if (newLevel > level) {
             level = newLevel;
-            showToast(`Level up! You're now level ${level}!`);
+            showToast(`You're now level ${level}!`, {
+                variant: 'levelup',
+                title: 'Level Up!',
+                duration: 5000
+            });
         }
         
         // Save XP
@@ -3560,34 +3790,6 @@ Try it yourself: ${url}`,
         
         // Render category stats
         renderCategoryStats();
-    }
-    
-    function renderCategoryStats() {
-        const container = document.getElementById('category-stats');
-        if (!container) return;
-        
-        const categoryStats = {};
-        
-        // Calculate stats per category
-        Object.entries(answerState).forEach(([qId, state]) => {
-            const cat = state.category || 'Unknown';
-            if (!categoryStats[cat]) {
-                categoryStats[cat] = { correct: 0, total: 0 };
-            }
-            categoryStats[cat].total++;
-            if (state.correct) categoryStats[cat].correct++;
-        });
-        
-        container.innerHTML = Object.entries(categoryStats)
-            .map(([cat, stats]) => {
-                const accuracy = Math.round((stats.correct / stats.total) * 100);
-                return `
-                    <div class="category-stat-item">
-                        <span class="category-stat-name">${escapeHtml(cat)}</span>
-                        <span class="category-stat-value">${accuracy}% (${stats.correct}/${stats.total})</span>
-                    </div>
-                `;
-            }).join('');
     }
     
     function renderTrendChart() {
