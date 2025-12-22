@@ -2313,12 +2313,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     return;
                 }
                 
-                setView('single');
-                allQuestionIds = flaggedIds;
-                currentQuestionIndex = 0;
-                showQuestion(0);
-                buildNavigatorDots();
-                showToast(`Reviewing ${flaggedIds.length} flagged questions`);
+                // Render flagged questions into the review panel
+                renderReviewQuestions(flaggedIds, 'Flagged Questions');
+                showToast(`Showing ${flaggedIds.length} flagged questions`);
             });
         }
         
@@ -2335,12 +2332,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     return;
                 }
                 
-                setView('single');
-                allQuestionIds = incorrectIds;
-                currentQuestionIndex = 0;
-                showQuestion(0);
-                buildNavigatorDots();
-                showToast(`Reviewing ${incorrectIds.length} incorrect questions`);
+                // Render incorrect questions into the review panel
+                renderReviewQuestions(incorrectIds, 'Incorrect Questions');
+                showToast(`Showing ${incorrectIds.length} incorrect questions`);
             });
         }
     }
@@ -2368,6 +2362,12 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             const minutes = totalMinutes % 60;
             studyTimeEl.textContent = `${hours}h ${minutes}m`;
         }
+        
+        // Render category performance breakdown
+        renderCategoryStats();
+        
+        // Render weak areas analysis
+        renderWeakAreas();
     }
     
     // Update review stats
@@ -2389,6 +2389,191 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             const totalReviewCount = incorrectCount + flaggedCount;
             reviewBadge.textContent = totalReviewCount;
         }
+    }
+    
+    // Render questions into the review panel's #review-list container
+    function renderReviewQuestions(questionIds, title) {
+        const reviewList = document.getElementById('review-list');
+        if (!reviewList) return;
+        
+        if (questionIds.length === 0) {
+            reviewList.innerHTML = '<p class="placeholder-text">No questions to review</p>';
+            return;
+        }
+        
+        let html = `<h3 class="review-section-title">${escapeHtml(title)} (${questionIds.length})</h3>`;
+        
+        questionIds.forEach((qId, index) => {
+            const question = quizData[qId];
+            const state = answerState[qId];
+            const isFlagged = flaggedQuestions.has(qId);
+            
+            // Handle case where question data is not available (e.g., from previous session)
+            const questionText = question?.question || 'Question data not available - please reload the appendix';
+            const correctAnswer = question?.answer || 'N/A';
+            const selectedAnswer = state?.selectedAnswer || 'N/A';
+            const isCorrect = state?.correct || false;
+            const explanation = question?.explanation || '';
+            const appendix = question?.appendix || '';
+            const appendixTitle = question?.appendix_title || '';
+            
+            html += `
+                <div class="review-question-card ${isCorrect ? 'correct' : 'incorrect'} ${isFlagged ? 'flagged' : ''}" data-question-id="${qId}">
+                    <div class="review-question-header">
+                        <span class="review-question-number">#${index + 1}</span>
+                        ${appendix ? `<span class="review-question-appendix">Appendix ${appendix}</span>` : ''}
+                        <span class="review-question-status ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span>
+                        ${isFlagged ? '<span class="review-question-flag">Flagged</span>' : ''}
+                    </div>
+                    <div class="review-question-text">${escapeHtml(questionText)}</div>
+                    <div class="review-answer-section">
+                        <div class="review-answer ${isCorrect ? 'correct' : 'incorrect'}">
+                            <span class="review-answer-label">Your answer:</span>
+                            <span class="review-answer-text">${escapeHtml(selectedAnswer)}</span>
+                        </div>
+                        ${!isCorrect ? `
+                        <div class="review-answer correct">
+                            <span class="review-answer-label">Correct answer:</span>
+                            <span class="review-answer-text">${escapeHtml(correctAnswer)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${explanation ? `
+                    <div class="review-explanation">
+                        <span class="review-explanation-label">Explanation:</span>
+                        <p>${escapeHtml(explanation)}</p>
+                    </div>
+                    ` : ''}
+                    <div class="review-question-actions">
+                        <button class="action-btn small" onclick="toggleFlag('${qId}')">${isFlagged ? 'Unflag' : 'Flag for later'}</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        reviewList.innerHTML = html;
+    }
+    
+    // Render category performance stats for insights panel
+    function renderCategoryStats() {
+        const categoryStatsEl = document.getElementById('category-stats');
+        if (!categoryStatsEl) return;
+        
+        // Calculate stats per appendix/category
+        const categoryStats = {};
+        Object.entries(answerState).forEach(([qId, state]) => {
+            const question = quizData[qId];
+            const category = question?.appendix || 'Unknown';
+            const categoryTitle = question?.appendix_title || category;
+            
+            if (!categoryStats[category]) {
+                categoryStats[category] = { 
+                    title: categoryTitle,
+                    attempted: 0, 
+                    correct: 0 
+                };
+            }
+            categoryStats[category].attempted++;
+            if (state.correct) {
+                categoryStats[category].correct++;
+            }
+        });
+        
+        if (Object.keys(categoryStats).length === 0) {
+            categoryStatsEl.innerHTML = '<p class="placeholder-text">Complete some questions to see category performance</p>';
+            return;
+        }
+        
+        // Sort by appendix letter
+        const sortedCategories = Object.entries(categoryStats)
+            .sort(([a], [b]) => a.localeCompare(b));
+        
+        let html = '';
+        sortedCategories.forEach(([category, stats]) => {
+            const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+            const barColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
+            
+            html += `
+                <div class="category-stat-item">
+                    <div class="category-stat-header">
+                        <span class="category-stat-name">Appendix ${category}: ${escapeHtml(stats.title)}</span>
+                        <span class="category-stat-accuracy">${accuracy}%</span>
+                    </div>
+                    <div class="category-stat-bar">
+                        <div class="category-stat-fill" style="width: ${accuracy}%; background: ${barColor}"></div>
+                    </div>
+                    <div class="category-stat-details">
+                        ${stats.correct}/${stats.attempted} correct
+                    </div>
+                </div>
+            `;
+        });
+        
+        categoryStatsEl.innerHTML = html;
+    }
+    
+    // Render weak areas analysis for insights panel
+    function renderWeakAreas() {
+        const weakAreasEl = document.getElementById('weak-areas');
+        if (!weakAreasEl) return;
+        
+        // Calculate stats per appendix/category
+        const categoryStats = {};
+        Object.entries(answerState).forEach(([qId, state]) => {
+            const question = quizData[qId];
+            const category = question?.appendix || 'Unknown';
+            const categoryTitle = question?.appendix_title || category;
+            
+            if (!categoryStats[category]) {
+                categoryStats[category] = { 
+                    title: categoryTitle,
+                    attempted: 0, 
+                    correct: 0 
+                };
+            }
+            categoryStats[category].attempted++;
+            if (state.correct) {
+                categoryStats[category].correct++;
+            }
+        });
+        
+        // Find weak areas (categories with accuracy < 70% and at least 3 questions attempted)
+        const weakAreas = Object.entries(categoryStats)
+            .filter(([_, stats]) => {
+                const accuracy = stats.attempted > 0 ? (stats.correct / stats.attempted) * 100 : 0;
+                return stats.attempted >= 3 && accuracy < 70;
+            })
+            .map(([category, stats]) => ({
+                category,
+                title: stats.title,
+                accuracy: Math.round((stats.correct / stats.attempted) * 100),
+                attempted: stats.attempted,
+                correct: stats.correct
+            }))
+            .sort((a, b) => a.accuracy - b.accuracy);
+        
+        if (weakAreas.length === 0) {
+            const totalAttempted = Object.keys(answerState).length;
+            if (totalAttempted < 10) {
+                weakAreasEl.innerHTML = '<p class="placeholder-text">Complete more questions to identify weak areas</p>';
+            } else {
+                weakAreasEl.innerHTML = '<p class="placeholder-text success">Great job! No weak areas identified</p>';
+            }
+            return;
+        }
+        
+        let html = '<ul class="weak-areas-list">';
+        weakAreas.slice(0, 5).forEach(area => {
+            html += `
+                <li class="weak-area-item">
+                    <span class="weak-area-name">Appendix ${area.category}</span>
+                    <span class="weak-area-accuracy">${area.accuracy}% (${area.correct}/${area.attempted})</span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        
+        weakAreasEl.innerHTML = html;
     }
     
     // Mode toggle (Study/Exam)
