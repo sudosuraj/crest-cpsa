@@ -258,7 +258,9 @@ function getPaginationInfo(appendixLetter) {
         currentPage: state.currentPage,
         totalQuestions: state.allQuestions.length,
         totalPages: Math.ceil(state.allQuestions.length / PAGE_SIZE),
-        hasMore: !state.exhausted && state.allQuestions.length < MIN_QUESTIONS_TARGET,
+        // Fixed: hasMore should check if more chunks exist, not if we're under MIN_QUESTIONS_TARGET
+        // This aligns with the streaming logic and allows generating more than 20 questions
+        hasMore: !state.exhausted && state.nextChunkIdx < state.totalChunks,
         exhausted: state.exhausted,
         chunksProcessed: state.nextChunkIdx,
         totalChunks: state.totalChunks,
