@@ -31,11 +31,49 @@ const P2PSync = (function() {
     const APP_NAMESPACE = 'cpsa-quiz-v2';
     
     // Standard cache options - MUST match QuestionCache defaults for cache key compatibility
+    // v2: Updated to match new cache version with meta-question filtering
     const STANDARD_CACHE_OPTIONS = {
         model: 'gpt-4o-mini',
-        promptVersion: 1,
+        promptVersion: 2,
         questionsPerChunk: 5
     };
+    
+    // Meta-question patterns to filter out - questions about syllabus structure
+    const META_QUESTION_PATTERNS = [
+        /primary focus of appendix/i,
+        /missing from the official.*syllabus/i,
+        /indicated as missing/i,
+        /considered important in the context of.*certification/i,
+        /inferred.*based on the.*study material/i,
+        /true regarding the official.*syllabus/i,
+        /what is appendix [a-j]/i,
+        /which appendix/i,
+        /the syllabus document/i,
+        /the study material/i,
+        /the provided material/i,
+        /according to the.*material/i
+    ];
+    
+    /**
+     * Check if a question is about meta-content (syllabus structure, etc.)
+     * @param {Object} question - The question to check
+     * @returns {boolean} - True if question should be filtered out
+     */
+    function isMetaQuestion(question) {
+        if (!question || !question.question) return true;
+        
+        const questionText = question.question;
+        const explanationText = question.explanation || '';
+        
+        for (const pattern of META_QUESTION_PATTERNS) {
+            if (pattern.test(questionText) || pattern.test(explanationText)) {
+                console.log(`P2PSync: Filtering meta-question: ${questionText.substring(0, 60)}...`);
+                return true;
+            }
+        }
+        
+        return false;
+    }
     
     // Failure budget - disable P2P after too many failures
     const FAILURE_BUDGET = {
@@ -253,7 +291,10 @@ const P2PSync = (function() {
                 return;
             }
             
-            const validQuestions = chunkData.questions.filter(q => validateQuestion(q));
+            // Filter out invalid questions and meta-questions (about syllabus structure, etc.)
+            const validQuestions = chunkData.questions.filter(q => 
+                validateQuestion(q) && !isMetaQuestion(q)
+            );
             if (validQuestions.length === 0) return;
             
             // Check if we already have this chunk cached

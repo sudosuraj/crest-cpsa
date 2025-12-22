@@ -17,7 +17,8 @@ const QuestionCache = (function() {
     const STORE_NAME = 'questions';
     
     // Cache version - increment when prompt format or validation rules change
-    const CACHE_VERSION = 1;
+    // v2: Added meta-question filtering to prevent syllabus structure questions
+    const CACHE_VERSION = 2;
     
     // Default model used for generation
     const DEFAULT_MODEL = 'gpt-4o-mini';
