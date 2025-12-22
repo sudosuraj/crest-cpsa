@@ -1,117 +1,470 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" itemscope itemtype="https://schema.org/WebApplication">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CPSA Appendix I: Web Testing Techniques | Free Practice Questions</title>
-    <meta name="description" content="Practice CREST CPSA Appendix I questions on Web Testing Techniques. Topics include XSS Attacks, SQL Injection, Command Injection, File Inclusion, and Parameter Manipulation.">
-    <meta name="keywords" content="CPSA Appendix I, web testing techniques, XSS, SQL injection, command injection, file inclusion, LFI, RFI, CREST certification">
+    <title>CPSA Appendix I: Databases | Free Practice Questions</title>
+    <meta name="description" content="Practice CREST CPSA Appendix I questions on Database Security. Topics include SQL, Database Architecture, and Database Hardening.">
+    <meta name="keywords" content="CPSA Appendix I, database security, SQL, database architecture, database hardening, CREST certification">
     <meta name="author" content="Suraj Sharma (sudosuraj)">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://sudosuraj.github.io/crest-cpsa/appendix-i.html">
     
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://sudosuraj.github.io/crest-cpsa/appendix-i.html">
-    <meta property="og:title" content="CPSA Appendix I: Web Testing Techniques">
-    <meta property="og:description" content="Free practice questions for CREST CPSA Appendix I covering XSS, SQL injection, command injection, and file inclusion.">
+    <meta property="og:title" content="CPSA Appendix I: Databases">
+    <meta property="og:description" content="Free practice questions for CREST CPSA Appendix I covering SQL, database architecture, and security.">
     <meta property="og:image" content="https://sudosuraj.github.io/crest-cpsa/og-image.svg">
     
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="CPSA Appendix I: Web Testing Techniques">
+    <meta name="twitter:title" content="CPSA Appendix I: Databases">
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d9488">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="icon-192.svg">
     
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        "name": "CPSA Appendix I: Web Testing Techniques",
-        "description": "Practice questions for CREST CPSA certification - Appendix I covering hands-on web testing techniques.",
+        "name": "CPSA Appendix I: Databases",
+        "description": "Practice CREST CPSA Appendix I questions on Database Security. Topics include SQL, Database Architecture, and Database Hardening.",
         "url": "https://sudosuraj.github.io/crest-cpsa/appendix-i.html",
-        "isPartOf": {"@type": "WebApplication", "name": "CREST CPSA Practice Quiz", "url": "https://sudosuraj.github.io/crest-cpsa/"},
-        "breadcrumb": {"@type": "BreadcrumbList", "itemListElement": [
-            {"@type": "ListItem", "position": 1, "name": "CPSA Quiz", "item": "https://sudosuraj.github.io/crest-cpsa/"},
-            {"@type": "ListItem", "position": 2, "name": "Appendix I", "item": "https://sudosuraj.github.io/crest-cpsa/appendix-i.html"}
-        ]},
-        "mainEntity": {"@type": "ItemList", "name": "Appendix I Topics", "itemListElement": [
-            {"@type": "ListItem", "position": 1, "name": "I1 Web Site Structure Discovery"},
-            {"@type": "ListItem", "position": 2, "name": "I2 Cross-Site Scripting Attacks"},
-            {"@type": "ListItem", "position": 3, "name": "I3 SQL Injection"},
-            {"@type": "ListItem", "position": 4, "name": "I4 Command Injection"},
-            {"@type": "ListItem", "position": 5, "name": "I5 File Inclusion Attacks"},
-            {"@type": "ListItem", "position": 6, "name": "I6 Parameter Manipulation"}
-        ]}
+        "isPartOf": {
+            "@type": "WebApplication",
+            "name": "CREST CPSA Practice Quiz",
+            "url": "https://sudosuraj.github.io/crest-cpsa/"
+        },
+        "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "CPSA Quiz", "item": "https://sudosuraj.github.io/crest-cpsa/"},
+                {"@type": "ListItem", "position": 2, "name": "Appendix I", "item": "https://sudosuraj.github.io/crest-cpsa/appendix-i.html"}
+            ]
+        },
+        "mainEntity": {
+            "@type": "ItemList",
+            "name": "Appendix I Topics",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "I1 SQL Fundamentals"},
+                {"@type": "ListItem", "position": 2, "name": "I2 Database Architecture"},
+                {"@type": "ListItem", "position": 3, "name": "I3 Database Hardening"},
+                {"@type": "ListItem", "position": 4, "name": "I4 Database Enumeration"}
+            ]
+        }
     }
     </script>
     
-    <style>
-        :root { --primary: #0d9488; --primary-dark: #0f766e; --bg: #f8fafc; --text: #1e293b; --text-muted: #64748b; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
-        header { text-align: center; margin-bottom: 2rem; }
-        h1 { color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; }
-        .subtitle { color: var(--text-muted); font-size: 1.1rem; }
-        .cta-button { display: inline-block; background: var(--primary); color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 1.5rem 0; transition: background 0.2s; }
-        .cta-button:hover { background: var(--primary-dark); }
-        .topics { background: white; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .topics h2 { color: var(--primary); margin-bottom: 1rem; font-size: 1.3rem; }
-        .topics ul { list-style: none; }
-        .topics li { padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0; }
-        .topics li:last-child { border-bottom: none; }
-        .description { margin: 1.5rem 0; }
-        .nav-links { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin: 2rem 0; }
-        .nav-links a { color: var(--primary); text-decoration: none; padding: 0.5rem 1rem; border: 1px solid var(--primary); border-radius: 6px; font-size: 0.9rem; }
-        .nav-links a:hover { background: var(--primary); color: white; }
-        footer { text-align: center; color: var(--text-muted); margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
-    </style>
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <script>
+        // Set the hash before app.js loads so routing initializes correctly
+        if (!window.location.hash) {
+            history.replaceState(null, '', '#appendix/I');
+        }
+    </script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Appendix I: Web Testing Techniques</h1>
-            <p class="subtitle">CREST CPSA Certification Practice Questions</p>
-        </header>
-        
-        <main>
-            <p class="description">
-                Master practical web testing techniques for the CREST CPSA certification. This appendix covers hands-on exploitation techniques including XSS, SQL injection, command injection, file inclusion vulnerabilities, and parameter manipulation attacks.
-            </p>
-            
-            <a href="./#appendix/I" class="cta-button">Start Practicing Appendix I Questions</a>
-            
-            <section class="topics">
-                <h2>Topics Covered</h2>
-                <ul>
-                    <li><strong>I1 Web Site Structure Discovery</strong> - Directory enumeration, spidering, and content discovery</li>
-                    <li><strong>I2 Cross-Site Scripting Attacks</strong> - Reflected, stored, and DOM-based XSS exploitation</li>
-                    <li><strong>I3 SQL Injection</strong> - Union-based, blind, and time-based SQL injection techniques</li>
-                    <li><strong>I4 Command Injection</strong> - OS command injection and shell escapes</li>
-                    <li><strong>I5 File Inclusion Attacks</strong> - Local File Inclusion (LFI) and Remote File Inclusion (RFI)</li>
-                    <li><strong>I6 Parameter Manipulation</strong> - Hidden field tampering, cookie manipulation, and parameter pollution</li>
-                </ul>
-            </section>
-            
-            <nav class="nav-links">
-                <a href="./">Home</a>
-                <a href="appendix-a.html">Appendix A</a>
-                <a href="appendix-b.html">Appendix B</a>
-                <a href="appendix-c.html">Appendix C</a>
-                <a href="appendix-d.html">Appendix D</a>
-                <a href="appendix-e.html">Appendix E</a>
-                <a href="appendix-f.html">Appendix F</a>
-                <a href="appendix-g.html">Appendix G</a>
-                <a href="appendix-h.html">Appendix H</a>
-                <a href="appendix-j.html">Appendix J</a>
-            </nav>
-        </main>
-        
-        <footer>
-            <p>CREST CPSA Practice Quiz - Free AI-Powered Study Tool</p>
-            <p>Created by <a href="https://github.com/sudosuraj" style="color: var(--primary);">Suraj Sharma</a></p>
-        </footer>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div id="offline-indicator" class="offline-indicator" role="alert" hidden>
+        You're offline. Quiz works, but AI features need internet.
     </div>
+    
+    <div class="command-palette-overlay" id="command-palette" hidden>
+        <div class="command-palette">
+            <div class="command-palette-header">
+                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="command-search" placeholder="Search topics, appendices..." autocomplete="off">
+                <kbd>ESC</kbd>
+            </div>
+            <div class="command-palette-results" id="command-results"></div>
+        </div>
+    </div>
+
+    <div class="app-layout" id="app-layout">
+        <aside class="side-nav" id="side-nav">
+            <div class="side-nav-header">
+                <div class="brand">
+                    <svg class="brand-icon" viewBox="0 0 24 24" width="28" height="28">
+                        <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                    </svg>
+                    <span class="brand-text">CPSA</span>
+                </div>
+                <button class="side-nav-collapse" id="side-nav-collapse" aria-label="Collapse sidebar">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+            </div>
+            
+            <nav class="side-nav-menu" role="navigation">
+                <button class="sidebar-nav-item toolbar-tab active" id="tab-study" data-tab="study" data-panel="study" role="tab" aria-selected="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>
+                    <span>Study</span>
+                </button>
+                <button class="sidebar-nav-item toolbar-tab" id="tab-practice" data-tab="practice" data-panel="practice" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    <span>Practice</span>
+                </button>
+                <button class="sidebar-nav-item toolbar-tab" id="tab-review" data-tab="review" data-panel="review" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                    <span>Review</span>
+                    <span class="nav-badge" id="review-count">0</span>
+                </button>
+                <button class="sidebar-nav-item toolbar-tab" id="tab-insights" data-tab="insights" data-panel="insights" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    <span>Insights</span>
+                </button>
+                <button class="sidebar-nav-item toolbar-tab" id="tab-progress" data-tab="progress" data-panel="progress" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg>
+                    <span>Progress</span>
+                </button>
+            </nav>
+            
+            <div class="side-nav-footer">
+                <div class="streak-display" title="Daily Streak">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 23c-3.65 0-6.5-2.95-6.5-6.6 0-2.19 1.4-4.46 2.2-5.54.8-1.08 1.8-2.3 2.8-3.36.5-.53 1-.97 1.5-1.5.5.53 1 .97 1.5 1.5 1 1.06 2 2.28 2.8 3.36.8 1.08 2.2 3.35 2.2 5.54 0 3.65-2.85 6.6-6.5 6.6z"/></svg>
+                    <span id="streak-count">0</span>
+                    <span class="streak-label">day streak</span>
+                </div>
+                
+                <div class="side-nav-actions">
+                    <button class="icon-btn" id="api-key-btn" title="API Key Settings">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                        <span class="api-key-indicator" id="api-key-indicator" hidden></span>
+                    </button>
+                </div>
+                
+                <div class="social-links">
+                    <a href="https://www.linkedin.com/in/sudosuraj/" target="_blank" rel="noopener" title="LinkedIn">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                    </a>
+                    <a href="https://github.com/sudosuraj" target="_blank" rel="noopener" title="GitHub">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <header class="top-bar">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                </button>
+                
+                <nav class="breadcrumbs" id="breadcrumbs" aria-label="Breadcrumb">
+                    <a href="#" class="breadcrumb-item" data-nav="home">Home</a>
+                </nav>
+                
+                <button class="search-trigger" id="search-trigger">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <span>Search...</span>
+                    <kbd>Ctrl+K</kbd>
+                </button>
+                
+                <div class="stats-bar">
+                    <div class="stat-item" title="Accuracy">
+                        <span id="percentage">0</span>%
+                    </div>
+                    <div class="stat-item" title="Attempted">
+                        <span id="attempted-count">0</span>
+                    </div>
+                    <div class="xp-display" title="XP">
+                        <span class="xp-level" id="xp-level">1</span>
+                        <span id="xp-text">0 XP</span>
+                        <div class="xp-bar"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
+                    </div>
+                </div>
+                
+            </header>
+
+            <div class="content-area">
+                <section class="toolbar-panel active" id="study-panel" role="tabpanel">
+                    <div class="panel-header">
+                        <h2>Study Notes</h2>
+                        <p>CPSA Study Notes by Ravi Solanki</p>
+                        <div class="study-actions">
+                            <button class="action-btn primary start-practice-btn" id="go-to-practice-btn">
+                                <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                                Start Practice
+                            </button>
+                            <a class="action-btn" href="docs/CPSA-Study-Notes-Ravi-Solanki.pdf" target="_blank" rel="noopener noreferrer">
+                                <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                                Open in New Tab
+                            </a>
+                        </div>
+                    </div>
+                    <div class="pdf-container">
+                        <iframe 
+                            id="pdf-viewer"
+                            src="pdfjs-viewer.html"
+                            title="CPSA Study Notes PDF"
+                            loading="lazy"
+                        ></iframe>
+                    </div>
+                </section>
+
+                <section class="toolbar-panel" id="practice-panel" role="tabpanel">
+                    <div id="quiz-container"></div>
+                </section>
+
+                <section class="toolbar-panel" id="review-panel" role="tabpanel">
+                    <div class="panel-header">
+                        <h2>Review - Mistake Bank</h2>
+                        <p>Questions you've answered incorrectly.</p>
+                    </div>
+                    <div class="review-stats" id="review-stats">
+                        <div class="review-stat-card">
+                            <span class="review-stat-value" id="incorrect-count">0</span>
+                            <span class="review-stat-label">Incorrect</span>
+                        </div>
+                        <div class="review-stat-card">
+                            <span class="review-stat-value" id="flagged-count">0</span>
+                            <span class="review-stat-label">Flagged</span>
+                        </div>
+                    </div>
+                    <div class="review-actions">
+                        <button class="action-btn primary" id="review-incorrect-btn">Review Incorrect</button>
+                        <button class="action-btn" id="review-flagged-btn">Review Flagged</button>
+                    </div>
+                    <div class="review-list" id="review-list"></div>
+                </section>
+
+                <section class="toolbar-panel" id="insights-panel" role="tabpanel">
+                    <div class="panel-header">
+                        <h2>Insights</h2>
+                        <p>Analytics on your performance.</p>
+                    </div>
+                    <div class="insights-grid">
+                        <div class="insight-card large">
+                            <h3>Category Performance</h3>
+                            <div class="category-breakdown" id="category-stats"></div>
+                        </div>
+                        <div class="insight-card">
+                            <h3>Weak Areas</h3>
+                            <div class="weak-areas" id="weak-areas">
+                                <p class="placeholder-text">Complete more questions to see weak areas</p>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <h3>Study Time</h3>
+                            <div class="study-time-display">
+                                <span class="study-time-value" id="study-time">0h 0m</span>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <h3>Statistics</h3>
+                            <div class="stats-summary">
+                                <div class="stat-row"><span>Total Attempted</span><span id="total-attempted">0</span></div>
+                                <div class="stat-row"><span>Total Correct</span><span id="total-correct">0</span></div>
+                                <div class="stat-row"><span>Overall Accuracy</span><span id="overall-accuracy">0%</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="toolbar-panel" id="progress-panel" role="tabpanel">
+                    <div class="panel-header">
+                        <h2>Progress</h2>
+                        <p>Track your learning journey.</p>
+                    </div>
+                    <div class="progress-overview">
+                        <div class="progress-ring-container">
+                            <svg class="progress-ring" viewBox="0 0 120 120">
+                                <circle class="progress-ring-bg" cx="60" cy="60" r="54"/>
+                                <circle class="progress-ring-fill" id="progress-ring-fill" cx="60" cy="60" r="54"/>
+                            </svg>
+                            <div class="progress-ring-text">
+                                <span class="progress-ring-value" id="overall-progress">0%</span>
+                                <span class="progress-ring-label">Complete</span>
+                            </div>
+                        </div>
+                        <div class="progress-details">
+                            <div class="progress-detail-item">
+                                <span class="detail-label">Questions Answered</span>
+                                <span class="detail-value" id="questions-answered">0</span>
+                            </div>
+                            <div class="progress-detail-item">
+                                <span class="detail-label">Appendices Started</span>
+                                <span class="detail-value" id="appendices-started">0</span>
+                            </div>
+                            <div class="progress-detail-item">
+                                <span class="detail-label">Current Streak</span>
+                                <span class="detail-value" id="current-streak">0 days</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress-grid" id="progress-grid-panel"></div>
+                    <div class="progress-actions">
+                        <button class="action-btn danger" id="reset-progress-btn">Reset All Progress</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div class="mobile-nav-overlay" id="mobile-nav-overlay" hidden></div>
+
+    <button class="chatbot-toggle" id="chatbot-toggle" aria-label="Open AI Chat">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            </button>
+    
+    <div id="chatbot-panel" class="chatbot-panel">
+        <div class="chatbot-header">
+            <div class="chatbot-identity">
+                <div class="chatbot-avatar">
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.75c-5.1 0-9.25 3.68-9.25 8.22 0 2.6 1.36 4.9 3.5 6.41-.15.85-.56 1.87-1.4 2.78a.75.75 0 0 0 .65 1.25c2.16-.2 3.74-.99 4.79-1.74.54.08 1.09.12 1.71.12 5.1 0 9.25-3.68 9.25-8.22S17.1 2.75 12 2.75Z"/></svg>
+                </div>
+                <div>
+                    <p class="chatbot-title">CPSA Copilot</p>
+                    <div class="chatbot-subtitle">AI-powered assistant</div>
+                </div>
+            </div>
+            <button id="chatbot-close" class="chatbot-close">&times;</button>
+        </div>
+        <div class="chatbot-welcome"><p>Ask me anything about CPSA topics!</p></div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+            <textarea id="chat-input" class="chat-input" placeholder="Ask a question..." rows="2"></textarea>
+            <button id="chat-send" class="chat-send">
+                <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="exam-modal" aria-hidden="true">
+        <div class="modal" role="dialog">
+            <div class="modal-header">
+                <h2 id="exam-modal-title">Practice Exam</h2>
+                <button class="modal-close" id="exam-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="exam-config" id="exam-config">
+                    <div class="config-group">
+                        <label for="exam-questions">Questions</label>
+                        <select id="exam-questions">
+                            <option value="10">10 questions</option>
+                            <option value="25">25 questions</option>
+                            <option value="50" selected>50 questions</option>
+                            <option value="100">100 questions</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="exam-time">Time Limit</label>
+                        <select id="exam-time">
+                            <option value="0">No limit</option>
+                            <option value="600">10 min</option>
+                            <option value="1500">25 min</option>
+                            <option value="3000" selected>50 min</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="exam-categories">Categories</label>
+                        <select id="exam-categories">
+                            <option value="all">All</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" id="start-exam-confirm">Start Exam</button>
+                </div>
+                <div class="exam-progress" id="exam-progress" style="display:none">
+                    <div class="exam-timer" id="exam-timer-display">50:00</div>
+                    <div class="exam-stats"><span id="exam-answered">0</span> / <span id="exam-total">50</span></div>
+                    <div class="exam-progress-bar"><div class="exam-progress-fill" id="exam-progress-fill"></div></div>
+                </div>
+                <div class="exam-results" id="exam-results" style="display:none">
+                    <h3>Exam Complete!</h3>
+                    <div class="results-score">
+                        <span class="score-value" id="exam-score">0%</span>
+                        <span class="score-label">Score</span>
+                    </div>
+                    <div class="results-breakdown">
+                        <div class="breakdown-item"><span class="breakdown-value" id="exam-correct">0</span><span class="breakdown-label">Correct</span></div>
+                        <div class="breakdown-item"><span class="breakdown-value" id="exam-incorrect">0</span><span class="breakdown-label">Incorrect</span></div>
+                        <div class="breakdown-item"><span class="breakdown-value" id="exam-time-taken">0:00</span><span class="breakdown-label">Time</span></div>
+                    </div>
+                    <button class="btn-primary" id="exam-review-btn">Review</button>
+                    <button class="btn-secondary" id="exam-retry-btn">Retry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="api-key-modal" aria-hidden="true">
+        <div class="modal" role="dialog">
+            <div class="modal-header">
+                <h2 id="api-key-modal-title">API Key Settings</h2>
+                <button class="modal-close" id="api-key-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Add your OpenAI-compatible API key for AI features.</p>
+                <form id="api-key-form" onsubmit="return false;">
+                    <div class="config-group">
+                        <label for="api-key-input">API Key</label>
+                        <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+                    </div>
+                    <div class="api-key-status" id="api-key-status"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-primary" id="save-api-key">Save</button>
+                        <button type="button" class="btn-secondary" id="clear-api-key">Clear</button>
+                    </div>
+                </form>
+                <p class="api-key-note">Get a key from <a href="https://toke.llm7.io" target="_blank">toke.llm7.io</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="analytics-modal" aria-hidden="true">
+        <div class="modal modal-large" role="dialog">
+            <div class="modal-header">
+                <h2 id="analytics-modal-title">Analytics</h2>
+                <button class="modal-close" id="analytics-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="analytics-tabs">
+                    <button class="analytics-tab active" data-tab="overview">Overview</button>
+                    <button class="analytics-tab" data-tab="trends">Trends</button>
+                    <button class="analytics-tab" data-tab="missed">Missed</button>
+                </div>
+                <div class="analytics-content">
+                    <div class="analytics-panel active" id="analytics-overview">
+                        <div class="stats-grid">
+                            <div class="stat-card"><span class="stat-value" id="analytics-total-attempted">0</span><span class="stat-label">Attempted</span></div>
+                            <div class="stat-card"><span class="stat-value" id="analytics-total-correct">0</span><span class="stat-label">Correct</span></div>
+                            <div class="stat-card"><span class="stat-value" id="analytics-overall-accuracy">0%</span><span class="stat-label">Accuracy</span></div>
+                            <div class="stat-card"><span class="stat-value" id="analytics-study-time">0h</span><span class="stat-label">Time</span></div>
+                        </div>
+                    </div>
+                    <div class="analytics-panel" id="analytics-trends">
+                        <h3>Progress Over Time</h3>
+                        <div class="trend-chart" id="trend-chart"><canvas id="trend-canvas"></canvas></div>
+                    </div>
+                    <div class="analytics-panel" id="analytics-missed">
+                        <h3>Most Missed</h3>
+                        <div id="missed-questions-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+    <button class="back-to-top" id="back-to-top" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+    </button>
+
+    <div id="p2p-status" class="p2p-status" title="P2P Sync">
+        <span class="p2p-icon"><svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg></span>
+        <span id="p2p-online-count">1</span> online
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/db-utils.js"></script>
+    <script src="js/llm-client.js"></script>
+    <script src="js/question-cache.js"></script>
+    <script src="js/rag.js"></script>
+    <script src="js/p2p-sync.js"></script>
+    <script src="js/quiz-data.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
