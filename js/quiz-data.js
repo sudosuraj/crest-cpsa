@@ -657,6 +657,75 @@ async function loadAppendixStreaming(appendixLetter, options = {}) {
         return !status.isCircuitOpen && !status.isInCooldown;
     };
     
+    // CACHE-FIRST STRATEGY: If user has API key AND cache exists, show cached first then continue LLM
+    // This provides instant UX while still generating fresh content
+    let cachedQuestions = [];
+    let startChunkIdx = 0;
+    let usedCacheFirst = false;
+    
+    if (hasUserApiKey && typeof QuestionCache !== 'undefined') {
+        try {
+            cachedQuestions = await QuestionCache.getAllQuestionsForAppendix(appendixLetter);
+            if (cachedQuestions && cachedQuestions.length > 0) {
+                console.log(`CACHE-FIRST: Found ${cachedQuestions.length} cached questions for Appendix ${appendixLetter}`);
+                usedCacheFirst = true;
+                
+                // Display cached questions immediately
+                cachedQuestions.forEach((q, idx) => {
+                    const id = String(questionIdCounter++);
+                    const converted = convertToQuizFormat(q);
+                    quizData[id] = converted;
+                    state.allQuestions.push({ id, ...converted });
+                    pageQuestions[id] = converted;
+                    state.questionHashes.add(hashQuestion(q.question));
+                    
+                    // Stream each cached question to UI immediately
+                    if (onQuestion) {
+                        onQuestion(converted, id, idx + 1, cachedQuestions.length);
+                    }
+                });
+                
+                // Determine where to continue LLM generation from
+                // Get the cached chunk IDs to find the next chunk index
+                const cachedChunkIds = await QuestionCache.getCachedChunkIds(appendixLetter);
+                if (cachedChunkIds && cachedChunkIds.size > 0) {
+                    // Find the highest chunk index that was cached
+                    const appendixChunks = RAG.getChunksForAppendix(appendixLetter);
+                    for (let i = 0; i < appendixChunks.length; i++) {
+                        if (cachedChunkIds.has(appendixChunks[i].id)) {
+                            startChunkIdx = i + 1; // Start from the next chunk
+                        }
+                    }
+                    state.nextChunkIdx = startChunkIdx;
+                    console.log(`CACHE-FIRST: Will continue LLM generation from chunk index ${startChunkIdx}`);
+                }
+                
+                // If we have enough cached questions, we might be done
+                if (cachedQuestions.length >= targetCount) {
+                    state.currentPage = 1;
+                    const finalResult = {
+                        questions: pageQuestions,
+                        hasMore: startChunkIdx < state.totalChunks,
+                        currentPage: state.currentPage,
+                        totalQuestions: state.allQuestions.length,
+                        exhausted: startChunkIdx >= state.totalChunks,
+                        chunksProcessed: startChunkIdx,
+                        totalChunks: state.totalChunks,
+                        stats: { cacheHits: cachedQuestions.length, apiCalls: 0, source: 'cache_first' }
+                    };
+                    
+                    if (onComplete) {
+                        onComplete(finalResult);
+                    }
+                    
+                    return finalResult;
+                }
+            }
+        } catch (e) {
+            console.warn('CACHE-FIRST: Error loading cached questions', e);
+        }
+    }
+    
     // PRIORITY ORDER:
     // 1. User API key set -> Always use LLM (most prioritized)
     // 2. No API key -> Use LLM7 anonymous mode, keep P2P synced

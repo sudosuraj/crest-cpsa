@@ -4364,76 +4364,121 @@ Try it yourself: ${url}`,
         if (mobileAttempted) mobileAttempted.textContent = stats.attempted;
     }
 
-    // ==========================================
-    // API KEY SETTINGS
-    // ==========================================
-    function setupApiKeySettings() {
-        const modal = document.getElementById('api-key-modal');
-        const btn = document.getElementById('api-key-btn');
-        const closeBtn = document.getElementById('api-key-modal-close');
-        const saveBtn = document.getElementById('save-api-key');
-        const clearBtn = document.getElementById('clear-api-key');
-        const input = document.getElementById('api-key-input');
-        const status = document.getElementById('api-key-status');
-        const indicator = document.getElementById('api-key-indicator');
+        // ==========================================
+        // API KEY SETTINGS
+        // ==========================================
+        function setupApiKeySettings() {
+            const modal = document.getElementById('api-key-modal');
+            const btn = document.getElementById('api-key-btn');
+            const closeBtn = document.getElementById('api-key-modal-close');
+            const saveBtn = document.getElementById('save-api-key');
+            const clearBtn = document.getElementById('clear-api-key');
+            const input = document.getElementById('api-key-input');
+            const status = document.getElementById('api-key-status');
+            const indicator = document.getElementById('api-key-indicator');
         
-        if (!modal || !btn) return;
+            const banner = document.getElementById('api-token-banner');
+            const bannerClose = document.getElementById('api-token-banner-close');
+            const bannerForm = document.getElementById('api-token-banner-form');
+            const bannerInput = document.getElementById('api-token-banner-input');
         
-        function updateStatus() {
-            if (typeof LLMClient !== 'undefined' && LLMClient.hasApiKey()) {
-                status.textContent = 'API key is set';
-                status.className = 'api-key-status success';
-                indicator.hidden = false;
-            } else {
-                status.textContent = 'No API key set (using shared quota)';
-                status.className = 'api-key-status';
-                indicator.hidden = true;
-            }
-        }
+            if (!modal || !btn) return;
         
-        function openModal() {
-            modal.setAttribute('aria-hidden', 'false');
-            modal.classList.add('show');
-            updateStatus();
-        }
-        
-        function closeModal() {
-            modal.setAttribute('aria-hidden', 'true');
-            modal.classList.remove('show');
-            input.value = '';
-        }
-        
-        btn.addEventListener('click', openModal);
-        closeBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-        
-        saveBtn.addEventListener('click', () => {
-            const key = input.value.trim();
-            if (key) {
-                if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
-                    showToast('API key saved successfully');
-                    updateStatus();
-                    input.value = '';
+            function updateStatus() {
+                const hasKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
+                if (hasKey) {
+                    status.textContent = 'API key is set';
+                    status.className = 'api-key-status success';
+                    indicator.hidden = false;
+                    if (banner) banner.hidden = true;
                 } else {
-                    showToast('Failed to save API key', 'error');
+                    status.textContent = 'No API key set (using shared quota)';
+                    status.className = 'api-key-status';
+                    indicator.hidden = true;
                 }
-            } else {
-                showToast('Please enter an API key', 'error');
             }
-        });
         
-        clearBtn.addEventListener('click', () => {
-            if (typeof LLMClient !== 'undefined') {
-                LLMClient.clearApiKey();
-                showToast('API key cleared');
+            function openModal() {
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('show');
                 updateStatus();
             }
-        });
         
-        updateStatus();
-    }
+            function closeModal() {
+                modal.setAttribute('aria-hidden', 'true');
+                modal.classList.remove('show');
+                input.value = '';
+            }
+        
+            btn.addEventListener('click', openModal);
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        
+            saveBtn.addEventListener('click', () => {
+                const key = input.value.trim();
+                if (key) {
+                    if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
+                        showToast('API key saved successfully');
+                        updateStatus();
+                        input.value = '';
+                    } else {
+                        showToast('Failed to save API key', 'error');
+                    }
+                } else {
+                    showToast('Please enter an API key', 'error');
+                }
+            });
+        
+            clearBtn.addEventListener('click', () => {
+                if (typeof LLMClient !== 'undefined') {
+                    LLMClient.clearApiKey();
+                    showToast('API key cleared');
+                    updateStatus();
+                }
+            });
+        
+            if (banner && bannerClose && bannerForm && bannerInput) {
+                bannerClose.addEventListener('click', () => {
+                    banner.hidden = true;
+                    sessionStorage.setItem('api_token_banner_dismissed', 'true');
+                });
+            
+                bannerForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const key = bannerInput.value.trim();
+                    if (key) {
+                        if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
+                            showToast('API token saved successfully');
+                            updateStatus();
+                            bannerInput.value = '';
+                            banner.hidden = true;
+                        } else {
+                            showToast('Failed to save API token', 'error');
+                        }
+                    } else {
+                        showToast('Please enter an API token', 'error');
+                    }
+                });
+            }
+        
+            updateStatus();
+        }
+    
+        function showApiTokenBannerIfNeeded() {
+            const banner = document.getElementById('api-token-banner');
+            if (!banner) return;
+        
+            const hasApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
+            const wasDismissed = sessionStorage.getItem('api_token_banner_dismissed') === 'true';
+        
+            if (!hasApiKey && !wasDismissed) {
+                banner.hidden = false;
+            } else {
+                banner.hidden = true;
+            }
+        }
 
     // ==========================================
     // DESKTOP SIDEBAR NAVIGATION
@@ -4693,25 +4738,26 @@ Try it yourself: ${url}`,
             });
         }
 
-        // ==========================================
-        // INITIALIZE ALL NEW FEATURES
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            // Setup new features
-            setupPracticeExam();
-            setupAnalytics();
-            setupSpacedRepetition();
-            setupPDFExport();
-            setupChallengeMode();
-            setupSprintMode();
-            setupModeToggle();
-            setupViewToggle();
-            setupXPSystem();
-            setupShareDropdown();
-            setupMobileNavigation();
-            setupApiKeySettings();
-            setupDesktopSidebar();
-            setupCommandPalette();
+                // ==========================================
+                // INITIALIZE ALL NEW FEATURES
+                // ==========================================
+                document.addEventListener('DOMContentLoaded', () => {
+                    // Setup new features
+                    setupPracticeExam();
+                    setupAnalytics();
+                    setupSpacedRepetition();
+                    setupPDFExport();
+                    setupChallengeMode();
+                    setupSprintMode();
+                    setupModeToggle();
+                    setupViewToggle();
+                    setupXPSystem();
+                    setupShareDropdown();
+                    setupMobileNavigation();
+                    setupApiKeySettings();
+                    setupDesktopSidebar();
+                    setupCommandPalette();
+                    showApiTokenBannerIfNeeded();
             
             // Setup "Start Practice" button on Study page
             const goToPracticeBtn = document.getElementById('go-to-practice-btn');
