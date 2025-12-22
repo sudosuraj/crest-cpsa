@@ -101,6 +101,67 @@ def create_chunks_from_section(section_content, section_id, section_title, appen
     
     return chunks
 
+def split_imp_content_into_sections(content):
+    """Split IMP Note content into logical sections based on headers."""
+    sections = []
+    
+    # Common section headers in the IMP Note
+    section_patterns = [
+        (r'^Oracle Default Credentials', 'K1', 'Oracle Default Credentials'),
+        (r'^SELECT Commands', 'K2', 'SQL SELECT Commands'),
+        (r'^Port Numbers', 'K3', 'Port Numbers Reference'),
+        (r'^OSI Model', 'K4', 'OSI Model Layers'),
+        (r'^TCP/IP Model', 'K5', 'TCP/IP Model'),
+        (r'^Wireless Standards', 'K6', 'Wireless Standards'),
+        (r'^Data Link Protocols', 'K7', 'Data Link Protocols'),
+        (r'^HTTP Web Methods|^Web\s*$', 'K8', 'HTTP Web Methods & Status Codes'),
+        (r'^XSS|^Cross Site Scripting', 'K9', 'XSS and Injection Attacks'),
+        (r'^Wire-Wireless|^Wireless Standards', 'K10', 'Wireless & Network Standards'),
+        (r'^Definition\s*$|^Kerberos', 'K11', 'Security Definitions & Protocols'),
+    ]
+    
+    # Split content by double newlines to get paragraphs
+    paragraphs = content.split('\n\n')
+    
+    current_section_id = 'K1'
+    current_section_title = 'Important Notes'
+    current_content = []
+    
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+        
+        # Check if this paragraph starts a new section
+        new_section = False
+        for pattern, section_id, section_title in section_patterns:
+            if re.match(pattern, para, re.IGNORECASE | re.MULTILINE):
+                # Save previous section if it has content
+                if current_content:
+                    sections.append({
+                        'id': current_section_id,
+                        'title': current_section_title,
+                        'content': '\n\n'.join(current_content)
+                    })
+                current_section_id = section_id
+                current_section_title = section_title
+                current_content = [para]
+                new_section = True
+                break
+        
+        if not new_section:
+            current_content.append(para)
+    
+    # Don't forget the last section
+    if current_content:
+        sections.append({
+            'id': current_section_id,
+            'title': current_section_title,
+            'content': '\n\n'.join(current_content)
+        })
+    
+    return sections
+
 def process_appendix(appendix_file):
     """Process a single appendix JSON file."""
     with open(appendix_file, 'r', encoding='utf-8') as f:
@@ -112,7 +173,18 @@ def process_appendix(appendix_file):
     
     print(f"\nProcessing {appendix}: {appendix_title}")
     
-    for section in data['sections']:
+    # Handle both formats: 'sections' array or single 'content' field
+    if 'sections' in data:
+        sections = data['sections']
+    elif 'content' in data:
+        # For IMP Note (K.json) - split content into logical sections
+        sections = split_imp_content_into_sections(data['content'])
+        print(f"  Split content into {len(sections)} sections")
+    else:
+        print(f"  Warning: No sections or content found in {appendix_file}")
+        return chunks
+    
+    for section in sections:
         section_id = section['id']
         section_title = section['title']
         section_content = section['content']

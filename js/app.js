@@ -907,7 +907,8 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         'G': 'Appendix G: Web Technologies',
         'H': 'Appendix H: Web Testing Methodologies',
         'I': 'Appendix I: Web Testing Techniques',
-        'J': 'Appendix J: Databases'
+        'J': 'Appendix J: Databases',
+        'K': 'Appendix K: Important Notes & Quick Reference'
     };
 
     function categorizeQuestion(questionObj) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cpsa-quiz-v30';
+const CACHE_NAME = 'cpsa-quiz-v31';
 
 // Relative paths to cache - will be resolved to absolute URLs at install time
 const ASSETS_TO_CACHE = [
@@ -35,6 +35,7 @@ const ASSETS_TO_CACHE = [
     'appendix-h.html',
     'appendix-i.html',
     'appendix-j.html',
+    'appendix-k.html',
     'sitemap.xml',
     'robots.txt'
 ];
