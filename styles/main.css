@@ -942,3 +942,794 @@ ul.weak-areas-list { list-style: none; }
     .review-actions { flex-direction: column; }
     .review-actions .action-btn { width: 100%; justify-content: center; }
 }
+
+/* ==================== ENHANCED MOBILE RESPONSIVE STYLES ==================== */
+
+/* Mobile Navigation Improvements */
+@media (max-width: 768px) {
+    /* Improved mobile overlay */
+    .mobile-nav-overlay {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+    
+    /* Better sidebar on mobile */
+    .side-nav {
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .side-nav.open {
+        z-index: 101;
+    }
+    
+    /* Improved top bar for mobile */
+    .top-bar {
+        gap: 8px;
+        min-height: var(--top-bar-height);
+    }
+    
+    .mobile-menu-btn {
+        min-width: 44px;
+        min-height: 44px;
+        flex-shrink: 0;
+    }
+    
+    /* Breadcrumbs - prevent overflow and improve readability */
+    .breadcrumbs {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 13px;
+    }
+    
+    .breadcrumb-item {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
+    }
+    
+    .breadcrumb-item.active {
+        max-width: 180px;
+    }
+    
+    .breadcrumb-separator {
+        flex-shrink: 0;
+    }
+    
+    /* Search trigger - compact on mobile */
+    .search-trigger {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    
+    /* Content area improvements */
+    .content-area {
+        padding: 12px;
+    }
+    
+    /* Panel headers */
+    .panel-header {
+        margin-bottom: 16px;
+    }
+    
+    .panel-header h2 {
+        font-size: 20px;
+    }
+}
+
+/* Question Card Mobile Improvements */
+@media (max-width: 768px) {
+    .question-card {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .question-card-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .question-card-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+    
+    .question-card-actions {
+        gap: 6px;
+    }
+    
+    .gemini-btn,
+    .flag-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+    }
+    
+    .question-card-text,
+    .question-text {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    
+    .option,
+    .option-tile {
+        padding: 12px;
+        gap: 10px;
+    }
+    
+    .option-letter {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+    
+    .option-text {
+        font-size: 14px;
+    }
+    
+    .answer-explanation {
+        padding: 12px;
+        margin-top: 12px;
+    }
+    
+    .answer-explanation h4 {
+        font-size: 13px;
+    }
+    
+    .answer-explanation p {
+        font-size: 13px;
+    }
+}
+
+/* Quiz Toolbar Mobile */
+@media (max-width: 768px) {
+    .quiz-toolbar {
+        gap: 12px;
+        padding: 12px 0;
+        margin-bottom: 16px;
+    }
+    
+    .back-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px;
+    }
+    
+    .quiz-filters {
+        gap: 8px;
+    }
+    
+    .filter-select {
+        min-height: 44px;
+        min-width: 100%;
+    }
+    
+    .quiz-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        justify-content: center;
+        min-height: 44px;
+    }
+    
+    .mode-toggle {
+        width: 100%;
+    }
+    
+    .mode-btn {
+        flex: 1;
+        text-align: center;
+        min-height: 40px;
+    }
+}
+
+/* Generation Progress Mobile */
+@media (max-width: 768px) {
+    .generation-progress {
+        padding: 20px 16px;
+    }
+    
+    .generation-progress h2 {
+        font-size: 18px;
+    }
+    
+    .generation-progress .appendix-subtitle {
+        font-size: 14px;
+    }
+    
+    .generation-stages {
+        gap: 6px;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .generation-stages .stage {
+        padding: 6px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .generation-stages .stage::after {
+        display: none;
+    }
+    
+    .ai-loader {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .neural-network {
+        width: 140px;
+        height: 80px;
+    }
+    
+    .ai-status {
+        font-size: 12px;
+    }
+}
+
+/* Chatbot Panel Mobile */
+@media (max-width: 768px) {
+    .chatbot-panel {
+        max-height: calc(100vh - 120px);
+        max-height: calc(100dvh - 120px);
+    }
+    
+    .chatbot-header {
+        padding: 12px;
+    }
+    
+    .chatbot-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .chatbot-title {
+        font-size: 15px;
+    }
+    
+    .chat-messages {
+        padding: 12px;
+    }
+    
+    .chat-input-row {
+        padding: 12px;
+        gap: 8px;
+    }
+    
+    .chat-input {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    .chat-send {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .chatbot-toggle {
+        padding: 10px 16px;
+    }
+    
+    .chatbot-label {
+        font-size: 14px;
+    }
+}
+
+/* Modal Mobile Improvements */
+@media (max-width: 768px) {
+    .modal-overlay {
+        padding: 16px;
+        align-items: flex-end;
+    }
+    
+    .modal {
+        max-height: 85vh;
+        max-height: 85dvh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    
+    .modal-header {
+        padding: 16px;
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        z-index: 1;
+    }
+    
+    .modal-header h2 {
+        font-size: 16px;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .modal-actions .btn-primary,
+    .modal-actions .btn-secondary {
+        width: 100%;
+        min-height: 48px;
+    }
+    
+    .config-group select,
+    .config-group input {
+        min-height: 48px;
+    }
+}
+
+/* Command Palette Mobile */
+@media (max-width: 768px) {
+    .command-palette-overlay {
+        padding: 16px;
+        padding-top: 10vh;
+    }
+    
+    .command-palette {
+        max-width: 100%;
+    }
+    
+    .command-palette-header {
+        padding: 12px;
+    }
+    
+    .command-palette-header input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .command-item {
+        padding: 14px 16px;
+    }
+}
+
+/* Appendix Cards Mobile */
+@media (max-width: 768px) {
+    .appendix-selection {
+        padding: 12px;
+    }
+    
+    .appendix-card {
+        padding: 16px;
+    }
+    
+    .appendix-card-header {
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .appendix-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+    
+    .appendix-letter {
+        font-size: 11px;
+    }
+    
+    .appendix-title {
+        font-size: 15px;
+    }
+    
+    .appendix-stats {
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .appendix-stat {
+        font-size: 12px;
+    }
+    
+    .appendix-cta {
+        padding-top: 12px;
+    }
+    
+    .appendix-status {
+        font-size: 13px;
+    }
+}
+
+/* Review Page Mobile */
+@media (max-width: 768px) {
+    .review-summary-section {
+        padding: 16px;
+        gap: 16px;
+    }
+    
+    .review-stat-card {
+        padding: 12px;
+    }
+    
+    .review-stat-card .review-stat-value {
+        font-size: 20px;
+    }
+    
+    .review-question-card {
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .review-question-header {
+        gap: 8px;
+    }
+    
+    .review-question-number {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+    
+    .review-question-appendix,
+    .review-question-status,
+    .review-question-flag {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+    
+    .review-question-text {
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+    
+    .review-answer {
+        padding: 10px 12px;
+    }
+    
+    .review-answer-text {
+        font-size: 13px;
+    }
+    
+    .review-explanation {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .review-question-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .review-question-actions .action-btn {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        justify-content: center;
+    }
+}
+
+/* Insights Page Mobile */
+@media (max-width: 768px) {
+    .insights-summary-row {
+        gap: 12px;
+    }
+    
+    .summary-card {
+        padding: 14px;
+        gap: 12px;
+    }
+    
+    .summary-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .summary-value {
+        font-size: 22px;
+    }
+    
+    .summary-label {
+        font-size: 12px;
+    }
+    
+    .insight-card {
+        padding: 16px;
+    }
+    
+    .insight-card h3 {
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
+    
+    .donut-value {
+        font-size: 24px;
+    }
+    
+    .category-stat-item {
+        padding: 10px;
+    }
+    
+    .category-stat-name {
+        font-size: 12px;
+    }
+    
+    .weak-area-item {
+        padding: 10px 12px;
+    }
+    
+    .weak-area-name {
+        font-size: 13px;
+    }
+}
+
+/* Progress Page Mobile */
+@media (max-width: 768px) {
+    .progress-ring-container {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .progress-ring-value {
+        font-size: 20px;
+    }
+    
+    .progress-detail-item {
+        padding: 10px 0;
+        font-size: 14px;
+    }
+    
+    .progress-item {
+        padding: 12px;
+    }
+    
+    .progress-item-name {
+        font-size: 14px;
+    }
+    
+    .progress-item-stats {
+        font-size: 13px;
+    }
+}
+
+/* Quiz Navigation Fixed Bar Mobile */
+@media (max-width: 768px) {
+    .quiz-nav-fixed {
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    
+    .quiz-nav-btn {
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 44px;
+    }
+    
+    .quiz-nav-info {
+        width: 100%;
+        text-align: center;
+        order: -1;
+        padding: 0;
+        font-size: 13px;
+    }
+}
+
+/* Toast Notifications Mobile */
+@media (max-width: 768px) {
+    .toast-container {
+        bottom: 80px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+    }
+    
+    .toast {
+        padding: 12px 14px;
+    }
+    
+    .toast-content h4 {
+        font-size: 14px;
+    }
+    
+    .toast-content p {
+        font-size: 12px;
+    }
+}
+
+/* P2P Status Mobile */
+@media (max-width: 768px) {
+    .p2p-status {
+        left: 12px;
+        bottom: 80px;
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+    
+    .back-to-top {
+        left: 12px;
+        bottom: 80px;
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Small Mobile - 480px Additional Fixes */
+@media (max-width: 480px) {
+    /* Even more compact content area */
+    .content-area {
+        padding: 10px;
+    }
+    
+    /* Breadcrumbs - even shorter on small screens */
+    .breadcrumb-item {
+        max-width: 100px;
+    }
+    
+    .breadcrumb-item.active {
+        max-width: 120px;
+    }
+    
+    /* Question cards */
+    .question-card {
+        padding: 12px;
+    }
+    
+    .question-card-text,
+    .question-text {
+        font-size: 14px;
+    }
+    
+    .option,
+    .option-tile {
+        padding: 10px;
+    }
+    
+    .option-letter {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+    
+    .option-text {
+        font-size: 13px;
+    }
+    
+    /* Appendix cards */
+    .appendix-card {
+        padding: 12px;
+    }
+    
+    .appendix-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    .appendix-title {
+        font-size: 14px;
+    }
+    
+    /* Generation stages - scrollable on very small screens */
+    .generation-stages {
+        margin: 0 -10px;
+        padding: 0 10px 8px;
+    }
+    
+    /* Chatbot - full width on small screens */
+    .chatbot-panel {
+        left: 8px;
+        right: 8px;
+        bottom: 70px;
+    }
+    
+    .chatbot-toggle {
+        right: 12px;
+        bottom: 12px;
+        padding: 8px 14px;
+    }
+    
+    /* Modal - nearly full screen */
+    .modal-overlay {
+        padding: 8px;
+    }
+    
+    .modal {
+        max-height: 90vh;
+        max-height: 90dvh;
+    }
+    
+    /* Summary cards - stack icon and content */
+    .summary-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+    
+    /* Review cards */
+    .review-question-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .review-question-actions .action-btn {
+        min-width: 100%;
+    }
+}
+
+/* Touch Target Improvements - Ensure minimum 44px touch targets */
+@media (max-width: 768px) {
+    button,
+    a,
+    .nav-item,
+    .sidebar-nav-item,
+    .appendix-card,
+    .option,
+    .option-tile {
+        min-height: 44px;
+    }
+    
+    .icon-btn,
+    .social-links a {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Safe Area Insets for notched devices */
+@supports (padding: max(0px)) {
+    @media (max-width: 768px) {
+        .content-area {
+            padding-left: max(12px, env(safe-area-inset-left));
+            padding-right: max(12px, env(safe-area-inset-right));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+        }
+        
+        .quiz-nav-fixed {
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+        
+        .chatbot-toggle {
+            bottom: max(16px, env(safe-area-inset-bottom));
+        }
+        
+        .modal {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    }
+}
+
+/* Landscape Mobile Orientation */
+@media (max-width: 768px) and (orientation: landscape) {
+    .modal {
+        max-height: 95vh;
+        max-height: 95dvh;
+    }
+    
+    .chatbot-panel {
+        max-height: calc(100vh - 80px);
+        max-height: calc(100dvh - 80px);
+    }
+    
+    .generation-progress {
+        padding: 16px;
+    }
+    
+    .ai-loader {
+        flex-direction: row;
+        gap: 16px;
+    }
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+    }
+    
+    .app-layout {
+        overflow-x: hidden;
+    }
+}
