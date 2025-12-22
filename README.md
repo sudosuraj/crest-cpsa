@@ -5,7 +5,7 @@ A free, open-source practice quiz application for CREST CPSA (Practitioner Secur
 ## Features
 
 - **Dynamic Question Generation**: AI-powered question generation from CPSA study materials using RAG
-- **10 Appendix Categories**: Questions organized by CPSA exam appendices (A-J)
+- **11 Appendix Categories**: Questions organized by CPSA exam appendices (A-K)
 - **Concurrent Processing**: Fast question loading with parallel batch processing (5 concurrent API calls)
 - **Background Preloading**: All appendixes preload questions in the background for instant access
 - **AI-Powered Explanations**: Get detailed explanations for questions using AI
@@ -21,7 +21,7 @@ A free, open-source practice quiz application for CREST CPSA (Practitioner Secur
 
 ## Appendices Covered
 
-The quiz covers all 10 CPSA exam appendices:
+The quiz covers all 11 CPSA exam appendices:
 
 - **Appendix A**: Soft Skills and Assessment Management
 - **Appendix B**: Core Technical Skills
@@ -33,6 +33,7 @@ The quiz covers all 10 CPSA exam appendices:
 - **Appendix H**: Web Testing Techniques
 - **Appendix I**: Databases
 - **Appendix J**: Web Application Servers
+- **Appendix K**: Important Notes & Quick Reference
 
 ## Technical Architecture
 
