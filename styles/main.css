@@ -1781,3 +1781,278 @@ ul.weak-areas-list { list-style: none; }
         font-size: 12px;
     }
 }
+
+/* Enhanced Mobile Responsiveness - Comprehensive Fixes */
+@media (max-width: 768px) {
+    /* Main content takes full width on mobile */
+    .main-content {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        width: 100%;
+    }
+    
+    /* Appendix grid - single column on mobile for better visibility */
+    .appendix-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    /* Bento grid - single column on mobile */
+    .bento-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    /* Ensure appendix selection is scrollable and all cards visible */
+    .appendix-selection {
+        padding: 12px;
+        overflow-y: auto;
+        max-height: none;
+    }
+    
+    /* Hero section compact on mobile */
+    .appendix-hero {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .appendix-hero h1 {
+        font-size: 20px;
+        line-height: 1.3;
+    }
+    
+    .appendix-hero p {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    
+    /* Hero stats horizontal scroll or wrap */
+    .hero-stats {
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .hero-stat-value {
+        font-size: 18px;
+    }
+    
+    .hero-stat-label {
+        font-size: 11px;
+    }
+    
+    /* Hero credits compact */
+    .hero-credits {
+        font-size: 11px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+    }
+    
+    /* Top bar improvements */
+    .top-bar {
+        padding: 0 12px;
+        gap: 8px;
+    }
+    
+    /* Breadcrumbs truncation */
+    .breadcrumbs {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 60%;
+    }
+    
+    /* Content area full width */
+    .content-area {
+        padding: 12px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Quiz layout single column */
+    .quiz-layout {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+    
+    /* AI tutor sidebar - full width on mobile */
+    .ai-tutor-sidebar {
+        position: static;
+        max-height: none;
+        width: 100%;
+        margin-top: 16px;
+    }
+    
+    /* Question card improvements */
+    .question-card {
+        padding: 14px;
+        margin-bottom: 12px;
+        border-radius: var(--radius-sm);
+    }
+    
+    .question-card-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .question-card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+    
+    /* Options better touch targets */
+    .option,
+    .option-tile {
+        padding: 14px 12px;
+        min-height: 48px;
+    }
+    
+    /* Insights grid responsive */
+    .insights-summary-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    /* Progress panel responsive */
+    .progress-overview {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    /* Modal improvements */
+    .modal {
+        width: calc(100vw - 24px);
+        max-width: none;
+        margin: 12px;
+    }
+    
+    /* Chatbot panel full width */
+    .chatbot-panel {
+        left: 12px;
+        right: 12px;
+        width: auto;
+        bottom: 70px;
+        max-height: calc(100vh - 100px);
+        max-height: calc(100dvh - 100px);
+    }
+}
+
+/* Small mobile - 480px and below */
+@media (max-width: 480px) {
+    /* Even more compact spacing */
+    .content-area {
+        padding: 8px;
+    }
+    
+    .appendix-selection {
+        padding: 8px;
+    }
+    
+    .appendix-hero {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .appendix-hero h1 {
+        font-size: 18px;
+    }
+    
+    .appendix-hero p {
+        font-size: 12px;
+    }
+    
+    .hero-stats {
+        gap: 12px;
+    }
+    
+    .hero-stat-value {
+        font-size: 16px;
+    }
+    
+    .hero-stat-label {
+        font-size: 10px;
+    }
+    
+    /* Appendix cards compact */
+    .appendix-card {
+        padding: 12px;
+    }
+    
+    .appendix-card-header {
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .appendix-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    
+    .appendix-title {
+        font-size: 13px;
+    }
+    
+    .appendix-letter {
+        font-size: 10px;
+    }
+    
+    .appendix-stats {
+        gap: 12px;
+    }
+    
+    .appendix-stat {
+        font-size: 11px;
+    }
+    
+    /* Question cards compact */
+    .question-card {
+        padding: 10px;
+    }
+    
+    .question-card-text,
+    .question-text {
+        font-size: 13px;
+    }
+    
+    .option,
+    .option-tile {
+        padding: 10px;
+    }
+    
+    .option-letter {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+    
+    .option-text {
+        font-size: 12px;
+    }
+    
+    /* Insights single column */
+    .insights-summary-row {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Top bar minimal */
+    .top-bar {
+        padding: 0 8px;
+        height: 50px;
+    }
+    
+    .mobile-menu-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    /* Breadcrumbs hidden on very small screens */
+    .breadcrumbs {
+        max-width: 50%;
+        font-size: 11px;
+    }
+}
