@@ -502,23 +502,33 @@
     <div class="modal-overlay" id="api-key-modal" aria-hidden="true">
         <div class="modal" role="dialog">
             <div class="modal-header">
-                <h2 id="api-key-modal-title">Add an API Key (Optional)</h2>
+                <h2 id="api-key-modal-title">LLM Settings (Optional)</h2>
                 <button class="modal-close" id="api-key-modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Add your LLM7.io API key for AI features.</p>
+                <p>Configure your own OpenAI-compatible LLM for AI features. Leave empty to use defaults.</p>
                 <form id="api-key-form" onsubmit="return false;">
                     <div class="config-group">
                         <label for="api-key-input">API Key</label>
-                        <input type="password" id="api-key-input" placeholder="msU..." autocomplete="off">
+                        <input type="password" id="api-key-input" placeholder="sk-... or your API key" autocomplete="off">
+                    </div>
+                    <div class="config-group">
+                        <label for="custom-endpoint-input">Custom Endpoint URL (Optional)</label>
+                        <input type="url" id="custom-endpoint-input" placeholder="https://api.openai.com/v1/chat/completions" autocomplete="off">
+                        <small class="input-hint">OpenAI-compatible API endpoint. HTTPS required for non-localhost.</small>
+                    </div>
+                    <div class="config-group">
+                        <label for="custom-model-input">Custom Model (Optional)</label>
+                        <input type="text" id="custom-model-input" placeholder="gpt-4o-mini" autocomplete="off">
+                        <small class="input-hint">Model name (e.g., gpt-4o, claude-3-opus, mistral-large)</small>
                     </div>
                     <div class="api-key-status" id="api-key-status"></div>
                     <div class="modal-actions">
-                        <button type="button" class="btn-primary" id="save-api-key">Save</button>
-                        <button type="button" class="btn-secondary" id="clear-api-key">Clear</button>
+                        <button type="button" class="btn-primary" id="save-api-key">Save Settings</button>
+                        <button type="button" class="btn-secondary" id="clear-api-key">Clear All</button>
                     </div>
                 </form>
-                <p class="api-key-note">[!] You can get a free LLM API key from <a href="https://token.llm7.io" target="_blank">token.llm7.io</a></p>
+                <p class="api-key-note">[!] Default: <a href="https://token.llm7.io" target="_blank">LLM7.io</a> (free). Or use your own OpenAI/compatible provider.</p>
             </div>
         </div>
     </div>

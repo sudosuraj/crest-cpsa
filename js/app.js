@@ -5073,7 +5073,7 @@ Try it yourself: ${url}`,
     }
 
             // ==========================================
-            // API KEY SETTINGS
+            // API KEY SETTINGS (with custom LLM endpoint/model support)
             // ==========================================
             function setupApiKeySettings() {
                 const modal = document.getElementById('api-key-modal');
@@ -5082,18 +5082,36 @@ Try it yourself: ${url}`,
                 const saveBtn = document.getElementById('save-api-key');
                 const clearBtn = document.getElementById('clear-api-key');
                 const input = document.getElementById('api-key-input');
+                const endpointInput = document.getElementById('custom-endpoint-input');
+                const modelInput = document.getElementById('custom-model-input');
                 const status = document.getElementById('api-key-status');
                 const indicator = document.getElementById('api-key-indicator');
         
                 if (!modal || !btn) return;
         
                 function updateStatus() {
-                    if (typeof LLMClient !== 'undefined' && LLMClient.hasApiKey()) {
-                        status.textContent = 'API key is set';
+                    if (typeof LLMClient === 'undefined') {
+                        status.textContent = 'LLM client not available';
+                        status.className = 'api-key-status error';
+                        indicator.hidden = true;
+                        return;
+                    }
+                    
+                    const hasKey = LLMClient.hasApiKey();
+                    const hasEndpoint = LLMClient.hasCustomEndpoint();
+                    const hasModel = LLMClient.hasCustomModel();
+                    
+                    let statusParts = [];
+                    if (hasKey) statusParts.push('API key set');
+                    if (hasEndpoint) statusParts.push('Custom endpoint: ' + escapeHtml(LLMClient.getCustomEndpoint()));
+                    if (hasModel) statusParts.push('Custom model: ' + escapeHtml(LLMClient.getCustomModel()));
+                    
+                    if (statusParts.length > 0) {
+                        status.innerHTML = statusParts.join('<br>');
                         status.className = 'api-key-status success';
                         indicator.hidden = false;
                     } else {
-                        status.textContent = 'No API key set (using shared quota)';
+                        status.textContent = 'Using defaults (LLM7.io, gpt-4o-mini)';
                         status.className = 'api-key-status';
                         indicator.hidden = true;
                     }
@@ -5102,6 +5120,15 @@ Try it yourself: ${url}`,
                 function openModal() {
                     modal.setAttribute('aria-hidden', 'false');
                     modal.classList.add('show');
+                    
+                    // Pre-fill inputs with current values
+                    if (typeof LLMClient !== 'undefined') {
+                        const currentEndpoint = LLMClient.getCustomEndpoint();
+                        const currentModel = LLMClient.getCustomModel();
+                        if (endpointInput && currentEndpoint) endpointInput.value = currentEndpoint;
+                        if (modelInput && currentModel) modelInput.value = currentModel;
+                    }
+                    
                     updateStatus();
                 }
         
@@ -5109,6 +5136,8 @@ Try it yourself: ${url}`,
                     modal.setAttribute('aria-hidden', 'true');
                     modal.classList.remove('show');
                     input.value = '';
+                    if (endpointInput) endpointInput.value = '';
+                    if (modelInput) modelInput.value = '';
                 }
             
                 window.openApiKeyModal = openModal;
@@ -5120,26 +5149,72 @@ Try it yourself: ${url}`,
                 });
         
                 saveBtn.addEventListener('click', () => {
+                    if (typeof LLMClient === 'undefined') {
+                        showToast('LLM client not available', { variant: 'error' });
+                        return;
+                    }
+                    
                     const key = input.value.trim();
+                    const endpoint = endpointInput ? endpointInput.value.trim() : '';
+                    const model = modelInput ? modelInput.value.trim() : '';
+                    
+                    let hasErrors = false;
+                    let savedSomething = false;
+                    
+                    // Save API key if provided
                     if (key) {
-                        if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
-                            showToast('API key saved successfully');
+                        if (LLMClient.setApiKey(key)) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Failed to save API key', { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    // Save custom endpoint if provided (with OWASP validation)
+                    if (endpoint) {
+                        const endpointResult = LLMClient.setCustomEndpoint(endpoint);
+                        if (endpointResult.success) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Endpoint error: ' + endpointResult.error, { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    // Save custom model if provided (with OWASP validation)
+                    if (model) {
+                        const modelResult = LLMClient.setCustomModel(model);
+                        if (modelResult.success) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Model error: ' + modelResult.error, { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    if (!hasErrors) {
+                        if (savedSomething) {
+                            showToast('LLM settings saved successfully');
                             updateStatus();
                             input.value = '';
                             closeModal();
                         } else {
-                            showToast('Failed to save API key', 'error');
+                            showToast('Please enter at least one setting', { variant: 'error' });
                         }
                     } else {
-                        showToast('Please enter an API key', 'error');
+                        updateStatus();
                     }
                 });
         
                 clearBtn.addEventListener('click', () => {
                     if (typeof LLMClient !== 'undefined') {
-                        LLMClient.clearApiKey();
-                        showToast('API key cleared');
+                        LLMClient.clearAllCustomSettings();
+                        showToast('All LLM settings cleared');
                         updateStatus();
+                        input.value = '';
+                        if (endpointInput) endpointInput.value = '';
+                        if (modelInput) modelInput.value = '';
                     }
                 });
         
