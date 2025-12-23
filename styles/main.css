@@ -81,8 +81,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .social-links a { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); transition: all 0.15s; }
 .social-links a:hover { background: var(--bg); color: var(--accent); text-decoration: none; }
 
-.main-content { flex: 1; margin-left: var(--side-nav-width); display: flex; flex-direction: column; transition: margin-left 0.2s ease; }
-.side-nav.collapsed ~ .main-content { margin-left: var(--side-nav-collapsed); }
+.main-content { flex: 1; margin-left: var(--side-nav-width); display: flex; flex-direction: column; transition: margin-left 0.2s ease; overflow-x: hidden; max-width: calc(100vw - var(--side-nav-width)); }
+.side-nav.collapsed ~ .main-content { margin-left: var(--side-nav-collapsed); max-width: calc(100vw - var(--side-nav-collapsed)); }
 
 .top-bar { position: sticky; top: 0; height: var(--top-bar-height); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; padding: 0 24px; z-index: 50; }
 .mobile-menu-btn { display: none; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); }
@@ -328,6 +328,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .config-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
 .config-group select, .config-group input { width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
 .config-group select:focus, .config-group input:focus { outline: none; border-color: var(--accent); }
+.config-group .input-hint { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.api-key-status.error { background: rgba(239, 68, 68, 0.1); color: var(--error); }
 
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; background: var(--accent); color: white; border-radius: var(--radius-sm); font-weight: 500; transition: all 0.15s; border: none; cursor: pointer; }
 .btn-primary:hover { background: var(--accent-hover); }
@@ -869,6 +871,54 @@ ul.weak-areas-list { list-style: none; }
 .weak-area-item:last-child { margin-bottom: 0; }
 .weak-area-name { font-size: 14px; font-weight: 500; color: var(--text); }
 .weak-area-accuracy { font-size: 13px; color: var(--danger); font-weight: 600; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; }
+
+/* ==================== ADDITIONAL KPI & VISUALIZATION STYLES ==================== */
+
+/* KPI Row Styles */
+.insights-summary-row.kpi-row { margin-top: 24px; }
+.summary-card.kpi-card { background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%); }
+.summary-icon.speed { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; }
+.summary-icon.mastery { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+.summary-icon.best { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+.summary-icon.streak-bonus { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+
+/* Full Width Card */
+.insight-card.full-width { grid-column: 1 / -1; }
+
+/* Practice vs Exam Comparison Chart */
+.comparison-chart-container { display: flex; flex-direction: column; gap: 16px; min-height: 160px; }
+.comparison-bar-group { display: flex; flex-direction: column; gap: 8px; }
+.comparison-bar-label { font-size: 13px; font-weight: 500; color: var(--text); display: flex; justify-content: space-between; }
+.comparison-bar-label span:last-child { color: var(--muted); }
+.comparison-bar { height: 24px; background: var(--bg); border-radius: 12px; overflow: hidden; position: relative; }
+.comparison-bar-fill { height: 100%; border-radius: 12px; transition: width 0.5s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+.comparison-bar-fill.practice { background: linear-gradient(90deg, var(--accent) 0%, #14b8a6 100%); }
+.comparison-bar-fill.exam { background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%); }
+.comparison-bar-value { font-size: 11px; font-weight: 600; color: white; }
+
+/* 7-Day Activity Chart */
+.activity-chart-container { display: flex; flex-direction: column; gap: 12px; min-height: 160px; }
+.activity-days { display: flex; gap: 8px; justify-content: space-between; }
+.activity-day { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+.activity-bar-container { width: 100%; height: 80px; display: flex; align-items: flex-end; justify-content: center; }
+.activity-bar { width: 100%; max-width: 32px; border-radius: 4px 4px 0 0; transition: height 0.3s ease; min-height: 4px; }
+.activity-bar.active { background: linear-gradient(180deg, var(--accent) 0%, #14b8a6 100%); }
+.activity-bar.inactive { background: var(--border); }
+.activity-bar.today { background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); }
+.activity-day-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+.activity-day-count { font-size: 10px; color: var(--text-secondary); }
+
+/* Recent Activity List */
+.recent-activity-list { display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto; }
+.recent-activity-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg); border-radius: var(--radius-sm); transition: all 0.2s; }
+.recent-activity-item:hover { background: var(--accent-soft); }
+.recent-activity-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.recent-activity-icon.correct { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.recent-activity-icon.incorrect { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+.recent-activity-content { flex: 1; min-width: 0; }
+.recent-activity-question { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.recent-activity-meta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
+.recent-activity-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
 
 /* ==================== REVIEW PAGE REDESIGN ==================== */
 
@@ -1731,5 +1781,328 @@ ul.weak-areas-list { list-style: none; }
     
     .app-layout {
         overflow-x: hidden;
+    }
+}
+
+/* Exam Panel Header Responsiveness */
+@media (max-width: 768px) {
+    .quiz-header-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        margin: -16px -16px 16px -16px;
+    }
+    
+    .pagination-info {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .appendix-quiz-title {
+        font-size: 16px;
+        width: 100%;
+    }
+    
+    .chunk-progress {
+        white-space: normal;
+        word-break: break-word;
+    }
+    
+    #exam-container .quiz-header-pagination .shuffle-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .quiz-header-pagination {
+        padding: 10px 12px;
+        margin: -12px -12px 12px -12px;
+    }
+    
+    .appendix-quiz-title {
+        font-size: 14px;
+    }
+    
+    .pagination-info {
+        font-size: 12px;
+    }
+}
+
+/* Enhanced Mobile Responsiveness - Comprehensive Fixes */
+@media (max-width: 768px) {
+    /* Main content takes full width on mobile */
+    .main-content {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        width: 100%;
+    }
+    
+    /* Appendix grid - single column on mobile for better visibility */
+    .appendix-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    /* Bento grid - single column on mobile */
+    .bento-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    /* Ensure appendix selection is scrollable and all cards visible */
+    .appendix-selection {
+        padding: 12px;
+        overflow-y: auto;
+        max-height: none;
+    }
+    
+    /* Hero section compact on mobile */
+    .appendix-hero {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .appendix-hero h1 {
+        font-size: 20px;
+        line-height: 1.3;
+    }
+    
+    .appendix-hero p {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    
+    /* Hero stats horizontal scroll or wrap */
+    .hero-stats {
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .hero-stat-value {
+        font-size: 18px;
+    }
+    
+    .hero-stat-label {
+        font-size: 11px;
+    }
+    
+    /* Hero credits compact */
+    .hero-credits {
+        font-size: 11px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+    }
+    
+    /* Top bar improvements */
+    .top-bar {
+        padding: 0 12px;
+        gap: 8px;
+    }
+    
+    /* Breadcrumbs truncation */
+    .breadcrumbs {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 60%;
+    }
+    
+    /* Content area full width */
+    .content-area {
+        padding: 12px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Quiz layout single column */
+    .quiz-layout {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+    
+    /* AI tutor sidebar - full width on mobile */
+    .ai-tutor-sidebar {
+        position: static;
+        max-height: none;
+        width: 100%;
+        margin-top: 16px;
+    }
+    
+    /* Question card improvements */
+    .question-card {
+        padding: 14px;
+        margin-bottom: 12px;
+        border-radius: var(--radius-sm);
+    }
+    
+    .question-card-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .question-card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+    
+    /* Options better touch targets */
+    .option,
+    .option-tile {
+        padding: 14px 12px;
+        min-height: 48px;
+    }
+    
+    /* Insights grid responsive */
+    .insights-summary-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    /* Progress panel responsive */
+    .progress-overview {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    /* Modal improvements */
+    .modal {
+        width: calc(100vw - 24px);
+        max-width: none;
+        margin: 12px;
+    }
+    
+    /* Chatbot panel full width */
+    .chatbot-panel {
+        left: 12px;
+        right: 12px;
+        width: auto;
+        bottom: 70px;
+        max-height: calc(100vh - 100px);
+        max-height: calc(100dvh - 100px);
+    }
+}
+
+/* Small mobile - 480px and below */
+@media (max-width: 480px) {
+    /* Even more compact spacing */
+    .content-area {
+        padding: 8px;
+    }
+    
+    .appendix-selection {
+        padding: 8px;
+    }
+    
+    .appendix-hero {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .appendix-hero h1 {
+        font-size: 18px;
+    }
+    
+    .appendix-hero p {
+        font-size: 12px;
+    }
+    
+    .hero-stats {
+        gap: 12px;
+    }
+    
+    .hero-stat-value {
+        font-size: 16px;
+    }
+    
+    .hero-stat-label {
+        font-size: 10px;
+    }
+    
+    /* Appendix cards compact */
+    .appendix-card {
+        padding: 12px;
+    }
+    
+    .appendix-card-header {
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .appendix-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    
+    .appendix-title {
+        font-size: 13px;
+    }
+    
+    .appendix-letter {
+        font-size: 10px;
+    }
+    
+    .appendix-stats {
+        gap: 12px;
+    }
+    
+    .appendix-stat {
+        font-size: 11px;
+    }
+    
+    /* Question cards compact */
+    .question-card {
+        padding: 10px;
+    }
+    
+    .question-card-text,
+    .question-text {
+        font-size: 13px;
+    }
+    
+    .option,
+    .option-tile {
+        padding: 10px;
+    }
+    
+    .option-letter {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+    
+    .option-text {
+        font-size: 12px;
+    }
+    
+    /* Insights single column */
+    .insights-summary-row {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Top bar minimal */
+    .top-bar {
+        padding: 0 8px;
+        height: 50px;
+    }
+    
+    .mobile-menu-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    /* Breadcrumbs hidden on very small screens */
+    .breadcrumbs {
+        max-width: 50%;
+        font-size: 11px;
     }
 }

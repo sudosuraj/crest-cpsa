@@ -90,6 +90,134 @@ const RAG = (function() {
         return false;
     }
 
+    /**
+     * Robustly parse JSON array from LLM response, handling truncation and malformed output
+     * Uses layered approach:
+     * 1. Try direct JSON.parse
+     * 2. Extract JSON from code fences or preambles
+     * 3. Salvage complete objects from truncated arrays
+     * @param {string} content - Raw LLM response content
+     * @returns {Array} - Parsed array of questions (may be empty if parsing fails)
+     */
+    function parseJsonArrayRobust(content) {
+        if (!content || typeof content !== 'string') {
+            return [];
+        }
+
+        // Step 1: Clean up the content - remove code fences anywhere in the response
+        let cleaned = content.trim();
+        
+        // Handle code fences with regex to catch them anywhere (not just at edges)
+        const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (fenceMatch) {
+            cleaned = fenceMatch[1].trim();
+        } else {
+            // Remove edge code fences if regex didn't match (partial fence at end)
+            if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+            else if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+            if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+            cleaned = cleaned.trim();
+        }
+
+        // Step 2: Try direct JSON.parse first
+        try {
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+            // If it's a single object, wrap in array
+            if (parsed && typeof parsed === 'object') {
+                return [parsed];
+            }
+            return [];
+        } catch (directError) {
+            // Continue to salvage approach
+        }
+
+        // Step 3: Try to extract JSON array using bracket matching
+        const firstBracket = cleaned.indexOf('[');
+        if (firstBracket === -1) {
+            console.warn('parseJsonArrayRobust: No array bracket found in response');
+            return [];
+        }
+
+        // Find the last complete closing bracket
+        let lastBracket = cleaned.lastIndexOf(']');
+        if (lastBracket > firstBracket) {
+            // Try parsing the bracketed content
+            try {
+                const bracketed = cleaned.substring(firstBracket, lastBracket + 1);
+                const parsed = JSON.parse(bracketed);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch (bracketError) {
+                // Continue to object-by-object salvage
+            }
+        }
+
+        // Step 4: Salvage individual complete objects from truncated array
+        // This handles cases where the array is cut off mid-object
+        const arrayContent = cleaned.substring(firstBracket + 1);
+        const salvaged = [];
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        let objectStart = -1;
+
+        for (let i = 0; i < arrayContent.length; i++) {
+            const char = arrayContent[i];
+
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+
+            if (char === '\\' && inString) {
+                escapeNext = true;
+                continue;
+            }
+
+            if (char === '"' && !escapeNext) {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) continue;
+
+            if (char === '{') {
+                if (depth === 0) {
+                    objectStart = i;
+                }
+                depth++;
+            } else if (char === '}') {
+                depth--;
+                if (depth === 0 && objectStart !== -1) {
+                    // Found a complete object
+                    const objectStr = arrayContent.substring(objectStart, i + 1);
+                    try {
+                        const obj = JSON.parse(objectStr);
+                        if (obj && typeof obj === 'object') {
+                            salvaged.push(obj);
+                        }
+                    } catch (objError) {
+                        // Skip malformed object, continue to next
+                        console.warn('parseJsonArrayRobust: Skipping malformed object');
+                    }
+                    objectStart = -1;
+                }
+            }
+        }
+
+        if (salvaged.length > 0) {
+            console.log(`parseJsonArrayRobust: Salvaged ${salvaged.length} complete objects from truncated response`);
+        } else {
+            console.warn('parseJsonArrayRobust: Could not salvage any objects from response');
+        }
+
+        return salvaged;
+    }
+
     // Token budget configuration (8000 total limit)
     // ENHANCED: Increased context budget for better coverage
     const TOKEN_CONFIG = {
@@ -856,15 +984,10 @@ Output ONLY the JSON array.`;
                 temperature: 0.7
             });
 
-            let content = data.choices?.[0]?.message?.content?.trim() || '';
+            const content = data.choices?.[0]?.message?.content?.trim() || '';
 
-            // Parse JSON from response
-            if (content.startsWith('```json')) content = content.slice(7);
-            if (content.startsWith('```')) content = content.slice(3);
-            if (content.endsWith('```')) content = content.slice(0, -3);
-            content = content.trim();
-
-            const questions = JSON.parse(content);
+            // Parse JSON from response using robust parser that handles truncation
+            const questions = parseJsonArrayRobust(content);
 
             // Separate valid and invalid questions, filtering out meta-questions
             const validQuestions = [];
@@ -1249,15 +1372,10 @@ Output ONLY the JSON array with ${questionsNeeded} questions distributed across 
                 temperature: 0.7
             });
 
-            let content = data.choices?.[0]?.message?.content?.trim() || '';
+            const content = data.choices?.[0]?.message?.content?.trim() || '';
 
-            // Parse JSON from response
-            if (content.startsWith('```json')) content = content.slice(7);
-            if (content.startsWith('```')) content = content.slice(3);
-            if (content.endsWith('```')) content = content.slice(0, -3);
-            content = content.trim();
-
-            const questions = JSON.parse(content);
+            // Parse JSON from response using robust parser that handles truncation
+            const questions = parseJsonArrayRobust(content);
             
             // Separate valid and invalid questions, filtering out meta-questions
             const validQuestions = [];

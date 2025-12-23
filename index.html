@@ -81,6 +81,10 @@
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
                     <span>Practice</span>
                 </button>
+                <button class="sidebar-nav-item toolbar-tab" id="tab-exam" data-tab="exam" data-panel="exam" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    <span>Exam</span>
+                </button>
                 <button class="sidebar-nav-item toolbar-tab" id="tab-review" data-tab="review" data-panel="review" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
                     <span>Review</span>
@@ -181,6 +185,10 @@
 
                 <section class="toolbar-panel" id="practice-panel" role="tabpanel">
                     <div id="quiz-container"></div>
+                </section>
+
+                <section class="toolbar-panel" id="exam-panel" role="tabpanel">
+                    <div id="exam-container"></div>
                 </section>
 
                 <section class="toolbar-panel" id="review-panel" role="tabpanel">
@@ -295,6 +303,71 @@
                             <p class="card-subtitle">Categories needing improvement</p>
                             <div class="weak-areas-list" id="weak-areas">
                                 <p class="placeholder-text">Complete more questions to see weak areas</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Analytics Row -->
+                    <div class="insights-charts-row">
+                        <div class="insight-card chart-card">
+                            <h3>Practice vs Exam</h3>
+                            <p class="card-subtitle">Compare your performance</p>
+                            <div class="comparison-chart-container" id="practice-exam-comparison"></div>
+                        </div>
+                        <div class="insight-card chart-card">
+                            <h3>7-Day Activity</h3>
+                            <p class="card-subtitle">Your study streak</p>
+                            <div class="activity-chart-container" id="weekly-activity-chart"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI Metrics Row -->
+                    <div class="insights-summary-row kpi-row">
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon speed">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="avg-speed">--</span>
+                                <span class="summary-label">Avg. Speed</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon mastery">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="mastery-level">0</span>
+                                <span class="summary-label">Categories Mastered</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon best">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="best-category">--</span>
+                                <span class="summary-label">Best Category</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon streak-bonus">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="longest-streak">0</span>
+                                <span class="summary-label">Longest Streak</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="insights-details-row">
+                        <div class="insight-card full-width">
+                            <h3>Recent Activity</h3>
+                            <p class="card-subtitle">Your latest answered questions</p>
+                            <div class="recent-activity-list" id="recent-activity">
+                                <p class="placeholder-text">Answer some questions to see your activity</p>
                             </div>
                         </div>
                     </div>
@@ -429,23 +502,33 @@
     <div class="modal-overlay" id="api-key-modal" aria-hidden="true">
         <div class="modal" role="dialog">
             <div class="modal-header">
-                <h2 id="api-key-modal-title">Add an API Key (Optional)</h2>
+                <h2 id="api-key-modal-title">LLM Settings (Optional)</h2>
                 <button class="modal-close" id="api-key-modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Add your LLM7.io API key for AI features.</p>
+                <p>Configure your own OpenAI-compatible LLM for AI features. Leave empty to use defaults.</p>
                 <form id="api-key-form" onsubmit="return false;">
                     <div class="config-group">
                         <label for="api-key-input">API Key</label>
-                        <input type="password" id="api-key-input" placeholder="msU..." autocomplete="off">
+                        <input type="password" id="api-key-input" placeholder="sk-... or your API key" autocomplete="off">
+                    </div>
+                    <div class="config-group">
+                        <label for="custom-endpoint-input">Custom Endpoint URL (Optional)</label>
+                        <input type="url" id="custom-endpoint-input" placeholder="https://api.openai.com/v1/chat/completions" autocomplete="off">
+                        <small class="input-hint">OpenAI-compatible API endpoint. HTTPS required for non-localhost.</small>
+                    </div>
+                    <div class="config-group">
+                        <label for="custom-model-input">Custom Model (Optional)</label>
+                        <input type="text" id="custom-model-input" placeholder="gpt-4o-mini" autocomplete="off">
+                        <small class="input-hint">Model name (e.g., gpt-4o, claude-3-opus, mistral-large)</small>
                     </div>
                     <div class="api-key-status" id="api-key-status"></div>
                     <div class="modal-actions">
-                        <button type="button" class="btn-primary" id="save-api-key">Save</button>
-                        <button type="button" class="btn-secondary" id="clear-api-key">Clear</button>
+                        <button type="button" class="btn-primary" id="save-api-key">Save Settings</button>
+                        <button type="button" class="btn-secondary" id="clear-api-key">Clear All</button>
                     </div>
                 </form>
-                <p class="api-key-note">[!] You can get a free LLM API key from <a href="https://token.llm7.io" target="_blank">token.llm7.io</a></p>
+                <p class="api-key-note">[!] Default: <a href="https://token.llm7.io" target="_blank">LLM7.io</a> (free). Or use your own OpenAI/compatible provider.</p>
             </div>
         </div>
     </div>
@@ -502,6 +585,7 @@
     <script src="js/rag.js"></script>
     <script src="js/p2p-sync.js"></script>
     <script src="js/quiz-data.js"></script>
+    <script src="js/exam-questions.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

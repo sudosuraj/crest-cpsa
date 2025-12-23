@@ -22,10 +22,10 @@
                 const type = parts[0].toLowerCase();
                 const value = parts[1].toUpperCase();
                 
-                if (type === 'appendix' && /^[A-J]$/.test(value)) {
+                if (type === 'appendix' && /^[A-K]$/.test(value)) {
                     return { type: 'appendix', value: value };
                 }
-                if (type === 'tab' && ['study', 'practice', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
+                if (type === 'tab' && ['study', 'practice', 'exam', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
                     return { type: 'tab', value: parts[1].toLowerCase() };
                 }
             }
@@ -379,17 +379,19 @@
         return earnedBadges;
     }
     
-    function calculateStats() {
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(a => a.correct).length;
-        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        function calculateStats() {
+            const attempted = Object.keys(answerState).length;
+            const correct = Object.values(answerState).filter(a => a.correct).length;
+            const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        // Calculate category stats
-        const categoryStats = {};
-        Object.entries(answerState).forEach(([qId, state]) => {
-            const question = quizData[qId];
-            if (question) {
-                const category = categorizeQuestion(question);
+            // Calculate category stats (includes both practice and exam questions)
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                // Use 'Exam' category for exam questions, otherwise use appendix-based category
+                const category = isExam ? 'Exam' : (question ? categorizeQuestion(question) : 'Unknown');
+            
                 if (!categoryStats[category]) {
                     categoryStats[category] = { attempted: 0, correct: 0 };
                 }
@@ -397,16 +399,15 @@
                 if (state.correct) {
                     categoryStats[category].correct++;
                 }
-            }
-        });
+            });
         
-        const categoriesAttempted = Object.keys(categoryStats).length;
-        const perfectCategories = Object.values(categoryStats).filter(
-            cat => cat.attempted >= 5 && cat.correct === cat.attempted
-        ).length;
+            const categoriesAttempted = Object.keys(categoryStats).length;
+            const perfectCategories = Object.values(categoryStats).filter(
+                cat => cat.attempted >= 5 && cat.correct === cat.attempted
+            ).length;
         
-        return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
-    }
+            return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
+        }
     
     // ==================== TOAST NOTIFICATIONS ====================
     // Enhanced toast notification system with interactive SVG animations
@@ -636,20 +637,29 @@
         const currentStreakEl = document.getElementById('current-streak');
         const progressRingFill = document.getElementById('progress-ring-fill');
         
-        // Calculate overall progress percentage
-        const totalQuestions = Object.keys(quizData).length || 1;
-        const progressPercent = Math.round((stats.attempted / totalQuestions) * 100);
+        // Calculate overall progress percentage using canonical total from examQuizData (803 questions)
+        // quizData only contains dynamically loaded questions, so we use examQuizData for the true total
+        const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
+            ? Object.keys(examQuizData).length 
+            : 803; // Fallback to known total
+        // Include ALL answered questions (both practice and exam) for progress
+        const totalAttempted = Object.keys(answerState).length;
+        const progressPercent = Math.min(100, Math.round((totalAttempted / totalQuestions) * 100));
         
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
         if (currentStreakEl) currentStreakEl.textContent = `${streak.count || 0} days`;
         
-        // Count appendices started (appendices with at least one question answered)
+        // Count appendices/categories started (appendices with at least one question answered)
         const appendicesWithProgress = new Set();
         Object.keys(answerState).forEach(qId => {
-            const q = quizData[qId];
-            if (q && q.appendix) {
-                appendicesWithProgress.add(q.appendix);
+            const q = getQuestionById(qId);
+            if (q) {
+                if (isExamQuestion(qId)) {
+                    appendicesWithProgress.add('Exam');
+                } else if (q.appendix) {
+                    appendicesWithProgress.add(q.appendix);
+                }
             }
         });
         if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
@@ -665,7 +675,7 @@
         if (!grid) return;
         const categorizedQuestions = {};
         
-        // Group questions by category
+        // Group practice questions by category
         Object.entries(quizData).forEach(([id, q]) => {
             const category = categorizeQuestion(q);
             if (!categorizedQuestions[category]) {
@@ -673,6 +683,21 @@
             }
             categorizedQuestions[category].push(id);
         });
+        
+        // Add exam questions as a separate category if any have been answered
+        const examAnsweredIds = Object.keys(answerState).filter(qId => isExamQuestion(qId));
+        if (examAnsweredIds.length > 0 || (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)) {
+            const examCategory = 'Exam Questions';
+            if (!categorizedQuestions[examCategory]) {
+                categorizedQuestions[examCategory] = [];
+            }
+            // Add all exam question IDs that have been answered
+            examAnsweredIds.forEach(qId => {
+                if (!categorizedQuestions[examCategory].includes(qId)) {
+                    categorizedQuestions[examCategory].push(qId);
+                }
+            });
+        }
         
         grid.innerHTML = '';
         
@@ -738,6 +763,9 @@
                 }
             }
         }
+        
+        // Update all UI panels to reflect the flag change across all pages
+        updateAllUI();
     }
     
     // ==================== SHARE PROGRESS ====================
@@ -779,24 +807,27 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     // ==================== RESET PROGRESS ====================
-    function resetProgress() {
-        if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-            return;
+        function resetProgress() {
+            if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                return;
+            }
+        
+            // Clear state (both practice and exam)
+            score = 0;
+            examScore = 0;
+            Object.keys(answerState).forEach(key => delete answerState[key]);
+            Object.keys(examAnswerState).forEach(key => delete examAnswerState[key]);
+            flaggedQuestions.clear();
+        
+            // Clear localStorage (both practice and exam)
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(EXAM_STORAGE_KEY);
+            localStorage.removeItem(STREAK_KEY);
+            localStorage.removeItem(BADGES_KEY);
+        
+            // Reload page to reset UI
+            location.reload();
         }
-        
-        // Clear state
-        score = 0;
-        Object.keys(answerState).forEach(key => delete answerState[key]);
-        flaggedQuestions.clear();
-        
-        // Clear localStorage
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STREAK_KEY);
-        localStorage.removeItem(BADGES_KEY);
-        
-        // Reload page to reset UI
-        location.reload();
-    }
     
     // Reset progress for a specific category
     function resetCategoryProgress(categoryName) {
@@ -864,11 +895,14 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 answerExplanation.textContent = "";
             }
             
-            // Reset explain answer button
-            const explainBtn = container.querySelector(".ai-button[id^='explain-answer-btn-']");
+            // Reset explain answer button (icon-only)
+            const explainBtn = container.querySelector(".gemini-btn[id^='explain-answer-btn-']");
             if (explainBtn) {
                 explainBtn.disabled = true;
-                explainBtn.textContent = "[AI] Explain Answer";
+                explainBtn.title = 'Select an answer first';
+                // Reset to outline icon
+                const qId = key;
+                explainBtn.innerHTML = getGeminiIcon(qId);
             }
         });
         
@@ -918,34 +952,35 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // ==================== CENTRALIZED UI UPDATE ====================
     let uiUpdateTimer = null;
     
-    function updateAllUI() {
-        updateCounts();
-        updateProgressGridPanel();
-        updateInsightsSummary();
-        updateReviewStats();
-        updateMobileSidebarStats();
-        updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
-        renderStreak();
-        renderXP();
+        function updateAllUI() {
+            updateCounts();
+            updateProgressGridPanel();
+            updateInsightsSummary();
+            updateReviewStats();
+            updateMobileSidebarStats();
+            updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
+            renderStreak();
+            renderXP();
+            updateAdditionalVisualizations(); // Update new KPIs and charts
         
-        // Update nav bar stats
-        const stats = calculateStats();
-        const percentageElement = document.getElementById("percentage");
-        const accuracyBar = document.getElementById("accuracy-bar");
-        const attemptedCount = document.getElementById("attempted-count");
+            // Update nav bar stats
+            const stats = calculateStats();
+            const percentageElement = document.getElementById("percentage");
+            const accuracyBar = document.getElementById("accuracy-bar");
+            const attemptedCount = document.getElementById("attempted-count");
         
-        if (percentageElement) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            percentageElement.textContent = percentage;
+            if (percentageElement) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                percentageElement.textContent = percentage;
+            }
+            if (accuracyBar) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                accuracyBar.style.width = `${percentage}%`;
+            }
+            if (attemptedCount) {
+                attemptedCount.textContent = stats.attempted;
+            }
         }
-        if (accuracyBar) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            accuracyBar.style.width = `${percentage}%`;
-        }
-        if (attemptedCount) {
-            attemptedCount.textContent = stats.attempted;
-        }
-    }
     
     function scheduleUIUpdate() {
         if (uiUpdateTimer) {
@@ -998,7 +1033,53 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return "Unknown Appendix";
     }
 
-    // Function to call LLM API (no key required) - Now with CONDITIONAL RAG support
+    // ==================== CROSS-PAGE HELPER FUNCTIONS ====================
+    // These helpers enable all pages to work with both practice and exam questions
+    
+    // Check if a question ID is from the exam panel
+    function isExamQuestion(qId) {
+        return qId && qId.startsWith('exam_');
+    }
+    
+    // Get the base ID for an exam question (strips 'exam_' prefix)
+    function getBaseExamId(qId) {
+        return isExamQuestion(qId) ? qId.substring(5) : qId;
+    }
+    
+    // Unified question lookup - resolves from both quizData and examQuizData
+    function getQuestionById(qId) {
+        // First check quizData (practice questions)
+        if (quizData[qId]) {
+            return quizData[qId];
+        }
+        // For exam questions, look up in examQuizData
+        if (isExamQuestion(qId) && typeof examQuizData !== 'undefined') {
+            const baseId = getBaseExamId(qId);
+            const examQ = examQuizData[baseId];
+            if (examQ) {
+                // Return with exam-specific metadata
+                return {
+                    ...examQ,
+                    appendix: examQ.appendix || 'Exam',
+                    appendix_title: examQ.appendix_title || 'Exam Questions',
+                    isExam: true
+                };
+            }
+        }
+        return null;
+    }
+    
+    // Get category for any question ID (works for both practice and exam)
+    function getCategoryForQuestion(qId) {
+        const question = getQuestionById(qId);
+        if (!question) return 'Unknown';
+        if (isExamQuestion(qId) && !question.appendix) {
+            return 'Exam Questions';
+        }
+        return categorizeQuestion(question);
+    }
+
+    // Function to call LLM API(no key required) - Now with CONDITIONAL RAG support
     // For explain buttons: uses source_chunk_id directly if provided (more accurate, fewer tokens)
     // For general queries: only attaches RAG if query is CPSA-specific OR has high BM25 score
     async function callOpenAI(prompt, options = {}) {
@@ -1070,61 +1151,18 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
-    // Help chatbot API wrapper (keeps conversation history) - Now with CONDITIONAL RAG support
-    // Only does RAG search if query is CPSA-specific (avoids unnecessary search for general questions)
-    async function callTutor(messages, options = {}) {
-        const { useRAG = true, scoreThreshold = 5.0 } = options;
+    // Help chatbot API wrapper (keeps conversation history) - Simplified without RAG for faster responses
+    async function callTutor(messages) {
+        const systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
         
-        // Get the last user message for RAG query
-        const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-        const ragQuery = lastUserMessage?.content || '';
-        
-        let systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
-        let sources = [];
-        let contextMessage = null;
-        
-        // CONDITIONAL RAG: Only do RAG search if query is CPSA-specific
-        // This avoids unnecessary BM25 search for general questions like "hello" or "thanks"
-        if (useRAG && typeof RAG !== 'undefined' && RAG.isReady() && ragQuery) {
-            // First check if query is CPSA-specific BEFORE doing any search
-            const isCPSASpecific = RAG.isCPSAQuery(ragQuery);
-            
-            // Only do BM25 search if query is CPSA-specific
-            if (isCPSASpecific) {
-                const scoredResults = RAG.searchWithScores(ragQuery, 5);
-                const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
-                
-                // Only attach RAG context if BM25 score is high enough
-                if (topScore >= scoreThreshold) {
-                    const retrievedChunks = scoredResults.map(r => r.chunk);
-                    
-                    if (retrievedChunks.length > 0) {
-                        // Use token-budgeted context formatting
-                        const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
-                        sources = RAG.formatSources(retrievedChunks);
-                        
-                        // Add context as a separate message to save system prompt tokens
-                        contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
-                    }
-                }
-            }
-        }
-        
-        // Build payload with optional context message
+        // Build payload - simple system message + conversation
         const payload = [
             {
                 role: 'system',
                 content: systemContent
-            }
+            },
+            ...messages
         ];
-        
-        // Add context message before conversation if RAG found relevant content
-        if (contextMessage) {
-            payload.push(contextMessage);
-        }
-        
-        // Add conversation messages
-        payload.push(...messages);
 
         try {
             // LLMClient is required - no direct fetch fallback to ensure rate limiting
@@ -1138,13 +1176,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 temperature: 0.5
             });
 
-            const answer = data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
-            
-            // Return with sources if RAG was used
-            if (useRAG && sources.length > 0) {
-                return { answer, sources };
-            }
-            return answer;
+            return data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
         } catch (error) {
             if (error.name === 'AbortError') {
                 return 'Sorry, the tutor timed out. Please try again.';
@@ -1166,44 +1198,35 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
 
         button.disabled = true;
-        button.textContent = 'Loading...';
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
         explanationDiv.classList.add('show', 'loading');
-        explanationDiv.textContent = 'Generating explanation...';
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
-        // Get source_chunk_id from question data for direct lookup (more efficient than search)
+        // Get question data for context
         const questionData = quizData[questionId];
-        const sourceChunkId = questionData?.source_chunk_id || null;
+        const correctAnswer = questionData?.answer || '';
 
-        const prompt = `For this cybersecurity question: "${questionText}" - Provide background context and key concepts/terms that are relevant to understanding this question. Use the reference material provided to give accurate information from the CPSA study notes. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
+        // Simple prompt without RAG - just explain the question and correct answer
+        const prompt = `For this CPSA cybersecurity question: "${questionText}"
+
+Correct Answer: "${correctAnswer}"
+
+Provide background context and key concepts/terms that are relevant to understanding this question. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
         
-        const result = await callOpenAI(prompt, { 
-            useRAG: true, 
-            sourceChunkId,  // Direct chunk lookup - more efficient than broad search
-            ragQuery: questionText,
-            topK: 3 
-        });
+        // Call without RAG for faster response
+        const result = await callOpenAI(prompt, { useRAG: false });
 
         explanationDiv.classList.remove('loading');
-        
-        // Handle RAG response with sources
-        if (result && typeof result === 'object' && result.answer) {
-            let content = result.answer;
-            if (result.sources && result.sources.length > 0) {
-                content += '\n\n--- Sources ---\n';
-                result.sources.forEach(src => {
-                    content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
-                });
-            }
-            explanationDiv.textContent = content;
-        } else {
-            explanationDiv.textContent = result;
-        }
+        explanationDiv.textContent = result || 'Unable to generate explanation.';
         
         button.disabled = false;
-        button.textContent = '[AI+RAG] Hide Explanation';
+        button.textContent = '[AI] Hide Explanation';
     }
 
-    // Function to explain answer on demand - OPTIMIZED: uses source_chunk_id for direct lookup
+    // Cache for AI explanations to avoid repeated LLM calls
+    const explanationCache = {};
+    
+    // Function to explain answer on demand - simplified to only explain why selected answer is right/wrong
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
         const explanationDiv = document.getElementById(`answer-explanation-${questionId}`);
@@ -1216,9 +1239,24 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             return;
         }
 
+        // Toggle: if already showing and not loading, hide it (no LLM call needed)
         if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
             explanationDiv.classList.remove('show');
-            button.textContent = '[AI] Explain Answer';
+            // Restore the icon-only button
+            button.innerHTML = getGeminiIcon(questionId);
+            button.title = 'Show explanation';
+            return;
+        }
+
+        // Check cache first - if we have a cached explanation, show it without LLM call
+        if (explanationCache[questionId]) {
+            const cached = explanationCache[questionId];
+            explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
+            explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
+            explanationDiv.textContent = cached.explanation;
+            // Update button to show "hide" state with icon only
+            button.innerHTML = getGeminiIconFilled(questionId);
+            button.title = 'Hide explanation';
             return;
         }
 
@@ -1228,7 +1266,6 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const questionText = state.questionText || (questionData ? questionData.question : '');
         const selectedAnswer = state.selectedAnswer || state.selected || '';
         const correctAnswer = state.correctAnswer || (questionData ? questionData.answer : '');
-        const sourceChunkId = questionData?.source_chunk_id || null;
 
         if (!questionText || !correctAnswer) {
             explanationDiv.classList.add('show');
@@ -1238,51 +1275,84 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
         explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
         explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
-        explanationDiv.textContent = 'Generating explanation...';
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
         button.disabled = true;
-        button.textContent = 'Loading...';
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
         try {
+            // Simplified prompt - only explain why the selected answer is right or wrong
             let prompt;
-            const ragQuery = `${questionText} ${correctAnswer}`;
             
             if (isCorrect) {
-                prompt = `Explain why this answer is correct using the reference material provided. Question: "${questionText}" Correct Answer: "${selectedAnswer}". Cite the relevant source if applicable. Keep it concise (2-3 sentences).`;
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+
+You answered correctly. Briefly explain why "${selectedAnswer}" is the right answer in 2-3 sentences.`;
             } else {
-                prompt = `Explain why this answer is incorrect and why the correct answer is right, using the reference material provided. Question: "${questionText}" Selected Answer: "${selectedAnswer}" Correct Answer: "${correctAnswer}". Cite the relevant source if applicable. Keep it concise (3-4 sentences).`;
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+Correct Answer: "${correctAnswer}"
+
+You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and why "${correctAnswer}" is correct in 2-3 sentences.`;
             }
 
-            const result = await callOpenAI(prompt, {
-                useRAG: true,
-                sourceChunkId,  // Direct chunk lookup - more efficient than broad search
-                ragQuery: ragQuery,
-                topK: 3
-            });
+            // Call without RAG for faster response
+            const result = await callOpenAI(prompt, { useRAG: false });
+            const explanation = result || 'Unable to generate explanation.';
+
+            // Cache the result
+            explanationCache[questionId] = {
+                explanation: explanation,
+                isCorrect: isCorrect
+            };
 
             explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = explanation;
             
-            // Handle RAG response with sources
-            if (result && typeof result === 'object' && result.answer) {
-                let content = result.answer;
-                if (result.sources && result.sources.length > 0) {
-                    content += '\n\n--- Sources ---\n';
-                    result.sources.forEach(src => {
-                        content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
-                    });
-                }
-                explanationDiv.textContent = content;
-            } else {
-                explanationDiv.textContent = result || 'Unable to generate explanation.';
-            }
-            
-            button.textContent = '[AI+RAG] Hide Answer Explanation';
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(questionId);
+            button.title = 'Hide explanation';
         } catch (error) {
             console.error('Error explaining answer:', error);
             explanationDiv.classList.remove('loading');
             explanationDiv.textContent = 'Error generating explanation. Please try again.';
+            // Restore icon on error
+            button.innerHTML = getGeminiIcon(questionId);
         } finally {
             button.disabled = false;
         }
+    }
+    
+    // Helper function to get the Gemini icon SVG (outline version)
+    function getGeminiIcon(id) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <defs>
+                <linearGradient id="gemini-grad-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="url(#gemini-grad-${id})" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+    }
+    
+    // Helper function to get the Gemini icon SVG (filled version for active state)
+    function getGeminiIconFilled(id) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+            <defs>
+                <linearGradient id="gemini-grad-filled-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-filled-${id})"/>
+        </svg>`;
     }
 
     async function loadQuiz() {
@@ -2267,6 +2337,375 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // - displayQuestions (use displayQuestionsWithPagination instead)
     // - expandAllCategories, collapseAllCategories, filterCategories, resetFilters (category UI removed)
 
+    // ==================== EXAM PANEL ====================
+    // Exam panel uses pre-loaded questions from examQuizData (CREST repo)
+    // Questions are shuffled on every load for variety
+    
+    const EXAM_STORAGE_KEY = 'cpsa_exam_progress';
+    const examAnswerState = {};
+    let examScore = 0;
+    let examLoaded = false;
+    
+        function loadExamProgress() {
+            try {
+                const saved = localStorage.getItem(EXAM_STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    examScore = data.score || 0;
+                    Object.assign(examAnswerState, data.answerState || {});
+                    // Sync exam answers to main answerState for unified tracking across all pages
+                    Object.assign(answerState, data.answerState || {});
+                    return data;
+                }
+            } catch (e) {
+                console.error('Error loading exam progress:', e);
+            }
+            return null;
+        }
+    
+    function saveExamProgress() {
+        try {
+            const data = {
+                score: examScore,
+                answerState: examAnswerState,
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem(EXAM_STORAGE_KEY, JSON.stringify(data));
+            scheduleUIUpdate();
+        } catch (e) {
+            console.error('Error saving exam progress:', e);
+        }
+    }
+    
+    function loadExamQuiz() {
+        const examContainer = document.getElementById('exam-container');
+        if (!examContainer) return;
+        
+        // Load saved exam progress
+        loadExamProgress();
+        
+        // Get all questions from examQuizData and shuffle them
+        const questionKeys = Object.keys(examQuizData);
+        shuffleArray(questionKeys);
+        
+        const totalQuestions = questionKeys.length;
+        
+        // Clear container and build UI
+        examContainer.innerHTML = '';
+        
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'quiz-header-pagination';
+        
+        const titleEl = document.createElement('h2');
+        titleEl.className = 'appendix-quiz-title';
+        titleEl.textContent = 'CPSA Exam Practice';
+        header.appendChild(titleEl);
+        
+        const infoEl = document.createElement('div');
+        infoEl.className = 'pagination-info';
+        const examAttempted = Object.keys(examAnswerState).length;
+        const examCorrect = Object.values(examAnswerState).filter(a => a.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        infoEl.innerHTML = `
+            <span class="page-counter">${totalQuestions} questions available</span>
+            <span class="chunk-progress">Attempted: ${examAttempted} | Correct: ${examCorrect} | Accuracy: ${examAccuracy}%</span>
+        `;
+        header.appendChild(infoEl);
+        
+        // Add shuffle button
+        const shuffleBtn = document.createElement('button');
+        shuffleBtn.className = 'action-btn';
+        shuffleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg> Shuffle Questions';
+        shuffleBtn.addEventListener('click', () => loadExamQuiz());
+        header.appendChild(shuffleBtn);
+        
+        examContainer.appendChild(header);
+        
+        // Create questions container
+        const questionsContainer = document.createElement('div');
+        questionsContainer.id = 'exam-questions-list';
+        questionsContainer.className = 'questions-container flat-list';
+        
+        let questionNumber = 1;
+        questionKeys.forEach(key => {
+            const questionObj = examQuizData[key];
+            const examKey = `exam_${key}`;
+            
+            const questionCard = document.createElement('div');
+            questionCard.classList.add('question-card');
+            questionCard.dataset.questionId = examKey;
+            
+            // Check if already answered
+            if (examAnswerState[examKey]) {
+                questionCard.classList.add(examAnswerState[examKey].correct ? 'answered-correct' : 'answered-incorrect');
+            }
+            
+            // Question header
+            const questionHeader = document.createElement('div');
+            questionHeader.classList.add('question-card-header');
+            
+            const questionBadge = document.createElement('span');
+            questionBadge.classList.add('question-number-badge');
+            questionBadge.textContent = questionNumber;
+            
+            const questionActions = document.createElement('div');
+            questionActions.classList.add('question-card-actions');
+            
+            // Flag button
+            const flagBtn = document.createElement('button');
+            flagBtn.classList.add('flag-btn');
+            flagBtn.title = 'Flag for review';
+            flagBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>';
+            flagBtn.addEventListener('click', () => toggleFlag(examKey));
+            
+            // Explain button
+            const explainBtn = document.createElement('button');
+            explainBtn.classList.add('gemini-btn');
+            explainBtn.id = `explain-answer-btn-${examKey}`;
+            explainBtn.title = 'Select an answer first';
+            explainBtn.disabled = !examAnswerState[examKey];
+            explainBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <defs>
+                    <linearGradient id="gemini-grad-${examKey}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4285f4"/>
+                        <stop offset="25%" style="stop-color:#9b72cb"/>
+                        <stop offset="50%" style="stop-color:#d96570"/>
+                        <stop offset="75%" style="stop-color:#d96570"/>
+                        <stop offset="100%" style="stop-color:#9b72cb"/>
+                    </linearGradient>
+                </defs>
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-${examKey})"/>
+            </svg>`;
+            explainBtn.addEventListener('click', () => explainExamAnswer(examKey, questionObj));
+            
+            questionActions.appendChild(flagBtn);
+            questionActions.appendChild(explainBtn);
+            questionHeader.appendChild(questionBadge);
+            questionHeader.appendChild(questionActions);
+            
+            // Question text
+            const questionText = document.createElement('div');
+            questionText.classList.add('question-card-text');
+            questionText.textContent = questionObj.question;
+            
+            // Options container
+            const optionsDiv = document.createElement('div');
+            optionsDiv.classList.add('question-card-options');
+            
+            const allAnswers = [questionObj.answer, ...questionObj.incorrect];
+            shuffleArray(allAnswers);
+            
+            allAnswers.forEach((answer, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.classList.add('option-tile');
+                
+                const optionLetter = document.createElement('span');
+                optionLetter.classList.add('option-letter');
+                optionLetter.textContent = String.fromCharCode(65 + index);
+                
+                const optionText = document.createElement('span');
+                optionText.classList.add('option-text');
+                optionText.textContent = answer;
+                
+                optionDiv.appendChild(optionLetter);
+                optionDiv.appendChild(optionText);
+                optionDiv.dataset.correct = answer === questionObj.answer ? 'true' : 'false';
+                
+                // Restore previous answer state
+                if (examAnswerState[examKey]) {
+                    optionDiv.classList.add('answered');
+                    if (optionDiv.dataset.correct === 'true') {
+                        optionDiv.classList.add('correct');
+                    } else if (examAnswerState[examKey].selectedAnswer === answer) {
+                        optionDiv.classList.add('incorrect');
+                    }
+                }
+                
+                optionDiv.addEventListener('click', function() {
+                    if (this.classList.contains('answered')) return;
+                    
+                    const isCorrect = this.dataset.correct === 'true';
+                    const selectedAnswer = this.querySelector('.option-text').textContent;
+                    
+                    optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
+                        opt.classList.add('answered');
+                        if (opt.dataset.correct === 'true') {
+                            opt.classList.add('correct');
+                        } else if (opt === this && !isCorrect) {
+                            opt.classList.add('incorrect');
+                        }
+                    });
+                    
+                    questionCard.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+                    
+                    explainBtn.disabled = false;
+                    explainBtn.title = 'Explain Answer';
+                    
+                    examAnswerState[examKey] = {
+                        selected: selectedAnswer,
+                        correct: isCorrect,
+                        timestamp: Date.now(),
+                        questionText: questionObj.question,
+                        selectedAnswer: selectedAnswer,
+                        correctAnswer: questionObj.answer,
+                        isCorrect: isCorrect
+                    };
+                    
+                    // Also update main answerState for unified progress tracking
+                    answerState[examKey] = examAnswerState[examKey];
+                    
+                    if (isCorrect) {
+                        examScore++;
+                        score++;
+                        addXP(10);
+                        updateStreak();
+                    }
+                    
+                    updateCounts();
+                    saveExamProgress();
+                    saveProgress();
+                    checkAndAwardBadges();
+                    updateAllUI();
+                    updateExamStats();
+                });
+                
+                optionsDiv.appendChild(optionDiv);
+            });
+            
+            // Answer explanation container
+            const answerExplanation = document.createElement('div');
+            answerExplanation.id = `answer-explanation-${examKey}`;
+            answerExplanation.classList.add('answer-explanation');
+            
+            questionCard.appendChild(questionHeader);
+            questionCard.appendChild(questionText);
+            questionCard.appendChild(optionsDiv);
+            questionCard.appendChild(answerExplanation);
+            
+            questionsContainer.appendChild(questionCard);
+            questionNumber++;
+        });
+        
+        examContainer.appendChild(questionsContainer);
+        
+        // Update stats
+        updateExamStats();
+        examLoaded = true;
+    }
+    
+    function updateExamStats() {
+        const examAttempted = Object.keys(examAnswerState).length;
+        const examCorrect = Object.values(examAnswerState).filter(a => a.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        
+        const infoEl = document.querySelector('#exam-container .pagination-info');
+        if (infoEl) {
+            const totalQuestions = Object.keys(examQuizData).length;
+            infoEl.innerHTML = `
+                <span class="page-counter">${totalQuestions} questions available</span>
+                <span class="chunk-progress">Attempted: ${examAttempted} | Correct: ${examCorrect} | Accuracy: ${examAccuracy}%</span>
+            `;
+        }
+    }
+    
+    // Cache for exam AI explanations to avoid repeated LLM calls
+    const examExplanationCache = {};
+    
+    async function explainExamAnswer(examKey, questionObj) {
+        const state = examAnswerState[examKey];
+        const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
+        const button = document.getElementById(`explain-answer-btn-${examKey}`);
+        if (!explanationDiv || !button) return;
+
+        if (!state) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Answer the question first to get an explanation.';
+            return;
+        }
+
+        // Toggle: if already showing and not loading, hide it (no LLM call needed)
+        if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
+            explanationDiv.classList.remove('show');
+            // Restore the icon-only button
+            button.innerHTML = getGeminiIcon(examKey);
+            button.title = 'Show explanation';
+            return;
+        }
+
+        // Check cache first - if we have a cached explanation, show it without LLM call
+        if (examExplanationCache[examKey]) {
+            const cached = examExplanationCache[examKey];
+            explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
+            explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
+            explanationDiv.textContent = cached.explanation;
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+            return;
+        }
+
+        const isCorrect = state.isCorrect;
+        const questionText = questionObj.question;
+        const selectedAnswer = state.selectedAnswer;
+        const correctAnswer = questionObj.answer;
+
+        if (!questionText || !correctAnswer) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Unable to generate explanation - question data not available.';
+            return;
+        }
+
+        explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
+        explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
+        button.disabled = true;
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+        try {
+            // Simplified prompt - only explain why the selected answer is right or wrong
+            let prompt;
+            
+            if (isCorrect) {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+
+You answered correctly. Briefly explain why "${selectedAnswer}" is the right answer in 2-3 sentences.`;
+            } else {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+Correct Answer: "${correctAnswer}"
+
+You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and why "${correctAnswer}" is correct in 2-3 sentences.`;
+            }
+
+            // Call without RAG for faster response
+            const result = await callOpenAI(prompt, { useRAG: false });
+            const explanation = result || 'Unable to generate explanation.';
+
+            // Cache the result
+            examExplanationCache[examKey] = {
+                explanation: explanation,
+                isCorrect: isCorrect
+            };
+
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = explanation;
+            
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+        } catch (error) {
+            console.error('Error explaining exam answer:', error);
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = 'Error generating explanation. Please try again.';
+            // Restore icon on error
+            button.innerHTML = getGeminiIcon(examKey);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
         function setupUtilities() {
             // Legacy expand/collapse buttons removed - category UI no longer exists
             const resetProgressBtn = document.getElementById("reset-progress-btn");
@@ -2466,8 +2905,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     
     // Update insights summary
     function updateInsightsSummary() {
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Include ALL questions (both practice and exam) for insights
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
         // Update Insights panel stats (correct IDs from HTML)
@@ -2498,8 +2939,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     
     // Update review stats
     function updateReviewStats() {
-        const incorrectCount = Object.values(answerState).filter(s => !s.correct).length;
-        // flaggedQuestions is a Set, use .size instead of Object.values()
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const incorrectCount = allAnswers.filter(([, s]) => !s.correct).length;
+        // Include ALL flagged questions (both practice and exam)
         const flaggedCount = flaggedQuestions.size;
         
         // Update Review panel stats (correct IDs from HTML)
@@ -2533,9 +2976,11 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         let html = `<h3 class="review-section-title">${escapeHtml(title)} (${questionIds.length})</h3>`;
         
         questionIds.forEach((qId, index) => {
-            const question = quizData[qId];
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
+            const isExam = isExamQuestion(qId);
             
             // Handle case where question data is not available (e.g., from previous session)
             const questionText = question?.question || 'Question data not available - please reload the appendix';
@@ -2543,14 +2988,14 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             const selectedAnswer = state?.selectedAnswer || 'N/A';
             const isCorrect = state?.correct || false;
             const explanation = question?.explanation || '';
-            const appendix = question?.appendix || '';
+            const appendix = isExam ? 'Exam' : (question?.appendix || '');
             const appendixTitle = question?.appendix_title || '';
             
             html += `
                 <div class="review-question-card ${isCorrect ? 'correct' : 'incorrect'} ${isFlagged ? 'flagged' : ''}" data-question-id="${qId}">
                     <div class="review-question-header">
                         <span class="review-question-number">#${index + 1}</span>
-                        ${appendix ? `<span class="review-question-appendix">Appendix ${appendix}</span>` : ''}
+                        ${appendix ? `<span class="review-question-appendix">${isExam ? 'Exam' : 'Appendix ' + appendix}</span>` : ''}
                         <span class="review-question-status ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span>
                         ${isFlagged ? '<span class="review-question-flag">Flagged</span>' : ''}
                     </div>
@@ -2588,18 +3033,21 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const categoryStatsEl = document.getElementById('category-stats');
         if (!categoryStatsEl) return;
         
-        // Calculate stats per appendix/category
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
         Object.entries(answerState).forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -2613,19 +3061,24 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             return;
         }
         
-        // Sort by appendix letter
+        // Sort by appendix letter (Exam goes last)
         const sortedCategories = Object.entries(categoryStats)
-            .sort(([a], [b]) => a.localeCompare(b));
+            .sort(([a, statsA], [b, statsB]) => {
+                if (statsA.isExam) return 1;
+                if (statsB.isExam) return -1;
+                return a.localeCompare(b);
+            });
         
         let html = '';
         sortedCategories.forEach(([category, stats]) => {
             const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
             const barColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
+            const categoryLabel = stats.isExam ? 'Exam Questions' : `Appendix ${category}: ${escapeHtml(stats.title)}`;
             
             html += `
                 <div class="category-stat-item">
                     <div class="category-stat-header">
-                        <span class="category-stat-name">Appendix ${category}: ${escapeHtml(stats.title)}</span>
+                        <span class="category-stat-name">${categoryLabel}</span>
                         <span class="category-stat-accuracy">${accuracy}%</span>
                     </div>
                     <div class="category-stat-bar">
@@ -2646,18 +3099,21 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const weakAreasEl = document.getElementById('weak-areas');
         if (!weakAreasEl) return;
         
-        // Calculate stats per appendix/category
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
         Object.entries(answerState).forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -2677,11 +3133,13 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 title: stats.title,
                 accuracy: Math.round((stats.correct / stats.attempted) * 100),
                 attempted: stats.attempted,
-                correct: stats.correct
+                correct: stats.correct,
+                isExam: stats.isExam
             }))
             .sort((a, b) => a.accuracy - b.accuracy);
         
         if (weakAreas.length === 0) {
+            // Include ALL questions for total count
             const totalAttempted = Object.keys(answerState).length;
             if (totalAttempted < 10) {
                 weakAreasEl.innerHTML = '<p class="placeholder-text">Complete more questions to identify weak areas</p>';
@@ -2693,9 +3151,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         
         let html = '<ul class="weak-areas-list">';
         weakAreas.slice(0, 5).forEach(area => {
+            const areaLabel = area.isExam ? 'Exam Questions' : `Appendix ${area.category}`;
             html += `
                 <li class="weak-area-item">
-                    <span class="weak-area-name">Appendix ${area.category}</span>
+                    <span class="weak-area-name">${areaLabel}</span>
                     <span class="weak-area-accuracy">${area.accuracy}% (${area.correct}/${area.attempted})</span>
                 </li>
             `;
@@ -2710,8 +3169,10 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const container = document.getElementById('accuracy-donut');
         if (!container) return;
         
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Include ALL questions (both practice and exam) for accuracy stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
         
         if (attempted === 0) {
@@ -2770,9 +3231,12 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const container = document.getElementById('review-donut');
         if (!container) return;
         
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
+        // Include ALL flagged questions (both practice and exam)
         const flagged = flaggedQuestions.size;
         
         if (attempted === 0) {
@@ -2808,6 +3272,242 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 </div>
             </div>
         `;
+    }
+    
+    // ==================== ADDITIONAL KPI & VISUALIZATION FUNCTIONS ====================
+    
+    // Render Practice vs Exam comparison chart
+    function renderPracticeExamComparison() {
+        const container = document.getElementById('practice-exam-comparison');
+        if (!container) return;
+        
+        // Calculate practice stats (non-exam questions)
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !isExamQuestion(qId));
+        const practiceAttempted = practiceAnswers.length;
+        const practiceCorrect = practiceAnswers.filter(([, s]) => s.correct).length;
+        const practiceAccuracy = practiceAttempted > 0 ? Math.round((practiceCorrect / practiceAttempted) * 100) : 0;
+        
+        // Calculate exam stats
+        const examAnswers = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
+        const examAttempted = examAnswers.length;
+        const examCorrect = examAnswers.filter(([, s]) => s.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        
+        if (practiceAttempted === 0 && examAttempted === 0) {
+            container.innerHTML = '<p class="placeholder-text">No data yet</p>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Practice</span><span>${practiceCorrect}/${practiceAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill practice" style="width: ${practiceAccuracy}%">
+                        ${practiceAccuracy > 15 ? `<span class="comparison-bar-value">${practiceAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Exam</span><span>${examCorrect}/${examAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill exam" style="width: ${examAccuracy}%">
+                        ${examAccuracy > 15 ? `<span class="comparison-bar-value">${examAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render 7-day activity chart
+    function renderWeeklyActivityChart() {
+        const container = document.getElementById('weekly-activity-chart');
+        if (!container) return;
+        
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const days = [];
+        
+        // Get last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            days.push({
+                date: date,
+                dayName: dayNames[date.getDay()],
+                isToday: i === 0
+            });
+        }
+        
+        // Count questions answered per day
+        const dailyCounts = days.map(day => {
+            const dayStart = new Date(day.date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(day.date);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            let count = 0;
+            Object.values(answerState).forEach(state => {
+                if (state.timestamp) {
+                    const answerDate = new Date(state.timestamp);
+                    if (answerDate >= dayStart && answerDate <= dayEnd) {
+                        count++;
+                    }
+                }
+            });
+            return count;
+        });
+        
+        const maxCount = Math.max(...dailyCounts, 1);
+        
+        let html = '<div class="activity-days">';
+        days.forEach((day, i) => {
+            const count = dailyCounts[i];
+            const height = Math.max(4, (count / maxCount) * 80);
+            const barClass = day.isToday ? 'today' : (count > 0 ? 'active' : 'inactive');
+            
+            html += `
+                <div class="activity-day">
+                    <div class="activity-bar-container">
+                        <div class="activity-bar ${barClass}" style="height: ${height}px" title="${count} questions"></div>
+                    </div>
+                    <span class="activity-day-label">${day.dayName}</span>
+                    ${count > 0 ? `<span class="activity-day-count">${count}</span>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    // Render additional KPI metrics
+    function renderKPIMetrics() {
+        // Average speed (questions per minute based on study time)
+        const avgSpeedEl = document.getElementById('avg-speed');
+        const masteryLevelEl = document.getElementById('mastery-level');
+        const bestCategoryEl = document.getElementById('best-category');
+        const longestStreakEl = document.getElementById('longest-streak');
+        
+        const totalAttempted = Object.keys(answerState).length;
+        const studySeconds = getStudyTime();
+        
+        if (avgSpeedEl) {
+            if (totalAttempted > 0 && studySeconds > 60) {
+                const questionsPerMin = (totalAttempted / (studySeconds / 60)).toFixed(1);
+                avgSpeedEl.textContent = `${questionsPerMin}/min`;
+            } else {
+                avgSpeedEl.textContent = '--';
+            }
+        }
+        
+        // Categories mastered (>80% accuracy with 5+ questions)
+        if (masteryLevelEl) {
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+                
+                if (!categoryStats[category]) {
+                    categoryStats[category] = { attempted: 0, correct: 0 };
+                }
+                categoryStats[category].attempted++;
+                if (state.correct) categoryStats[category].correct++;
+            });
+            
+            let masteredCount = 0;
+            let bestCategory = null;
+            let bestAccuracy = 0;
+            
+            Object.entries(categoryStats).forEach(([cat, stats]) => {
+                if (stats.attempted >= 5) {
+                    const accuracy = (stats.correct / stats.attempted) * 100;
+                    if (accuracy >= 80) masteredCount++;
+                    if (accuracy > bestAccuracy) {
+                        bestAccuracy = accuracy;
+                        bestCategory = cat;
+                    }
+                }
+            });
+            
+            masteryLevelEl.textContent = masteredCount;
+            
+            if (bestCategoryEl) {
+                bestCategoryEl.textContent = bestCategory ? (bestCategory.length > 8 ? bestCategory.substring(0, 8) + '...' : bestCategory) : '--';
+            }
+        }
+        
+        // Longest streak
+        if (longestStreakEl) {
+            const streak = loadStreak();
+            longestStreakEl.textContent = `${streak.longest || streak.count || 0}d`;
+        }
+    }
+    
+    // Render recent activity feed
+    function renderRecentActivity() {
+        const container = document.getElementById('recent-activity');
+        if (!container) return;
+        
+        // Get recent answers sorted by timestamp
+        const recentAnswers = Object.entries(answerState)
+            .filter(([, state]) => state.timestamp)
+            .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
+            .slice(0, 8);
+        
+        if (recentAnswers.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No activity yet</p>';
+            return;
+        }
+        
+        let html = '';
+        recentAnswers.forEach(([qId, state]) => {
+            const question = getQuestionById(qId);
+            const questionText = question?.question || 'Question';
+            const truncatedText = questionText.length > 60 ? questionText.substring(0, 60) + '...' : questionText;
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || '?');
+            const timeAgo = getTimeAgo(new Date(state.timestamp));
+            
+            html += `
+                <div class="recent-activity-item">
+                    <div class="recent-activity-icon ${state.correct ? 'correct' : 'incorrect'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            ${state.correct 
+                                ? '<path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/>' 
+                                : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
+                        </svg>
+                    </div>
+                    <div class="recent-activity-content">
+                        <div class="recent-activity-question">${escapeHtml(truncatedText)}</div>
+                        <div class="recent-activity-meta">${isExam ? 'Exam' : 'App. ' + category}</div>
+                    </div>
+                    <span class="recent-activity-time">${timeAgo}</span>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // Helper: Get time ago string
+    function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return 'now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h`;
+        const days = Math.floor(hours / 24);
+        return `${days}d`;
+    }
+    
+    // Update all additional visualizations
+    function updateAdditionalVisualizations() {
+        renderPracticeExamComparison();
+        renderWeeklyActivityChart();
+        renderKPIMetrics();
+        renderRecentActivity();
     }
     
     // Mode toggle (Study/Exam)
@@ -3286,26 +3986,20 @@ Try it yourself: ${url}`,
         input.focus();
         sendBtn.disabled = true;
 
-        const placeholder = appendChatMessage("assistant", "Searching study notes...");
+        // Show typing indicator with animated dots (reuses existing .ai-dots CSS animation)
+        const placeholder = document.createElement("div");
+        placeholder.classList.add("chat-message", "assistant");
+        placeholder.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
+        messagesEl.appendChild(placeholder);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        
         const result = await callTutor(chatHistory.slice(-10));
         
-        // Handle RAG response with sources
-        let replyText;
-        if (result && typeof result === 'object' && result.answer) {
-            replyText = result.answer;
-            if (result.sources && result.sources.length > 0) {
-                replyText += '\n\n[Sources: ';
-                replyText += result.sources.map(src => `${src.sectionId}`).join(', ');
-                replyText += ']';
-            }
-        } else {
-            replyText = result;
-        }
-        
+        // callTutor now returns a string directly (RAG removed for faster responses)
         if (placeholder) {
-            placeholder.textContent = replyText;
+            placeholder.textContent = result;
         }
-        chatHistory.push({ role: "assistant", content: replyText });
+        chatHistory.push({ role: "assistant", content: result });
         if (chatHistory.length > MAX_CHAT_TURNS) {
             chatHistory.shift();
         }
@@ -3382,11 +4076,17 @@ Try it yourself: ${url}`,
 	                pdfViewer.contentWindow.postMessage({ type: 'panelVisible' }, window.location.origin);
 	            }
 	        }
+	        
+	        // Load exam quiz when activating exam panel
+	        if (panelId === 'exam' && typeof loadExamQuiz === 'function') {
+	            loadExamQuiz();
+	        }
 	    }
 
-	    document.addEventListener("DOMContentLoaded", async () => {
-	        // Load saved progress first
-	        loadProgress();
+	    	    document.addEventListener("DOMContentLoaded", async () => {
+	    	        // Load saved progress first (practice + exam)
+	    	        loadProgress();
+	    	        loadExamProgress(); // Load exam progress to sync with main answerState
         
 	        // Initialize the Router and get the initial route from URL hash
 	        const initialRoute = Router.init();
@@ -4373,7 +5073,7 @@ Try it yourself: ${url}`,
     }
 
             // ==========================================
-            // API KEY SETTINGS
+            // API KEY SETTINGS (with custom LLM endpoint/model support)
             // ==========================================
             function setupApiKeySettings() {
                 const modal = document.getElementById('api-key-modal');
@@ -4382,18 +5082,36 @@ Try it yourself: ${url}`,
                 const saveBtn = document.getElementById('save-api-key');
                 const clearBtn = document.getElementById('clear-api-key');
                 const input = document.getElementById('api-key-input');
+                const endpointInput = document.getElementById('custom-endpoint-input');
+                const modelInput = document.getElementById('custom-model-input');
                 const status = document.getElementById('api-key-status');
                 const indicator = document.getElementById('api-key-indicator');
         
                 if (!modal || !btn) return;
         
                 function updateStatus() {
-                    if (typeof LLMClient !== 'undefined' && LLMClient.hasApiKey()) {
-                        status.textContent = 'API key is set';
+                    if (typeof LLMClient === 'undefined') {
+                        status.textContent = 'LLM client not available';
+                        status.className = 'api-key-status error';
+                        indicator.hidden = true;
+                        return;
+                    }
+                    
+                    const hasKey = LLMClient.hasApiKey();
+                    const hasEndpoint = LLMClient.hasCustomEndpoint();
+                    const hasModel = LLMClient.hasCustomModel();
+                    
+                    let statusParts = [];
+                    if (hasKey) statusParts.push('API key set');
+                    if (hasEndpoint) statusParts.push('Custom endpoint: ' + escapeHtml(LLMClient.getCustomEndpoint()));
+                    if (hasModel) statusParts.push('Custom model: ' + escapeHtml(LLMClient.getCustomModel()));
+                    
+                    if (statusParts.length > 0) {
+                        status.innerHTML = statusParts.join('<br>');
                         status.className = 'api-key-status success';
                         indicator.hidden = false;
                     } else {
-                        status.textContent = 'No API key set (using shared quota)';
+                        status.textContent = 'Using defaults (LLM7.io, gpt-4o-mini)';
                         status.className = 'api-key-status';
                         indicator.hidden = true;
                     }
@@ -4402,6 +5120,15 @@ Try it yourself: ${url}`,
                 function openModal() {
                     modal.setAttribute('aria-hidden', 'false');
                     modal.classList.add('show');
+                    
+                    // Pre-fill inputs with current values
+                    if (typeof LLMClient !== 'undefined') {
+                        const currentEndpoint = LLMClient.getCustomEndpoint();
+                        const currentModel = LLMClient.getCustomModel();
+                        if (endpointInput && currentEndpoint) endpointInput.value = currentEndpoint;
+                        if (modelInput && currentModel) modelInput.value = currentModel;
+                    }
+                    
                     updateStatus();
                 }
         
@@ -4409,6 +5136,8 @@ Try it yourself: ${url}`,
                     modal.setAttribute('aria-hidden', 'true');
                     modal.classList.remove('show');
                     input.value = '';
+                    if (endpointInput) endpointInput.value = '';
+                    if (modelInput) modelInput.value = '';
                 }
             
                 window.openApiKeyModal = openModal;
@@ -4420,26 +5149,72 @@ Try it yourself: ${url}`,
                 });
         
                 saveBtn.addEventListener('click', () => {
+                    if (typeof LLMClient === 'undefined') {
+                        showToast('LLM client not available', { variant: 'error' });
+                        return;
+                    }
+                    
                     const key = input.value.trim();
+                    const endpoint = endpointInput ? endpointInput.value.trim() : '';
+                    const model = modelInput ? modelInput.value.trim() : '';
+                    
+                    let hasErrors = false;
+                    let savedSomething = false;
+                    
+                    // Save API key if provided
                     if (key) {
-                        if (typeof LLMClient !== 'undefined' && LLMClient.setApiKey(key)) {
-                            showToast('API key saved successfully');
+                        if (LLMClient.setApiKey(key)) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Failed to save API key', { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    // Save custom endpoint if provided (with OWASP validation)
+                    if (endpoint) {
+                        const endpointResult = LLMClient.setCustomEndpoint(endpoint);
+                        if (endpointResult.success) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Endpoint error: ' + endpointResult.error, { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    // Save custom model if provided (with OWASP validation)
+                    if (model) {
+                        const modelResult = LLMClient.setCustomModel(model);
+                        if (modelResult.success) {
+                            savedSomething = true;
+                        } else {
+                            showToast('Model error: ' + modelResult.error, { variant: 'error' });
+                            hasErrors = true;
+                        }
+                    }
+                    
+                    if (!hasErrors) {
+                        if (savedSomething) {
+                            showToast('LLM settings saved successfully');
                             updateStatus();
                             input.value = '';
                             closeModal();
                         } else {
-                            showToast('Failed to save API key', 'error');
+                            showToast('Please enter at least one setting', { variant: 'error' });
                         }
                     } else {
-                        showToast('Please enter an API key', 'error');
+                        updateStatus();
                     }
                 });
         
                 clearBtn.addEventListener('click', () => {
                     if (typeof LLMClient !== 'undefined') {
-                        LLMClient.clearApiKey();
-                        showToast('API key cleared');
+                        LLMClient.clearAllCustomSettings();
+                        showToast('All LLM settings cleared');
                         updateStatus();
+                        input.value = '';
+                        if (endpointInput) endpointInput.value = '';
+                        if (modelInput) modelInput.value = '';
                     }
                 });
         
@@ -4480,6 +5255,11 @@ Try it yourself: ${url}`,
         // Update URL for deep linking (only for non-practice tabs)
         if (updateUrl && panelName !== 'practice' && typeof Router !== 'undefined') {
             Router.navigate('tab', panelName, { skipHandler: true });
+        }
+        
+        // Load exam quiz when switching to exam panel
+        if (panelName === 'exam' && typeof loadExamQuiz === 'function') {
+            loadExamQuiz();
         }
     }
     
@@ -4612,6 +5392,7 @@ Try it yourself: ${url}`,
             
                 const panels = [
                     { id: 'practice', title: 'Practice', desc: 'Start practicing questions' },
+                    { id: 'exam', title: 'Exam', desc: 'Full exam practice with all CREST questions' },
                     { id: 'review', title: 'Review', desc: 'Review incorrect and flagged questions' },
                     { id: 'insights', title: 'Insights', desc: 'View performance analytics' },
                     { id: 'progress', title: 'Progress', desc: 'Track your learning journey' }
