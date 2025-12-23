@@ -1733,3 +1733,51 @@ ul.weak-areas-list { list-style: none; }
         overflow-x: hidden;
     }
 }
+
+/* Exam Panel Header Responsiveness */
+@media (max-width: 768px) {
+    .quiz-header-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        margin: -16px -16px 16px -16px;
+    }
+    
+    .pagination-info {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .appendix-quiz-title {
+        font-size: 16px;
+        width: 100%;
+    }
+    
+    .chunk-progress {
+        white-space: normal;
+        word-break: break-word;
+    }
+    
+    #exam-container .quiz-header-pagination .shuffle-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .quiz-header-pagination {
+        padding: 10px 12px;
+        margin: -12px -12px 12px -12px;
+    }
+    
+    .appendix-quiz-title {
+        font-size: 14px;
+    }
+    
+    .pagination-info {
+        font-size: 12px;
+    }
+}
