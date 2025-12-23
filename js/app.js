@@ -5,6 +5,318 @@
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
     
+    // ==================== CHART.JS MANAGER ====================
+    const ChartManager = {
+        charts: {},
+        
+        getChartColors() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return {
+                text: isDark ? '#e2e8f0' : '#1e293b',
+                muted: isDark ? '#64748b' : '#94a3b8',
+                border: isDark ? '#334155' : '#e2e8f0',
+                surface: isDark ? '#1e293b' : '#ffffff',
+                green: '#10b981',
+                yellow: '#f59e0b',
+                red: '#ef4444',
+                teal: '#0d9488',
+                purple: '#8b5cf6',
+                indigo: '#6366f1'
+            };
+        },
+        
+        destroyChart(id) {
+            if (this.charts[id]) {
+                this.charts[id].destroy();
+                delete this.charts[id];
+            }
+        },
+        
+        createDoughnutChart(canvasId, value, maxValue, color, label) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            this.destroyChart(canvasId);
+            const colors = this.getChartColors();
+            const remainder = maxValue - value;
+            
+            this.charts[canvasId] = new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: [label, 'Remaining'],
+                    datasets: [{
+                        data: [value, remainder],
+                        backgroundColor: [color, colors.border],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000
+                    }
+                },
+                plugins: [{
+                    id: 'centerText',
+                    afterDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                        const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+                        
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.font = 'bold 24px system-ui';
+                        ctx.fillStyle = colors.text;
+                        ctx.fillText(Math.round(value) + '%', centerX, centerY - 8);
+                        ctx.font = '12px system-ui';
+                        ctx.fillStyle = colors.muted;
+                        ctx.fillText(label, centerX, centerY + 14);
+                        ctx.restore();
+                    }
+                }]
+            });
+            
+            return this.charts[canvasId];
+        },
+        
+        createGaugeChart(canvasId, value, label) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            this.destroyChart(canvasId);
+            const colors = this.getChartColors();
+            
+            let gaugeColor = colors.green;
+            if (value > 30 && value <= 60) gaugeColor = colors.yellow;
+            else if (value > 60) gaugeColor = colors.red;
+            
+            this.charts[canvasId] = new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, 100 - value],
+                        backgroundColor: [gaugeColor, colors.border],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000
+                    }
+                },
+                plugins: [{
+                    id: 'gaugeText',
+                    afterDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                        const bottom = chart.chartArea.bottom;
+                        
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = 'bold 20px system-ui';
+                        ctx.fillStyle = colors.text;
+                        ctx.fillText(Math.round(value) + '%', centerX, bottom - 5);
+                        ctx.font = '11px system-ui';
+                        ctx.fillStyle = colors.muted;
+                        ctx.fillText(label, centerX, bottom + 12);
+                        ctx.restore();
+                    }
+                }]
+            });
+            
+            return this.charts[canvasId];
+        },
+        
+        createBarChart(canvasId, labels, data, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            this.destroyChart(canvasId);
+            const chartColors = this.getChartColors();
+            
+            const backgroundColors = data.map(val => {
+                if (val < 50) return chartColors.red;
+                if (val < 70) return chartColors.yellow;
+                return chartColors.green;
+            });
+            
+            this.charts[canvasId] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors || backgroundColors,
+                        borderRadius: 4,
+                        barThickness: 'flex',
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'x',
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: chartColors.border },
+                            ticks: { color: chartColors.muted }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: chartColors.muted }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ctx.raw + '% accuracy'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+            
+            return this.charts[canvasId];
+        },
+        
+        createLineChart(canvasId, labels, data) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            this.destroyChart(canvasId);
+            const colors = this.getChartColors();
+            
+            this.charts[canvasId] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        borderColor: colors.teal,
+                        backgroundColor: colors.teal + '20',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: colors.teal
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: colors.border },
+                            ticks: { color: colors.muted }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: colors.muted }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ctx.raw + '% accuracy'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000
+                    }
+                }
+            });
+            
+            return this.charts[canvasId];
+        },
+        
+        createComparisonChart(canvasId, practiceAcc, examAcc) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            this.destroyChart(canvasId);
+            const colors = this.getChartColors();
+            
+            this.charts[canvasId] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: ['Practice', 'Exam'],
+                    datasets: [{
+                        data: [practiceAcc, examAcc],
+                        backgroundColor: [colors.teal, colors.indigo],
+                        borderRadius: 6,
+                        barThickness: 50
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: colors.border },
+                            ticks: { color: colors.muted }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: colors.muted }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ctx.raw + '% accuracy'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000
+                    }
+                }
+            });
+            
+            return this.charts[canvasId];
+        },
+        
+        updateChart(id, newData) {
+            if (this.charts[id]) {
+                this.charts[id].data.datasets[0].data = newData;
+                this.charts[id].update('none');
+            }
+        }
+    };
+    
     // ==================== URL ROUTER ====================
     // Hash-based routing for better student navigation
     // Supports: #appendix/A, #appendix/B, #tab/review, #tab/insights, #tab/progress
@@ -719,10 +1031,8 @@
             }
         }
         
-        // Render SOC Progress visualizations
-        renderProgressRing(progressPercent);
-        renderReadinessGauge(progressPercent, accuracy, appendicesWithProgress.size);
-        renderAppendixProgressGrid(categoryStats, appendicesWithProgress);
+        // Render Chart.js Progress visualizations
+        renderProgressCharts(progressPercent, accuracy, appendicesWithProgress.size, categoryStats);
         
         // Also render the legacy grid if it exists
         if (!grid) return;
@@ -800,122 +1110,28 @@
         );
     }
     
-    // Render Progress Ring with page load animation
-    function renderProgressRing(progressPercent, animate = true) {
-        const ringFill = document.getElementById('progress-ring-fill');
-        if (!ringFill) return;
+    // Render Progress page Chart.js charts
+    function renderProgressCharts(progressPercent, accuracy, appendicesStarted, categoryStats) {
+        const colors = ChartManager.getChartColors();
         
-        const circumference = 377;
-        const offset = circumference - (progressPercent / 100) * circumference;
+        // Overall Completion Doughnut
+        ChartManager.createDoughnutChart('progress-chart', progressPercent, 100, colors.teal, 'Complete');
         
-        if (animate) {
-            ringFill.style.strokeDashoffset = circumference;
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    ringFill.style.strokeDashoffset = offset;
-                }, 100);
-            });
-        } else {
-            ringFill.style.strokeDashoffset = offset;
-        }
-    }
-    
-    // Render Readiness Gauge with page load animation
-    function renderReadinessGauge(progressPercent, accuracy, appendicesStarted, animate = true) {
-        const gaugeFill = document.getElementById('readiness-gauge-fill');
-        const gaugeNeedle = document.getElementById('readiness-needle');
-        
-        if (!gaugeFill || !gaugeNeedle) return;
-        
+        // Exam Readiness Gauge (semi-circle)
         const readinessScore = calculateReadinessScore(progressPercent, accuracy, appendicesStarted);
-        const arcLength = 251.2;
-        const fillAmount = (readinessScore / 100) * arcLength;
-        const needleAngle = -90 + (readinessScore / 100) * 180;
+        ChartManager.createGaugeChart('readiness-chart', readinessScore, 'Ready');
         
-        if (animate) {
-            gaugeFill.style.strokeDashoffset = arcLength;
-            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-                }, 150);
-            });
-        } else {
-            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-        }
-    }
-    
-    // Render Appendix Progress Grid
-    function renderAppendixProgressGrid(categoryStats, appendicesWithProgress, animate = true) {
-        const gridContainer = document.getElementById('appendix-progress-grid');
-        if (!gridContainer) return;
-        
-        const appendices = [
-            { letter: 'A', title: 'Soft Skills and Assessment Management' },
-            { letter: 'B', title: 'Core Technical Skills' },
-            { letter: 'C', title: 'Background Information Gathering' },
-            { letter: 'D', title: 'Networking' },
-            { letter: 'E', title: 'Microsoft Windows Security Assessment' },
-            { letter: 'F', title: 'Unix Security Assessment' },
-            { letter: 'G', title: 'Web Technologies' },
-            { letter: 'H', title: 'Web Testing Techniques' },
-            { letter: 'I', title: 'Databases' },
-            { letter: 'J', title: 'Applications' },
-            { letter: 'K', title: 'Decompilation and Debugging' }
-        ];
-        
-        let html = '';
-        appendices.forEach(app => {
-            const stats = categoryStats[app.letter];
-            let status = 'not-started';
-            let accuracy = 0;
-            let attempted = 0;
-            let correct = 0;
-            
+        // Appendix Progress Bar Chart
+        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        const labels = appendices;
+        const data = appendices.map(letter => {
+            const stats = categoryStats[letter];
             if (stats && stats.attempted > 0) {
-                attempted = stats.attempted;
-                correct = stats.correct;
-                accuracy = Math.round((correct / attempted) * 100);
-                
-                if (accuracy >= 80 && attempted >= 10) {
-                    status = 'mastered';
-                } else {
-                    status = 'in-progress';
-                }
+                return Math.round((stats.correct / stats.attempted) * 100);
             }
-            
-            html += `
-                <div class="appendix-progress-item ${status}" onclick="Router.navigate('appendix', '${app.letter}')">
-                    <div class="appendix-progress-header">
-                        <span class="appendix-letter">${app.letter}</span>
-                        <span class="appendix-status-dot ${status}"></span>
-                    </div>
-                    <div class="appendix-progress-title">${app.title}</div>
-                    <div class="appendix-progress-bar">
-                        <div class="appendix-progress-fill" data-width="${accuracy}" style="width: ${animate ? 0 : accuracy}%"></div>
-                    </div>
-                    <div class="appendix-progress-stats">${correct}/${attempted} correct (${accuracy}%)</div>
-                </div>
-            `;
+            return 0;
         });
-        
-        gridContainer.innerHTML = html;
-        
-        if (animate) {
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    gridContainer.querySelectorAll('.appendix-progress-fill').forEach((bar, i) => {
-                        setTimeout(() => {
-                            bar.style.width = bar.dataset.width + '%';
-                        }, i * 30);
-                    });
-                }, 100);
-            });
-        }
+        ChartManager.createBarChart('appendix-progress-chart', labels, data);
     }
     
     // ==================== FLAG FOR REVIEW ====================
@@ -3194,15 +3410,82 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             }
         }
         
-        // Render SOC visualizations for Insights
-        renderInsightsGauge(accuracy);
-        renderMasteryRing(masteryLevel);
-        renderInsightsCategoryMatrix();
-        renderAccuracyDonut(correct, incorrect);
-        renderActivityTrend();
+        // Render Chart.js visualizations for Insights
+        renderInsightsCharts(accuracy, masteryLevel, correct, incorrect);
         renderInsightsRecommendations();
         renderAchievementsBadges();
         renderRecentActivity();
+    }
+    
+    // Render Insights page Chart.js charts
+    function renderInsightsCharts(accuracy, masteryLevel, correct, incorrect) {
+        const colors = ChartManager.getChartColors();
+        
+        // Overall Score Gauge (semi-circle)
+        ChartManager.createGaugeChart('insights-gauge-chart', accuracy, 'Score');
+        
+        // Mastery Level Doughnut
+        ChartManager.createDoughnutChart('mastery-chart', masteryLevel, 100, colors.purple, 'Mastery');
+        
+        // Category Performance Bar Chart
+        const categoryStats = getCategoryStats();
+        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        const labels = appendices;
+        const data = appendices.map(letter => {
+            const stats = categoryStats[letter];
+            if (stats && stats.attempted > 0) {
+                return Math.round((stats.correct / stats.attempted) * 100);
+            }
+            return 0;
+        });
+        ChartManager.createBarChart('insights-category-chart', labels, data);
+        
+        // Accuracy Donut (correct vs incorrect)
+        const total = correct + incorrect;
+        if (total > 0) {
+            const canvas = document.getElementById('accuracy-donut-chart');
+            if (canvas) {
+                ChartManager.destroyChart('accuracy-donut-chart');
+                ChartManager.charts['accuracy-donut-chart'] = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Correct', 'Incorrect'],
+                        datasets: [{
+                            data: [correct, incorrect],
+                            backgroundColor: [colors.green, colors.red],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: { color: colors.text, padding: 10 }
+                            }
+                        },
+                        animation: { animateRotate: true, duration: 1000 }
+                    }
+                });
+            }
+        }
+        
+        // Activity Trend Line Chart
+        const history = getPerformanceHistory();
+        if (history.length >= 2) {
+            const trendLabels = history.slice(-7).map((_, i) => 'Day ' + (i + 1));
+            ChartManager.createLineChart('activity-chart', trendLabels, history.slice(-7));
+        }
+        
+        // Practice vs Exam Comparison
+        const practiceStats = calculateStats();
+        const examStats = calculateExamStats();
+        const practiceAcc = practiceStats.attempted > 0 ? Math.round((practiceStats.correct / practiceStats.attempted) * 100) : 0;
+        const examAcc = examStats.attempted > 0 ? Math.round((examStats.correct / examStats.attempted) * 100) : 0;
+        ChartManager.createComparisonChart('comparison-chart', ['Practice', 'Exam'], [practiceAcc, examAcc]);
     }
     
     // Calculate mastery level based on accuracy and coverage
@@ -3213,209 +3496,6 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         
         const coverage = totalQuestions > 0 ? (attempted / totalQuestions) * 100 : 0;
         return Math.round((accuracy * 0.7) + (Math.min(coverage, 100) * 0.3));
-    }
-    
-    // Render Insights Gauge with page load animation
-    function renderInsightsGauge(accuracy, animate = true) {
-        const gaugeFill = document.getElementById('insights-gauge-fill');
-        const gaugeNeedle = document.getElementById('insights-gauge-needle');
-        
-        if (!gaugeFill || !gaugeNeedle) return;
-        
-        const arcLength = 251.2;
-        const fillAmount = (accuracy / 100) * arcLength;
-        const needleAngle = -90 + (accuracy / 100) * 180;
-        
-        if (animate) {
-            gaugeFill.style.strokeDashoffset = arcLength;
-            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-                }, 100);
-            });
-        } else {
-            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-        }
-    }
-    
-    // Render Mastery Ring with page load animation
-    function renderMasteryRing(masteryLevel, animate = true) {
-        const ringFill = document.getElementById('mastery-ring-fill');
-        
-        if (!ringFill) return;
-        
-        const circumference = 282.74;
-        const fillAmount = (masteryLevel / 100) * circumference;
-        
-        if (animate) {
-            ringFill.style.strokeDashoffset = circumference;
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    ringFill.style.strokeDashoffset = circumference - fillAmount;
-                }, 150);
-            });
-        } else {
-            ringFill.style.strokeDashoffset = circumference - fillAmount;
-        }
-    }
-    
-    // Render Insights Category Matrix
-    function renderInsightsCategoryMatrix(animate = true) {
-        const matrixContainer = document.getElementById('insights-category-matrix');
-        if (!matrixContainer) return;
-        
-        const categoryStats = getCategoryStats();
-        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
-        
-        let html = '';
-        appendices.forEach((letter, index) => {
-            const stats = categoryStats[letter];
-            let accuracy = 0;
-            let barClass = 'neutral';
-            let tooltip = `Appendix ${letter}: No data`;
-            
-            if (stats && stats.attempted > 0) {
-                accuracy = Math.round((stats.correct / stats.attempted) * 100);
-                if (accuracy >= 70) barClass = 'success';
-                else if (accuracy >= 50) barClass = 'warning';
-                else barClass = 'critical';
-                tooltip = `${stats.title}: ${accuracy}% (${stats.correct}/${stats.attempted})`;
-            }
-            
-            html += `
-                <div class="category-bar-item" title="${tooltip}">
-                    <div class="category-bar-header">
-                        <span class="category-bar-name">${letter}</span>
-                        <span class="category-bar-stats">${accuracy}%</span>
-                    </div>
-                    <div class="category-bar-track">
-                        <div class="category-bar-fill ${barClass}" data-width="${accuracy}" style="width: ${animate ? 0 : accuracy}%"></div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        matrixContainer.innerHTML = html;
-        
-        if (animate) {
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    matrixContainer.querySelectorAll('.category-bar-fill').forEach((bar, i) => {
-                        setTimeout(() => {
-                            bar.style.width = bar.dataset.width + '%';
-                        }, i * 50);
-                    });
-                }, 100);
-            });
-        }
-    }
-    
-    // Render Accuracy Donut for Insights
-    function renderAccuracyDonut(correct, incorrect, animate = true) {
-        const donutContainer = document.getElementById('insights-donut');
-        if (!donutContainer) return;
-        
-        const total = correct + incorrect;
-        if (total === 0) {
-            donutContainer.innerHTML = `
-                <div class="donut-placeholder">
-                    <svg width="100" height="100" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="12"/>
-                    </svg>
-                    <div class="donut-center">
-                        <span class="donut-value">0%</span>
-                    </div>
-                    <p>No data yet</p>
-                </div>
-            `;
-            return;
-        }
-        
-        const correctPct = Math.round((correct / total) * 100);
-        const circumference = 251.33;
-        const correctOffset = circumference - (correctPct / 100) * circumference;
-        
-        donutContainer.innerHTML = `
-            <svg width="120" height="120" viewBox="0 0 100 100" class="donut-svg">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#ef4444" stroke-width="12"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="12" 
-                    stroke-dasharray="${circumference}" stroke-dashoffset="${animate ? circumference : correctOffset}"
-                    transform="rotate(-90, 50, 50)" class="donut-fill" id="donut-correct-fill"/>
-            </svg>
-            <div class="donut-legend">
-                <div class="legend-item"><span class="legend-dot correct"></span>Correct: ${correct}</div>
-                <div class="legend-item"><span class="legend-dot incorrect"></span>Incorrect: ${incorrect}</div>
-            </div>
-        `;
-        
-        if (animate) {
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    const donutFill = document.getElementById('donut-correct-fill');
-                    if (donutFill) {
-                        donutFill.style.strokeDashoffset = correctOffset;
-                    }
-                }, 200);
-            });
-        }
-    }
-    
-    // Render Activity Trend Chart
-    function renderActivityTrend() {
-        const trendContainer = document.getElementById('insights-activity-trend');
-        if (!trendContainer) return;
-        
-        const history = getPerformanceHistory();
-        if (history.length < 2) {
-            trendContainer.innerHTML = `
-                <div class="performance-placeholder">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                        <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
-                    </svg>
-                    <p>Complete more questions to see trends</p>
-                </div>
-            `;
-            return;
-        }
-        
-        const width = 300;
-        const height = 100;
-        const padding = 15;
-        const chartWidth = width - padding * 2;
-        const chartHeight = height - padding * 2;
-        
-        const points = history.map((val, i) => ({
-            x: padding + (i / (history.length - 1)) * chartWidth,
-            y: padding + chartHeight - (val / 100) * chartHeight
-        }));
-        
-        const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
-        const areaPath = linePath + ` L${points[points.length-1].x},${height - padding} L${padding},${height - padding} Z`;
-        
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const labels = history.map((_, i) => days[i % 7]).slice(0, history.length);
-        
-        trendContainer.innerHTML = `
-            <svg class="activity-svg" viewBox="0 0 ${width} ${height}">
-                <defs>
-                    <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3"/>
-                        <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0"/>
-                    </linearGradient>
-                </defs>
-                <path d="${areaPath}" fill="url(#activityGradient)"/>
-                <path d="${linePath}" fill="none" stroke="#3b82f6" stroke-width="2" class="activity-line"/>
-                ${points.map((p, i) => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#3b82f6"/>`).join('')}
-            </svg>
-            <div class="activity-labels">
-                ${labels.map(l => `<span>${l}</span>`).join('')}
-            </div>
-        `;
     }
     
     // Render Insights Recommendations
@@ -3529,12 +3609,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const totalReviewCount = incorrectCount + flaggedCount;
         const accuracy = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
         
-        // Update SOC Dashboard elements
+        // Update dashboard elements
         const incorrectEl = document.getElementById('incorrect-count');
         const flaggedEl = document.getElementById('flagged-count');
         const totalReviewEl = document.getElementById('total-review-count');
         const attemptedEl = document.getElementById('total-attempted-review');
-        const accuracyEl = document.getElementById('review-accuracy');
         const filterAllCount = document.getElementById('filter-all-count');
         const filterIncorrectCount = document.getElementById('filter-incorrect-count');
         const filterFlaggedCount = document.getElementById('filter-flagged-count');
@@ -3545,7 +3624,6 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         if (flaggedEl) flaggedEl.textContent = flaggedCount;
         if (totalReviewEl) totalReviewEl.textContent = totalReviewCount;
         if (attemptedEl) attemptedEl.textContent = attempted;
-        if (accuracyEl) accuracyEl.textContent = accuracy + '%';
         if (filterAllCount) filterAllCount.textContent = totalReviewCount;
         if (filterIncorrectCount) filterIncorrectCount.textContent = incorrectCount;
         if (filterFlaggedCount) filterFlaggedCount.textContent = flaggedCount;
@@ -3558,12 +3636,57 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             reviewBadge.textContent = totalReviewCount;
         }
         
-        // Render SOC visualizations
-        renderRiskGauge(accuracy);
-        renderAccuracyRing(accuracy);
-        renderCategoryHeatmap();
-        renderReviewTrendChart();
+        // Update risk badge
+        const riskBadge = document.getElementById('risk-badge');
+        if (riskBadge) {
+            const riskLevel = 100 - accuracy;
+            if (riskLevel < 30) {
+                riskBadge.textContent = 'LOW';
+                riskBadge.className = 'metric-badge';
+            } else if (riskLevel < 60) {
+                riskBadge.textContent = 'MEDIUM';
+                riskBadge.className = 'metric-badge medium';
+            } else {
+                riskBadge.textContent = 'HIGH';
+                riskBadge.className = 'metric-badge high';
+            }
+        }
+        
+        // Render Chart.js visualizations
+        renderReviewCharts(accuracy);
         renderWeakAreasAlerts();
+    }
+    
+    // Render Review page Chart.js charts
+    function renderReviewCharts(accuracy) {
+        const colors = ChartManager.getChartColors();
+        const riskLevel = 100 - accuracy;
+        
+        // Risk Gauge (semi-circle doughnut)
+        ChartManager.createGaugeChart('risk-gauge-chart', riskLevel, 'Risk');
+        
+        // Accuracy Doughnut
+        ChartManager.createDoughnutChart('accuracy-chart', accuracy, 100, colors.teal, 'Accuracy');
+        
+        // Category Performance Bar Chart
+        const categoryStats = getCategoryStats();
+        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        const labels = appendices;
+        const data = appendices.map(letter => {
+            const stats = categoryStats[letter];
+            if (stats && stats.attempted > 0) {
+                return Math.round((stats.correct / stats.attempted) * 100);
+            }
+            return 0;
+        });
+        ChartManager.createBarChart('category-chart', labels, data);
+        
+        // Performance Trend Line Chart
+        const history = getPerformanceHistory();
+        if (history.length >= 2) {
+            const trendLabels = history.map((_, i) => 'Day ' + (i + 1));
+            ChartManager.createLineChart('trend-chart', trendLabels, history);
+        }
     }
     
     // Get count of weak areas (categories with <70% accuracy)
@@ -3593,148 +3716,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         return categoryStats;
     }
     
-    // Render Risk Level Gauge with page load animation
-    function renderRiskGauge(accuracy, animate = true) {
-        const gaugeFill = document.getElementById('gauge-fill');
-        const gaugeNeedle = document.getElementById('gauge-needle');
-        const riskBadge = document.getElementById('risk-badge');
-        
-        if (!gaugeFill || !gaugeNeedle || !riskBadge) return;
-        
-        const riskLevel = 100 - accuracy;
-        const arcLength = 251.2;
-        const fillAmount = (riskLevel / 100) * arcLength;
-        const needleAngle = -90 + (riskLevel / 100) * 180;
-        
-        if (animate) {
-            gaugeFill.style.strokeDashoffset = arcLength;
-            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-                }, 100);
-            });
-        } else {
-            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
-        }
-        
-        if (riskLevel < 30) {
-            riskBadge.textContent = 'LOW';
-            riskBadge.className = 'metric-badge';
-        } else if (riskLevel < 60) {
-            riskBadge.textContent = 'MEDIUM';
-            riskBadge.className = 'metric-badge medium';
-        } else {
-            riskBadge.textContent = 'HIGH';
-            riskBadge.className = 'metric-badge high';
-        }
-    }
-    
-    // Render Accuracy Ring with page load animation
-    function renderAccuracyRing(accuracy, animate = true) {
-        const ringFill = document.getElementById('accuracy-ring-fill');
-        const accuracyTrend = document.getElementById('accuracy-trend');
-        
-        if (!ringFill) return;
-        
-        const circumference = 314.16;
-        const fillAmount = (accuracy / 100) * circumference;
-        
-        if (animate) {
-            ringFill.style.strokeDashoffset = circumference;
-            
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    ringFill.style.strokeDashoffset = circumference - fillAmount;
-                }, 150);
-            });
-        } else {
-            ringFill.style.strokeDashoffset = circumference - fillAmount;
-        }
-        
-        if (accuracyTrend) {
-            const trend = accuracy >= 70 ? '+' : '';
-            accuracyTrend.textContent = trend + (accuracy - 50) + '% vs avg';
-            accuracyTrend.className = 'metric-trend ' + (accuracy >= 50 ? 'positive' : 'negative');
-        }
-    }
-    
-    // Render Category Heatmap
-    function renderCategoryHeatmap() {
-        const heatmapGrid = document.getElementById('heatmap-grid');
-        if (!heatmapGrid) return;
-        
-        const categoryStats = getCategoryStats();
-        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
-        
-        let html = '';
-        appendices.forEach(letter => {
-            const stats = categoryStats[letter];
-            let cellClass = 'neutral';
-            let accuracy = 0;
-            let tooltip = `Appendix ${letter}: No data`;
-            
-            if (stats && stats.attempted > 0) {
-                accuracy = Math.round((stats.correct / stats.attempted) * 100);
-                if (accuracy < 50) cellClass = 'critical';
-                else if (accuracy < 70) cellClass = 'warning';
-                else cellClass = 'success';
-                tooltip = `Appendix ${letter}: ${accuracy}% (${stats.correct}/${stats.attempted})`;
-            }
-            
-            html += `
-                <div class="heatmap-cell ${cellClass}" title="${tooltip}">
-                    ${letter}
-                    <span class="cell-tooltip">${tooltip}</span>
-                </div>
-            `;
-        });
-        
-        heatmapGrid.innerHTML = html;
-    }
-    
-    // Render Review Trend Chart (SOC Dashboard - uses SVG)
-    function renderReviewTrendChart() {
-        const trendLine = document.getElementById('trend-line');
-        const trendArea = document.getElementById('trend-area');
-        const trendPoints = document.getElementById('trend-points');
-        
-        if (!trendLine || !trendArea || !trendPoints) return;
-        
-        const history = getPerformanceHistory();
-        if (history.length < 2) {
-            trendLine.setAttribute('d', '');
-            trendArea.setAttribute('d', '');
-            trendPoints.innerHTML = '';
-            return;
-        }
-        
-        const width = 400;
-        const height = 150;
-        const padding = 20;
-        const chartWidth = width - padding * 2;
-        const chartHeight = height - padding * 2;
-        
-        const points = history.map((val, i) => ({
-            x: padding + (i / (history.length - 1)) * chartWidth,
-            y: padding + chartHeight - (val / 100) * chartHeight
-        }));
-        
-        const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
-        const areaPath = linePath + ` L${points[points.length-1].x},${height - padding} L${padding},${height - padding} Z`;
-        
-        trendLine.setAttribute('d', linePath);
-        trendArea.setAttribute('d', areaPath);
-        
-        trendPoints.innerHTML = points.map((p, i) => 
-            `<circle cx="${p.x}" cy="${p.y}" r="4" data-value="${history[i]}%"/>`
-        ).join('');
-    }
-    
-    // Get performance history (simulated from current data)
+    // Get performance history(simulated from current data)
     function getPerformanceHistory() {
         const allAnswers = Object.entries(answerState);
         if (allAnswers.length < 5) return [];

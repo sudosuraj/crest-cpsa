@@ -968,7 +968,281 @@ ul.weak-areas-list { list-style: none; }
 .review-explanation p { font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
 .review-question-actions { display: flex; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
 
-/* ==================== SOC-STYLE REVIEW DASHBOARD ==================== */
+/* ==================== CHART.JS DASHBOARD ==================== */
+
+/* Charts Dashboard Container */
+.charts-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 0 24px 0;
+}
+
+/* Charts Row */
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+/* Chart Card */
+.chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    position: relative;
+}
+
+.chart-card.wide {
+    grid-column: span 1;
+}
+
+.chart-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.chart-card.stats-card {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chart Header */
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.chart-container-lg {
+    position: relative;
+    height: 200px;
+}
+
+.chart-container-lg canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Quick Stats Grid */
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    flex: 1;
+}
+
+.quick-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background: var(--bg);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 4px;
+}
+
+/* Alert List */
+.alert-list {
+    min-height: 60px;
+}
+
+.alert-placeholder {
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Timeline List */
+.timeline-list {
+    min-height: 60px;
+}
+
+.timeline-placeholder {
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Achievements Grid */
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    min-height: 60px;
+}
+
+/* Progress Grid */
+.progress-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    min-height: 60px;
+}
+
+/* Actions Panel */
+.actions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.actions-info {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.progress-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.action-btn.secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.action-btn.secondary:hover {
+    background: var(--border);
+}
+
+.action-btn.danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* Legend */
+.appendix-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.mastered {
+    background: #10b981;
+}
+
+.legend-dot.progress {
+    background: #f59e0b;
+}
+
+.legend-dot.not-started {
+    background: var(--border);
+}
+
+/* Badges */
+.kpi-status,
+.kpi-badge,
+.readiness-badge,
+.progress-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(100, 116, 139, 0.15);
+    color: var(--muted);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-card.wide {
+        grid-column: span 1;
+    }
+    
+    .quick-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .quick-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .appendix-legend {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+/* ==================== SOC-STYLE REVIEW DASHBOARD (LEGACY) ==================== */
 
 /* SOC Dashboard Container */
 .soc-dashboard {

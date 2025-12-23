@@ -39,6 +39,7 @@
     </script>
     
     <link rel="stylesheet" href="styles/main.css">
+    <script src="vendor/chartjs/chart.umd.min.js" defer></script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -194,171 +195,92 @@
                 <section class="toolbar-panel" id="review-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Review Dashboard</h2>
-                        <p>Security Operations Center - Performance Analytics</p>
+                        <p>Performance Analytics</p>
                     </div>
                     
-                    <!-- SOC-Style KPI Dashboard -->
-                    <div class="soc-dashboard">
+                    <!-- Chart.js Dashboard -->
+                    <div class="charts-dashboard">
                         <!-- Primary Metrics Row -->
-                        <div class="soc-metrics-row">
-                            <!-- Threat Level Gauge -->
-                            <div class="soc-metric-card gauge-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Risk Level</span>
+                        <div class="charts-row">
+                            <!-- Risk Level Gauge -->
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Risk Level</span>
                                     <span class="metric-badge" id="risk-badge">LOW</span>
                                 </div>
-                                <div class="gauge-container" id="risk-gauge">
-                                    <svg viewBox="0 0 200 120" class="gauge-svg">
-                                        <defs>
-                                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" style="stop-color:#10b981"/>
-                                                <stop offset="50%" style="stop-color:#f59e0b"/>
-                                                <stop offset="100%" style="stop-color:#ef4444"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="12" stroke-linecap="round"/>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="gauge-fill" id="gauge-fill"/>
-                                        <circle cx="100" cy="100" r="6" fill="var(--text)" class="gauge-needle-base"/>
-                                        <line x1="100" y1="100" x2="100" y2="30" stroke="var(--text)" stroke-width="3" stroke-linecap="round" class="gauge-needle" id="gauge-needle" transform="rotate(-90, 100, 100)"/>
-                                    </svg>
-                                </div>
-                                <div class="gauge-labels">
-                                    <span>Low</span>
-                                    <span>Medium</span>
-                                    <span>High</span>
+                                <div class="chart-container">
+                                    <canvas id="risk-gauge-chart"></canvas>
                                 </div>
                             </div>
                             
-                            <!-- Accuracy Ring -->
-                            <div class="soc-metric-card ring-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Accuracy Rate</span>
+                            <!-- Accuracy Doughnut -->
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Accuracy Rate</span>
                                     <span class="metric-trend positive" id="accuracy-trend">--</span>
                                 </div>
-                                <div class="ring-container" id="accuracy-ring">
-                                    <svg viewBox="0 0 120 120" class="ring-svg">
-                                        <defs>
-                                            <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" style="stop-color:#0d9488"/>
-                                                <stop offset="100%" style="stop-color:#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="10"/>
-                                        <circle cx="60" cy="60" r="50" fill="none" stroke="url(#ringGradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16" transform="rotate(-90, 60, 60)" class="ring-fill" id="accuracy-ring-fill"/>
-                                    </svg>
-                                    <div class="ring-center">
-                                        <span class="ring-value" id="review-accuracy">0%</span>
-                                        <span class="ring-label">Accuracy</span>
-                                    </div>
+                                <div class="chart-container">
+                                    <canvas id="accuracy-chart"></canvas>
                                 </div>
                             </div>
                             
                             <!-- Quick Stats -->
-                            <div class="soc-metric-card stats-card">
-                                <div class="metric-header">
-                                    <span class="metric-title">Quick Stats</span>
+                            <div class="chart-card stats-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Quick Stats</span>
                                 </div>
                                 <div class="quick-stats-grid">
                                     <div class="quick-stat">
-                                        <div class="stat-icon critical">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                                        </div>
-                                        <div class="stat-content">
-                                            <span class="stat-value" id="incorrect-count">0</span>
-                                            <span class="stat-label">Incorrect</span>
-                                        </div>
+                                        <span class="stat-value" id="incorrect-count">0</span>
+                                        <span class="stat-label">Incorrect</span>
                                     </div>
                                     <div class="quick-stat">
-                                        <div class="stat-icon warning">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-                                        </div>
-                                        <div class="stat-content">
-                                            <span class="stat-value" id="flagged-count">0</span>
-                                            <span class="stat-label">Flagged</span>
-                                        </div>
+                                        <span class="stat-value" id="flagged-count">0</span>
+                                        <span class="stat-label">Flagged</span>
                                     </div>
                                     <div class="quick-stat">
-                                        <div class="stat-icon info">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-                                        </div>
-                                        <div class="stat-content">
-                                            <span class="stat-value" id="total-review-count">0</span>
-                                            <span class="stat-label">To Review</span>
-                                        </div>
+                                        <span class="stat-value" id="total-review-count">0</span>
+                                        <span class="stat-label">To Review</span>
                                     </div>
                                     <div class="quick-stat">
-                                        <div class="stat-icon success">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                                        </div>
-                                        <div class="stat-content">
-                                            <span class="stat-value" id="total-attempted-review">0</span>
-                                            <span class="stat-label">Attempted</span>
-                                        </div>
+                                        <span class="stat-value" id="total-attempted-review">0</span>
+                                        <span class="stat-label">Attempted</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Visualization Row -->
-                        <div class="soc-viz-row">
-                            <!-- Category Heat Map -->
-                            <div class="soc-viz-card">
-                                <div class="viz-header">
-                                    <h3>Category Performance Matrix</h3>
-                                    <div class="viz-legend">
-                                        <span class="legend-item"><span class="legend-color critical"></span>Critical</span>
-                                        <span class="legend-item"><span class="legend-color warning"></span>Warning</span>
-                                        <span class="legend-item"><span class="legend-color success"></span>Good</span>
-                                    </div>
+                        <div class="charts-row">
+                            <!-- Category Performance Bar Chart -->
+                            <div class="chart-card wide">
+                                <div class="chart-header">
+                                    <span class="chart-title">Category Performance</span>
                                 </div>
-                                <div class="heatmap-container" id="category-heatmap">
-                                    <div class="heatmap-grid" id="heatmap-grid">
-                                        <!-- Heatmap cells will be generated by JS -->
-                                    </div>
+                                <div class="chart-container-lg">
+                                    <canvas id="category-chart"></canvas>
                                 </div>
                             </div>
                             
-                            <!-- Performance Trend -->
-                            <div class="soc-viz-card">
-                                <div class="viz-header">
-                                    <h3>Performance Trend</h3>
-                                    <div class="trend-period">
-                                        <button class="period-btn active" data-period="7d">7D</button>
-                                        <button class="period-btn" data-period="30d">30D</button>
-                                        <button class="period-btn" data-period="all">All</button>
-                                    </div>
+                            <!-- Performance Trend Line Chart -->
+                            <div class="chart-card wide">
+                                <div class="chart-header">
+                                    <span class="chart-title">Performance Trend</span>
                                 </div>
-                                <div class="trend-chart-container" id="trend-chart">
-                                    <svg viewBox="0 0 400 150" class="trend-svg" preserveAspectRatio="none">
-                                        <defs>
-                                            <linearGradient id="trendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                <stop offset="0%" style="stop-color:#0d9488;stop-opacity:0.3"/>
-                                                <stop offset="100%" style="stop-color:#0d9488;stop-opacity:0"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <path class="trend-area" id="trend-area" fill="url(#trendGradient)"/>
-                                        <path class="trend-line" id="trend-line" fill="none" stroke="#0d9488" stroke-width="2"/>
-                                        <g class="trend-points" id="trend-points"></g>
-                                    </svg>
-                                    <div class="trend-tooltip" id="trend-tooltip"></div>
+                                <div class="chart-container-lg">
+                                    <canvas id="trend-chart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Alert Panel -->
-                        <div class="soc-alert-panel">
-                            <div class="alert-header">
-                                <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                    Priority Focus Areas
-                                </h3>
+                        <!-- Weak Areas List -->
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Priority Focus Areas</span>
                                 <span class="alert-count" id="alert-count">0 areas need attention</span>
                             </div>
                             <div class="alert-list" id="review-weak-areas">
-                                <div class="alert-placeholder">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-                                    <p>Complete more questions to identify weak areas</p>
-                                </div>
+                                <p class="alert-placeholder">Complete more questions to identify weak areas</p>
                             </div>
                         </div>
                     </div>
@@ -424,225 +346,136 @@
                 <section class="toolbar-panel" id="insights-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Analytics Dashboard</h2>
-                        <p>Security Operations Center - Performance Intelligence</p>
+                        <p>Performance Intelligence</p>
                     </div>
                     
-                    <!-- SOC-Style Command Center Header -->
-                    <div class="soc-command-center">
-                        <!-- Primary KPI Gauges -->
-                        <div class="soc-kpi-row">
+                    <!-- Chart.js Analytics Dashboard -->
+                    <div class="charts-dashboard">
+                        <!-- Primary KPI Row -->
+                        <div class="charts-row">
                             <!-- Overall Score Gauge -->
-                            <div class="soc-kpi-card primary">
-                                <div class="kpi-header">
-                                    <span class="kpi-title">Overall Score</span>
-                                    <span class="kpi-status" id="score-status">CALCULATING</span>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Overall Score</span>
+                                    <span class="kpi-status" id="score-status">--</span>
                                 </div>
-                                <div class="kpi-gauge-container">
-                                    <svg viewBox="0 0 200 120" class="kpi-gauge-svg">
-                                        <defs>
-                                            <linearGradient id="scoreGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" style="stop-color:#ef4444"/>
-                                                <stop offset="50%" style="stop-color:#f59e0b"/>
-                                                <stop offset="100%" style="stop-color:#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#scoreGaugeGradient)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="kpi-gauge-fill" id="insights-gauge-fill"/>
-                                        <circle cx="100" cy="100" r="8" fill="var(--text)"/>
-                                        <line x1="100" y1="100" x2="100" y2="35" stroke="var(--text)" stroke-width="4" stroke-linecap="round" class="kpi-gauge-needle" id="insights-gauge-needle" transform="rotate(-90, 100, 100)"/>
-                                    </svg>
-                                    <div class="kpi-gauge-value">
-                                        <span class="gauge-number" id="overall-accuracy">0%</span>
-                                        <span class="gauge-label">Accuracy</span>
-                                    </div>
-                                </div>
-                                <div class="kpi-gauge-scale">
-                                    <span>0%</span>
-                                    <span>50%</span>
-                                    <span>100%</span>
+                                <div class="chart-container">
+                                    <canvas id="insights-gauge-chart"></canvas>
                                 </div>
                             </div>
                             
                             <!-- Quick Stats Panel -->
-                            <div class="soc-kpi-card stats-panel">
-                                <div class="kpi-header">
-                                    <span class="kpi-title">Quick Stats</span>
+                            <div class="chart-card stats-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Quick Stats</span>
                                 </div>
-                                <div class="stats-grid-4">
-                                    <div class="stat-block">
-                                        <div class="stat-icon-sm attempted">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                        </div>
-                                        <span class="stat-number" id="total-attempted">0</span>
-                                        <span class="stat-name">Attempted</span>
+                                <div class="quick-stats-grid">
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="total-attempted">0</span>
+                                        <span class="stat-label">Attempted</span>
                                     </div>
-                                    <div class="stat-block">
-                                        <div class="stat-icon-sm correct">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-                                        </div>
-                                        <span class="stat-number" id="total-correct">0</span>
-                                        <span class="stat-name">Correct</span>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="total-correct">0</span>
+                                        <span class="stat-label">Correct</span>
                                     </div>
-                                    <div class="stat-block">
-                                        <div class="stat-icon-sm time">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                        </div>
-                                        <span class="stat-number" id="study-time">0m</span>
-                                        <span class="stat-name">Study Time</span>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="study-time">0m</span>
+                                        <span class="stat-label">Study Time</span>
                                     </div>
-                                    <div class="stat-block">
-                                        <div class="stat-icon-sm streak">
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-                                        </div>
-                                        <span class="stat-number" id="longest-streak">0</span>
-                                        <span class="stat-name">Best Streak</span>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="longest-streak">0</span>
+                                        <span class="stat-label">Best Streak</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Mastery Ring -->
-                            <div class="soc-kpi-card ring-panel">
-                                <div class="kpi-header">
-                                    <span class="kpi-title">Mastery Level</span>
+                            <!-- Mastery Doughnut -->
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Mastery Level</span>
                                     <span class="kpi-badge" id="mastery-badge">BEGINNER</span>
                                 </div>
-                                <div class="mastery-ring-container">
-                                    <svg viewBox="0 0 120 120" class="mastery-ring-svg">
-                                        <defs>
-                                            <linearGradient id="masteryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" style="stop-color:#8b5cf6"/>
-                                                <stop offset="100%" style="stop-color:#6366f1"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="10"/>
-                                        <circle cx="60" cy="60" r="50" fill="none" stroke="url(#masteryGradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16" transform="rotate(-90, 60, 60)" class="mastery-ring-fill" id="mastery-ring-fill"/>
-                                    </svg>
-                                    <div class="mastery-ring-center">
-                                        <span class="mastery-value" id="mastery-level">0</span>
-                                        <span class="mastery-label">of 11</span>
-                                    </div>
+                                <div class="chart-container">
+                                    <canvas id="mastery-chart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Visualization Row -->
-                        <div class="soc-viz-row">
-                            <!-- Category Performance Radar/Bars -->
-                            <div class="soc-viz-card wide">
-                                <div class="viz-header">
-                                    <h3>Category Performance Matrix</h3>
-                                    <div class="viz-controls">
-                                        <button class="viz-btn active" data-view="bars">Bars</button>
-                                        <button class="viz-btn" data-view="heatmap">Heatmap</button>
-                                    </div>
+                        <div class="charts-row">
+                            <!-- Category Performance Bar Chart -->
+                            <div class="chart-card wide">
+                                <div class="chart-header">
+                                    <span class="chart-title">Category Performance</span>
                                 </div>
-                                <div class="category-performance-container" id="category-stats">
-                                    <div class="performance-placeholder">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-                                        <p>Complete questions to see category breakdown</p>
-                                    </div>
+                                <div class="chart-container-lg" id="category-stats">
+                                    <canvas id="insights-category-chart"></canvas>
                                 </div>
                             </div>
                             
                             <!-- Accuracy Donut -->
-                            <div class="soc-viz-card">
-                                <div class="viz-header">
-                                    <h3>Accuracy Breakdown</h3>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Accuracy Breakdown</span>
                                 </div>
-                                <div class="donut-chart-container" id="accuracy-donut">
-                                    <div class="donut-placeholder">
-                                        <svg width="100" height="100" viewBox="0 0 100 100">
-                                            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="10"/>
-                                        </svg>
-                                        <div class="donut-center">
-                                            <span class="donut-value">--</span>
-                                        </div>
-                                    </div>
+                                <div class="chart-container" id="accuracy-donut">
+                                    <canvas id="accuracy-donut-chart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Activity & Comparison Row -->
-                        <div class="soc-viz-row">
+                        <!-- Activity Row -->
+                        <div class="charts-row">
                             <!-- 7-Day Activity Trend -->
-                            <div class="soc-viz-card">
-                                <div class="viz-header">
-                                    <h3>7-Day Activity Trend</h3>
+                            <div class="chart-card wide">
+                                <div class="chart-header">
+                                    <span class="chart-title">7-Day Activity Trend</span>
                                     <span class="trend-indicator positive" id="activity-trend">--</span>
                                 </div>
-                                <div class="activity-chart-container" id="weekly-activity-chart">
-                                    <svg viewBox="0 0 300 120" class="activity-svg" preserveAspectRatio="none">
-                                        <defs>
-                                            <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.3"/>
-                                                <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <path class="activity-area" id="activity-area" fill="url(#activityGradient)"/>
-                                        <path class="activity-line" id="activity-line" fill="none" stroke="#6366f1" stroke-width="2"/>
-                                        <g class="activity-points" id="activity-points"></g>
-                                    </svg>
-                                    <div class="activity-labels" id="activity-labels"></div>
+                                <div class="chart-container-lg" id="weekly-activity-chart">
+                                    <canvas id="activity-chart"></canvas>
                                 </div>
                             </div>
                             
                             <!-- Practice vs Exam Comparison -->
-                            <div class="soc-viz-card">
-                                <div class="viz-header">
-                                    <h3>Practice vs Exam</h3>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Practice vs Exam</span>
                                 </div>
-                                <div class="comparison-chart-container" id="practice-exam-comparison">
-                                    <div class="comparison-placeholder">
-                                        <p>Complete both practice and exam questions to compare</p>
-                                    </div>
+                                <div class="chart-container" id="practice-exam-comparison">
+                                    <canvas id="comparison-chart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Alert & Recommendations Panel -->
-                        <div class="soc-alert-panel insights-alerts">
-                            <div class="alert-header">
-                                <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                    Recommendations
-                                </h3>
+                        <!-- Recommendations Panel -->
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Recommendations</span>
                                 <span class="alert-count" id="recommendations-count">0 suggestions</span>
                             </div>
                             <div class="alert-list" id="weak-areas">
-                                <div class="alert-placeholder">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                    <p>Complete more questions to get personalized recommendations</p>
-                                </div>
+                                <p class="alert-placeholder">Complete more questions to get personalized recommendations</p>
                             </div>
                         </div>
                         
                         <!-- Achievement Badges Row -->
-                        <div class="soc-achievements-panel">
-                            <div class="achievements-header">
-                                <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                                    Achievements
-                                </h3>
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Achievements</span>
                                 <span class="badges-count" id="badges-earned">0 / 11 earned</span>
                             </div>
-                            <div class="achievements-grid" id="achievements-grid">
-                                <!-- Badges will be rendered by JS -->
-                            </div>
+                            <div class="achievements-grid" id="achievements-grid"></div>
                         </div>
                         
                         <!-- Recent Activity Timeline -->
-                        <div class="soc-timeline-panel">
-                            <div class="timeline-header">
-                                <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    Recent Activity
-                                </h3>
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Recent Activity</span>
                                 <span class="timeline-filter">Last 10 questions</span>
                             </div>
                             <div class="timeline-list" id="recent-activity">
-                                <div class="timeline-placeholder">
-                                    <p>Answer some questions to see your activity timeline</p>
-                                </div>
+                                <p class="timeline-placeholder">Answer some questions to see your activity timeline</p>
                             </div>
                         </div>
                     </div>
@@ -651,144 +484,92 @@
                 <section class="toolbar-panel" id="progress-panel" role="tabpanel">
                     <div class="panel-header">
                         <h2>Progress Tracker</h2>
-                        <p>Security Operations Center - Learning Progress Monitor</p>
+                        <p>Learning Progress Monitor</p>
                     </div>
                     
-                    <!-- SOC-Style Progress Command Center -->
-                    <div class="soc-progress-center">
+                    <!-- Chart.js Progress Dashboard -->
+                    <div class="charts-dashboard">
                         <!-- Primary Progress Metrics -->
-                        <div class="soc-progress-row">
-                            <!-- Main Progress Ring -->
-                            <div class="soc-progress-card primary-ring">
-                                <div class="progress-header">
-                                    <span class="progress-title">Overall Completion</span>
+                        <div class="charts-row">
+                            <!-- Main Progress Doughnut -->
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Overall Completion</span>
                                     <span class="progress-status" id="completion-status">IN PROGRESS</span>
                                 </div>
-                                <div class="progress-ring-wrapper">
-                                    <svg class="soc-progress-ring" viewBox="0 0 140 140">
-                                        <defs>
-                                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" style="stop-color:#0d9488"/>
-                                                <stop offset="100%" style="stop-color:#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <circle cx="70" cy="70" r="60" fill="none" stroke="#1e293b" stroke-width="12"/>
-                                        <circle cx="70" cy="70" r="60" fill="none" stroke="url(#progressGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377" transform="rotate(-90, 70, 70)" class="soc-progress-fill" id="progress-ring-fill"/>
-                                    </svg>
-                                    <div class="progress-ring-center">
-                                        <span class="progress-value" id="overall-progress">0%</span>
-                                        <span class="progress-sublabel">Complete</span>
-                                    </div>
+                                <div class="chart-container">
+                                    <canvas id="progress-chart"></canvas>
                                 </div>
                             </div>
                             
                             <!-- Progress Stats Grid -->
-                            <div class="soc-progress-card stats-grid-card">
-                                <div class="progress-header">
-                                    <span class="progress-title">Progress Metrics</span>
+                            <div class="chart-card stats-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Progress Metrics</span>
                                 </div>
-                                <div class="progress-stats-grid">
-                                    <div class="progress-stat-item">
-                                        <div class="stat-icon-circle questions">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                                        </div>
-                                        <div class="stat-info">
-                                            <span class="stat-number" id="questions-answered">0</span>
-                                            <span class="stat-label">Questions Answered</span>
-                                        </div>
+                                <div class="quick-stats-grid">
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="questions-answered">0</span>
+                                        <span class="stat-label">Questions Answered</span>
                                     </div>
-                                    <div class="progress-stat-item">
-                                        <div class="stat-icon-circle appendices">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                                        </div>
-                                        <div class="stat-info">
-                                            <span class="stat-number" id="appendices-started">0</span>
-                                            <span class="stat-label">Appendices Started</span>
-                                        </div>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="appendices-started">0</span>
+                                        <span class="stat-label">Appendices Started</span>
                                     </div>
-                                    <div class="progress-stat-item">
-                                        <div class="stat-icon-circle streak">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-                                        </div>
-                                        <div class="stat-info">
-                                            <span class="stat-number" id="current-streak">0</span>
-                                            <span class="stat-label">Day Streak</span>
-                                        </div>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="current-streak">0</span>
+                                        <span class="stat-label">Day Streak</span>
                                     </div>
-                                    <div class="progress-stat-item">
-                                        <div class="stat-icon-circle mastered">
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                        </div>
-                                        <div class="stat-info">
-                                            <span class="stat-number" id="categories-mastered">0</span>
-                                            <span class="stat-label">Categories Mastered</span>
-                                        </div>
+                                    <div class="quick-stat">
+                                        <span class="stat-value" id="categories-mastered">0</span>
+                                        <span class="stat-label">Categories Mastered</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Completion Gauge -->
-                            <div class="soc-progress-card completion-gauge">
-                                <div class="progress-header">
-                                    <span class="progress-title">Exam Readiness</span>
+                            <!-- Exam Readiness Gauge -->
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <span class="chart-title">Exam Readiness</span>
                                     <span class="readiness-badge" id="readiness-badge">NOT READY</span>
                                 </div>
-                                <div class="readiness-gauge-container">
-                                    <svg viewBox="0 0 200 120" class="readiness-gauge-svg">
-                                        <defs>
-                                            <linearGradient id="readinessGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" style="stop-color:#ef4444"/>
-                                                <stop offset="50%" style="stop-color:#f59e0b"/>
-                                                <stop offset="100%" style="stop-color:#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="12" stroke-linecap="round"/>
-                                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#readinessGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" class="readiness-gauge-fill" id="readiness-gauge-fill"/>
-                                        <circle cx="100" cy="100" r="6" fill="var(--text)"/>
-                                        <line x1="100" y1="100" x2="100" y2="30" stroke="var(--text)" stroke-width="3" stroke-linecap="round" class="readiness-needle" id="readiness-needle" transform="rotate(-90, 100, 100)"/>
-                                    </svg>
-                                </div>
-                                <div class="readiness-labels">
-                                    <span>Not Ready</span>
-                                    <span>Preparing</span>
-                                    <span>Ready</span>
+                                <div class="chart-container">
+                                    <canvas id="readiness-chart"></canvas>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Appendix Progress Grid -->
-                        <div class="soc-appendix-panel">
-                            <div class="appendix-panel-header">
-                                <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                                    Appendix Progress Matrix
-                                </h3>
+                        <!-- Appendix Progress Bar Chart -->
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Appendix Progress</span>
                                 <div class="appendix-legend">
                                     <span class="legend-item"><span class="legend-dot mastered"></span>Mastered (80%+)</span>
                                     <span class="legend-item"><span class="legend-dot progress"></span>In Progress</span>
                                     <span class="legend-item"><span class="legend-dot not-started"></span>Not Started</span>
                                 </div>
                             </div>
-                            <div class="progress-grid soc-progress-grid" id="progress-grid-panel">
-                                <!-- Progress grid items will be rendered by JS -->
+                            <div class="chart-container-lg">
+                                <canvas id="appendix-progress-chart"></canvas>
                             </div>
                         </div>
                         
+                        <!-- Appendix Progress Grid (kept for detailed view) -->
+                        <div class="chart-card full-width">
+                            <div class="chart-header">
+                                <span class="chart-title">Appendix Details</span>
+                            </div>
+                            <div class="progress-grid" id="progress-grid-panel"></div>
+                        </div>
+                        
                         <!-- Actions Panel -->
-                        <div class="soc-actions-panel">
+                        <div class="chart-card full-width actions-panel">
                             <div class="actions-info">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 <span>Resetting progress will clear all your answers and statistics. This action cannot be undone.</span>
                             </div>
                             <div class="progress-actions">
-                                <button class="action-btn secondary" id="export-progress-btn">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    Export Progress
-                                </button>
-                                <button class="action-btn danger" id="reset-progress-btn">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                    Reset All Progress
-                                </button>
+                                <button class="action-btn secondary" id="export-progress-btn">Export Progress</button>
+                                <button class="action-btn danger" id="reset-progress-btn">Reset All Progress</button>
                             </div>
                         </div>
                     </div>
