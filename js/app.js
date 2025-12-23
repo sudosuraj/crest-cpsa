@@ -948,34 +948,35 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // ==================== CENTRALIZED UI UPDATE ====================
     let uiUpdateTimer = null;
     
-    function updateAllUI() {
-        updateCounts();
-        updateProgressGridPanel();
-        updateInsightsSummary();
-        updateReviewStats();
-        updateMobileSidebarStats();
-        updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
-        renderStreak();
-        renderXP();
+        function updateAllUI() {
+            updateCounts();
+            updateProgressGridPanel();
+            updateInsightsSummary();
+            updateReviewStats();
+            updateMobileSidebarStats();
+            updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
+            renderStreak();
+            renderXP();
+            updateAdditionalVisualizations(); // Update new KPIs and charts
         
-        // Update nav bar stats
-        const stats = calculateStats();
-        const percentageElement = document.getElementById("percentage");
-        const accuracyBar = document.getElementById("accuracy-bar");
-        const attemptedCount = document.getElementById("attempted-count");
+            // Update nav bar stats
+            const stats = calculateStats();
+            const percentageElement = document.getElementById("percentage");
+            const accuracyBar = document.getElementById("accuracy-bar");
+            const attemptedCount = document.getElementById("attempted-count");
         
-        if (percentageElement) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            percentageElement.textContent = percentage;
+            if (percentageElement) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                percentageElement.textContent = percentage;
+            }
+            if (accuracyBar) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                accuracyBar.style.width = `${percentage}%`;
+            }
+            if (attemptedCount) {
+                attemptedCount.textContent = stats.attempted;
+            }
         }
-        if (accuracyBar) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            accuracyBar.style.width = `${percentage}%`;
-        }
-        if (attemptedCount) {
-            attemptedCount.textContent = stats.attempted;
-        }
-    }
     
     function scheduleUIUpdate() {
         if (uiUpdateTimer) {
@@ -3265,6 +3266,242 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 </div>
             </div>
         `;
+    }
+    
+    // ==================== ADDITIONAL KPI & VISUALIZATION FUNCTIONS ====================
+    
+    // Render Practice vs Exam comparison chart
+    function renderPracticeExamComparison() {
+        const container = document.getElementById('practice-exam-comparison');
+        if (!container) return;
+        
+        // Calculate practice stats (non-exam questions)
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !isExamQuestion(qId));
+        const practiceAttempted = practiceAnswers.length;
+        const practiceCorrect = practiceAnswers.filter(([, s]) => s.correct).length;
+        const practiceAccuracy = practiceAttempted > 0 ? Math.round((practiceCorrect / practiceAttempted) * 100) : 0;
+        
+        // Calculate exam stats
+        const examAnswers = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
+        const examAttempted = examAnswers.length;
+        const examCorrect = examAnswers.filter(([, s]) => s.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        
+        if (practiceAttempted === 0 && examAttempted === 0) {
+            container.innerHTML = '<p class="placeholder-text">No data yet</p>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Practice</span><span>${practiceCorrect}/${practiceAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill practice" style="width: ${practiceAccuracy}%">
+                        ${practiceAccuracy > 15 ? `<span class="comparison-bar-value">${practiceAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Exam</span><span>${examCorrect}/${examAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill exam" style="width: ${examAccuracy}%">
+                        ${examAccuracy > 15 ? `<span class="comparison-bar-value">${examAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render 7-day activity chart
+    function renderWeeklyActivityChart() {
+        const container = document.getElementById('weekly-activity-chart');
+        if (!container) return;
+        
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const days = [];
+        
+        // Get last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            days.push({
+                date: date,
+                dayName: dayNames[date.getDay()],
+                isToday: i === 0
+            });
+        }
+        
+        // Count questions answered per day
+        const dailyCounts = days.map(day => {
+            const dayStart = new Date(day.date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(day.date);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            let count = 0;
+            Object.values(answerState).forEach(state => {
+                if (state.timestamp) {
+                    const answerDate = new Date(state.timestamp);
+                    if (answerDate >= dayStart && answerDate <= dayEnd) {
+                        count++;
+                    }
+                }
+            });
+            return count;
+        });
+        
+        const maxCount = Math.max(...dailyCounts, 1);
+        
+        let html = '<div class="activity-days">';
+        days.forEach((day, i) => {
+            const count = dailyCounts[i];
+            const height = Math.max(4, (count / maxCount) * 80);
+            const barClass = day.isToday ? 'today' : (count > 0 ? 'active' : 'inactive');
+            
+            html += `
+                <div class="activity-day">
+                    <div class="activity-bar-container">
+                        <div class="activity-bar ${barClass}" style="height: ${height}px" title="${count} questions"></div>
+                    </div>
+                    <span class="activity-day-label">${day.dayName}</span>
+                    ${count > 0 ? `<span class="activity-day-count">${count}</span>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    // Render additional KPI metrics
+    function renderKPIMetrics() {
+        // Average speed (questions per minute based on study time)
+        const avgSpeedEl = document.getElementById('avg-speed');
+        const masteryLevelEl = document.getElementById('mastery-level');
+        const bestCategoryEl = document.getElementById('best-category');
+        const longestStreakEl = document.getElementById('longest-streak');
+        
+        const totalAttempted = Object.keys(answerState).length;
+        const studySeconds = getStudyTime();
+        
+        if (avgSpeedEl) {
+            if (totalAttempted > 0 && studySeconds > 60) {
+                const questionsPerMin = (totalAttempted / (studySeconds / 60)).toFixed(1);
+                avgSpeedEl.textContent = `${questionsPerMin}/min`;
+            } else {
+                avgSpeedEl.textContent = '--';
+            }
+        }
+        
+        // Categories mastered (>80% accuracy with 5+ questions)
+        if (masteryLevelEl) {
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+                
+                if (!categoryStats[category]) {
+                    categoryStats[category] = { attempted: 0, correct: 0 };
+                }
+                categoryStats[category].attempted++;
+                if (state.correct) categoryStats[category].correct++;
+            });
+            
+            let masteredCount = 0;
+            let bestCategory = null;
+            let bestAccuracy = 0;
+            
+            Object.entries(categoryStats).forEach(([cat, stats]) => {
+                if (stats.attempted >= 5) {
+                    const accuracy = (stats.correct / stats.attempted) * 100;
+                    if (accuracy >= 80) masteredCount++;
+                    if (accuracy > bestAccuracy) {
+                        bestAccuracy = accuracy;
+                        bestCategory = cat;
+                    }
+                }
+            });
+            
+            masteryLevelEl.textContent = masteredCount;
+            
+            if (bestCategoryEl) {
+                bestCategoryEl.textContent = bestCategory ? (bestCategory.length > 8 ? bestCategory.substring(0, 8) + '...' : bestCategory) : '--';
+            }
+        }
+        
+        // Longest streak
+        if (longestStreakEl) {
+            const streak = loadStreak();
+            longestStreakEl.textContent = `${streak.longest || streak.count || 0}d`;
+        }
+    }
+    
+    // Render recent activity feed
+    function renderRecentActivity() {
+        const container = document.getElementById('recent-activity');
+        if (!container) return;
+        
+        // Get recent answers sorted by timestamp
+        const recentAnswers = Object.entries(answerState)
+            .filter(([, state]) => state.timestamp)
+            .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
+            .slice(0, 8);
+        
+        if (recentAnswers.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No activity yet</p>';
+            return;
+        }
+        
+        let html = '';
+        recentAnswers.forEach(([qId, state]) => {
+            const question = getQuestionById(qId);
+            const questionText = question?.question || 'Question';
+            const truncatedText = questionText.length > 60 ? questionText.substring(0, 60) + '...' : questionText;
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || '?');
+            const timeAgo = getTimeAgo(new Date(state.timestamp));
+            
+            html += `
+                <div class="recent-activity-item">
+                    <div class="recent-activity-icon ${state.correct ? 'correct' : 'incorrect'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            ${state.correct 
+                                ? '<path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/>' 
+                                : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
+                        </svg>
+                    </div>
+                    <div class="recent-activity-content">
+                        <div class="recent-activity-question">${escapeHtml(truncatedText)}</div>
+                        <div class="recent-activity-meta">${isExam ? 'Exam' : 'App. ' + category}</div>
+                    </div>
+                    <span class="recent-activity-time">${timeAgo}</span>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // Helper: Get time ago string
+    function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return 'now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h`;
+        const days = Math.floor(hours / 24);
+        return `${days}d`;
+    }
+    
+    // Update all additional visualizations
+    function updateAdditionalVisualizations() {
+        renderPracticeExamComparison();
+        renderWeeklyActivityChart();
+        renderKPIMetrics();
+        renderRecentActivity();
     }
     
     // Mode toggle (Study/Exam)
