@@ -81,8 +81,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .social-links a { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); transition: all 0.15s; }
 .social-links a:hover { background: var(--bg); color: var(--accent); text-decoration: none; }
 
-.main-content { flex: 1; margin-left: var(--side-nav-width); display: flex; flex-direction: column; transition: margin-left 0.2s ease; }
-.side-nav.collapsed ~ .main-content { margin-left: var(--side-nav-collapsed); }
+.main-content { flex: 1; margin-left: var(--side-nav-width); display: flex; flex-direction: column; transition: margin-left 0.2s ease; overflow-x: hidden; max-width: calc(100vw - var(--side-nav-width)); }
+.side-nav.collapsed ~ .main-content { margin-left: var(--side-nav-collapsed); max-width: calc(100vw - var(--side-nav-collapsed)); }
 
 .top-bar { position: sticky; top: 0; height: var(--top-bar-height); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; padding: 0 24px; z-index: 50; }
 .mobile-menu-btn { display: none; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--muted); }
