@@ -24,11 +24,17 @@ const LLMClient = (function() {
         circuitBreakerResetMs: 120000, // Time before circuit breaker resets (increased from 60000)
         rateLimitCooldownMs: 30000, // Extra cooldown after hitting rate limit
         storageKey: 'llm_client_state', // Key for persisting state
-        apiKeyStorageKey: 'llm_api_key' // Key for storing custom API key
+        apiKeyStorageKey: 'llm_api_key', // Key for storing custom API key
+        customEndpointStorageKey: 'llm_custom_endpoint', // Key for storing custom endpoint URL
+        customModelStorageKey: 'llm_custom_model' // Key for storing custom model name
     };
     
     // Custom API key (user-provided to avoid 429 errors)
     let customApiKey = null;
+    
+    // Custom endpoint and model (user-provided for OpenAI-compatible LLMs)
+    let customEndpoint = null;
+    let customModel = null;
 
     // Queue state
     const requestQueue = [];
@@ -69,6 +75,7 @@ const LLMClient = (function() {
     // Load persisted state on init
     loadPersistedState();
     loadApiKey();
+    loadCustomSettings();
     
     // Start listening for storage changes (cross-tab lock coordination)
     if (typeof window !== 'undefined') {
@@ -136,6 +143,273 @@ const LLMClient = (function() {
      */
     function hasApiKey() {
         return !!customApiKey;
+    }
+
+    // ==================== OWASP SECURITY VALIDATION ====================
+    
+    /**
+     * Validate URL format with OWASP security considerations
+     * - Must be valid HTTPS URL (or HTTP for localhost development)
+     * - Prevents javascript:, data:, and other dangerous schemes
+     * - Validates URL structure
+     * @param {string} url - The URL to validate
+     * @returns {object} - { valid: boolean, error: string|null, sanitized: string|null }
+     */
+    function validateEndpointUrl(url) {
+        if (!url || typeof url !== 'string') {
+            return { valid: false, error: 'URL is required', sanitized: null };
+        }
+        
+        const trimmedUrl = url.trim();
+        
+        if (trimmedUrl.length === 0) {
+            return { valid: false, error: 'URL cannot be empty', sanitized: null };
+        }
+        
+        if (trimmedUrl.length > 2048) {
+            return { valid: false, error: 'URL exceeds maximum length (2048 characters)', sanitized: null };
+        }
+        
+        // Block dangerous URL schemes (OWASP: Prevent XSS via URL injection)
+        const dangerousSchemes = /^(javascript|data|vbscript|file|ftp):/i;
+        if (dangerousSchemes.test(trimmedUrl)) {
+            return { valid: false, error: 'Invalid URL scheme. Only HTTPS URLs are allowed.', sanitized: null };
+        }
+        
+        try {
+            const parsedUrl = new URL(trimmedUrl);
+            
+            // Only allow http/https protocols
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                return { valid: false, error: 'Only HTTP/HTTPS URLs are allowed', sanitized: null };
+            }
+            
+            // For non-localhost, require HTTPS (OWASP: Enforce secure transport)
+            const isLocalhost = parsedUrl.hostname === 'localhost' || 
+                               parsedUrl.hostname === '127.0.0.1' ||
+                               parsedUrl.hostname.endsWith('.local');
+            
+            if (!isLocalhost && parsedUrl.protocol !== 'https:') {
+                return { valid: false, error: 'HTTPS is required for non-localhost URLs', sanitized: null };
+            }
+            
+            // Validate hostname is not empty
+            if (!parsedUrl.hostname) {
+                return { valid: false, error: 'Invalid URL: hostname is required', sanitized: null };
+            }
+            
+            // Block URLs with credentials in them (OWASP: Prevent credential exposure)
+            if (parsedUrl.username || parsedUrl.password) {
+                return { valid: false, error: 'URLs with embedded credentials are not allowed', sanitized: null };
+            }
+            
+            // Return sanitized URL (reconstructed from parsed components)
+            const sanitizedUrl = parsedUrl.origin + parsedUrl.pathname;
+            return { valid: true, error: null, sanitized: sanitizedUrl };
+            
+        } catch (e) {
+            return { valid: false, error: 'Invalid URL format', sanitized: null };
+        }
+    }
+    
+    /**
+     * Validate model name with OWASP security considerations
+     * - Alphanumeric with hyphens, underscores, dots, colons, and slashes
+     * - Reasonable length limit
+     * - Prevents injection attacks
+     * @param {string} model - The model name to validate
+     * @returns {object} - { valid: boolean, error: string|null, sanitized: string|null }
+     */
+    function validateModelName(model) {
+        if (!model || typeof model !== 'string') {
+            return { valid: false, error: 'Model name is required', sanitized: null };
+        }
+        
+        const trimmedModel = model.trim();
+        
+        if (trimmedModel.length === 0) {
+            return { valid: false, error: 'Model name cannot be empty', sanitized: null };
+        }
+        
+        if (trimmedModel.length > 128) {
+            return { valid: false, error: 'Model name exceeds maximum length (128 characters)', sanitized: null };
+        }
+        
+        // Allow alphanumeric, hyphens, underscores, dots, colons, and forward slashes
+        // This covers formats like: gpt-4o-mini, claude-3-opus, mistral/mixtral-8x7b, org:model-name
+        const validModelPattern = /^[a-zA-Z0-9][a-zA-Z0-9\-_.:\/]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+        
+        if (!validModelPattern.test(trimmedModel)) {
+            return { 
+                valid: false, 
+                error: 'Model name can only contain letters, numbers, hyphens, underscores, dots, colons, and forward slashes', 
+                sanitized: null 
+            };
+        }
+        
+        // Check for path traversal attempts
+        if (trimmedModel.includes('..') || trimmedModel.includes('//')) {
+            return { valid: false, error: 'Invalid model name format', sanitized: null };
+        }
+        
+        return { valid: true, error: null, sanitized: trimmedModel };
+    }
+
+    // ==================== CUSTOM ENDPOINT/MODEL MANAGEMENT ====================
+    
+    /**
+     * Load custom endpoint and model from localStorage
+     */
+    function loadCustomSettings() {
+        try {
+            const savedEndpoint = localStorage.getItem(CONFIG.customEndpointStorageKey);
+            const savedModel = localStorage.getItem(CONFIG.customModelStorageKey);
+            
+            if (savedEndpoint) {
+                const validation = validateEndpointUrl(savedEndpoint);
+                if (validation.valid) {
+                    customEndpoint = validation.sanitized;
+                    console.log('LLMClient: Custom endpoint loaded');
+                } else {
+                    localStorage.removeItem(CONFIG.customEndpointStorageKey);
+                    console.warn('LLMClient: Removed invalid saved endpoint');
+                }
+            }
+            
+            if (savedModel) {
+                const validation = validateModelName(savedModel);
+                if (validation.valid) {
+                    customModel = validation.sanitized;
+                    console.log('LLMClient: Custom model loaded');
+                } else {
+                    localStorage.removeItem(CONFIG.customModelStorageKey);
+                    console.warn('LLMClient: Removed invalid saved model');
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load custom settings:', e);
+        }
+    }
+    
+    /**
+     * Set custom endpoint URL
+     * @param {string} url - The endpoint URL to use
+     * @returns {object} - { success: boolean, error: string|null }
+     */
+    function setCustomEndpoint(url) {
+        if (!url || url.trim() === '') {
+            customEndpoint = null;
+            try {
+                localStorage.removeItem(CONFIG.customEndpointStorageKey);
+            } catch (e) {
+                console.warn('Failed to clear custom endpoint:', e);
+            }
+            return { success: true, error: null };
+        }
+        
+        const validation = validateEndpointUrl(url);
+        if (!validation.valid) {
+            return { success: false, error: validation.error };
+        }
+        
+        customEndpoint = validation.sanitized;
+        try {
+            localStorage.setItem(CONFIG.customEndpointStorageKey, customEndpoint);
+            console.log('LLMClient: Custom endpoint saved');
+        } catch (e) {
+            console.warn('Failed to save custom endpoint:', e);
+        }
+        return { success: true, error: null };
+    }
+    
+    /**
+     * Set custom model name
+     * @param {string} model - The model name to use
+     * @returns {object} - { success: boolean, error: string|null }
+     */
+    function setCustomModel(model) {
+        if (!model || model.trim() === '') {
+            customModel = null;
+            try {
+                localStorage.removeItem(CONFIG.customModelStorageKey);
+            } catch (e) {
+                console.warn('Failed to clear custom model:', e);
+            }
+            return { success: true, error: null };
+        }
+        
+        const validation = validateModelName(model);
+        if (!validation.valid) {
+            return { success: false, error: validation.error };
+        }
+        
+        customModel = validation.sanitized;
+        try {
+            localStorage.setItem(CONFIG.customModelStorageKey, customModel);
+            console.log('LLMClient: Custom model saved');
+        } catch (e) {
+            console.warn('Failed to save custom model:', e);
+        }
+        return { success: true, error: null };
+    }
+    
+    /**
+     * Clear all custom settings (endpoint, model, and API key)
+     */
+    function clearAllCustomSettings() {
+        customEndpoint = null;
+        customModel = null;
+        customApiKey = null;
+        try {
+            localStorage.removeItem(CONFIG.customEndpointStorageKey);
+            localStorage.removeItem(CONFIG.customModelStorageKey);
+            localStorage.removeItem(CONFIG.apiKeyStorageKey);
+            console.log('LLMClient: All custom settings cleared');
+        } catch (e) {
+            console.warn('Failed to clear custom settings:', e);
+        }
+    }
+    
+    /**
+     * Get current custom endpoint (or null if using default)
+     */
+    function getCustomEndpoint() {
+        return customEndpoint;
+    }
+    
+    /**
+     * Get current custom model (or null if using default)
+     */
+    function getCustomModel() {
+        return customModel;
+    }
+    
+    /**
+     * Check if custom endpoint is set
+     */
+    function hasCustomEndpoint() {
+        return !!customEndpoint;
+    }
+    
+    /**
+     * Check if custom model is set
+     */
+    function hasCustomModel() {
+        return !!customModel;
+    }
+    
+    /**
+     * Get the effective endpoint (custom or default)
+     */
+    function getEffectiveEndpoint() {
+        return customEndpoint || CONFIG.endpoint;
+    }
+    
+    /**
+     * Get the effective model (custom or default)
+     */
+    function getEffectiveModel() {
+        return customModel || CONFIG.model;
     }
 
     /**
@@ -487,6 +761,7 @@ const LLMClient = (function() {
 
     /**
      * Make a single API request with timeout
+     * Uses custom endpoint/model if set, otherwise falls back to defaults
      */
     async function makeRequest(payload) {
         const controller = new AbortController();
@@ -500,11 +775,16 @@ const LLMClient = (function() {
                 headers['Authorization'] = `Bearer ${customApiKey}`;
             }
             
-            const response = await fetch(CONFIG.endpoint, {
+            // Use custom endpoint if set, otherwise use default
+            const endpoint = getEffectiveEndpoint();
+            // Use custom model if set, otherwise use default (payload.model can override)
+            const model = payload.model || getEffectiveModel();
+            
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
-                    model: payload.model || CONFIG.model,
+                    model: model,
                     messages: payload.messages,
                     max_tokens: payload.max_tokens || 600,
                     temperature: payload.temperature || 0.7
@@ -804,6 +1084,19 @@ const LLMClient = (function() {
         setApiKey,
         clearApiKey,
         hasApiKey,
+        // Custom endpoint/model management
+        setCustomEndpoint,
+        setCustomModel,
+        getCustomEndpoint,
+        getCustomModel,
+        hasCustomEndpoint,
+        hasCustomModel,
+        getEffectiveEndpoint,
+        getEffectiveModel,
+        clearAllCustomSettings,
+        // Validation functions (exposed for UI feedback)
+        validateEndpointUrl,
+        validateModelName,
         // Expose config for debugging
         getConfig: () => ({ ...CONFIG })
     };
