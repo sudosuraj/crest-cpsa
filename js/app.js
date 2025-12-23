@@ -636,9 +636,14 @@
         const currentStreakEl = document.getElementById('current-streak');
         const progressRingFill = document.getElementById('progress-ring-fill');
         
-        // Calculate overall progress percentage
-        const totalQuestions = Object.keys(quizData).length || 1;
-        const progressPercent = Math.round((stats.attempted / totalQuestions) * 100);
+        // Calculate overall progress percentage using canonical total from examQuizData (803 questions)
+        // quizData only contains dynamically loaded questions, so we use examQuizData for the true total
+        const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
+            ? Object.keys(examQuizData).length 
+            : 803; // Fallback to known total
+        // Filter out exam questions (exam_ prefix) from attempted count for practice progress
+        const practiceAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
+        const progressPercent = Math.min(100, Math.round((practiceAttempted / totalQuestions) * 100));
         
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
@@ -1170,40 +1175,28 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         explanationDiv.classList.add('show', 'loading');
         explanationDiv.textContent = 'Generating explanation...';
 
-        // Get source_chunk_id from question data for direct lookup (more efficient than search)
+        // Get question data for context
         const questionData = quizData[questionId];
-        const sourceChunkId = questionData?.source_chunk_id || null;
+        const correctAnswer = questionData?.answer || '';
 
-        const prompt = `For this cybersecurity question: "${questionText}" - Provide background context and key concepts/terms that are relevant to understanding this question. Use the reference material provided to give accurate information from the CPSA study notes. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
+        // Simple prompt without RAG - just explain the question and correct answer
+        const prompt = `For this CPSA cybersecurity question: "${questionText}"
+
+Correct Answer: "${correctAnswer}"
+
+Provide background context and key concepts/terms that are relevant to understanding this question. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
         
-        const result = await callOpenAI(prompt, { 
-            useRAG: true, 
-            sourceChunkId,  // Direct chunk lookup - more efficient than broad search
-            ragQuery: questionText,
-            topK: 3 
-        });
+        // Call without RAG for faster response
+        const result = await callOpenAI(prompt, { useRAG: false });
 
         explanationDiv.classList.remove('loading');
-        
-        // Handle RAG response with sources
-        if (result && typeof result === 'object' && result.answer) {
-            let content = result.answer;
-            if (result.sources && result.sources.length > 0) {
-                content += '\n\n--- Sources ---\n';
-                result.sources.forEach(src => {
-                    content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
-                });
-            }
-            explanationDiv.textContent = content;
-        } else {
-            explanationDiv.textContent = result;
-        }
+        explanationDiv.textContent = result || 'Unable to generate explanation.';
         
         button.disabled = false;
-        button.textContent = '[AI+RAG] Hide Explanation';
+        button.textContent = '[AI] Hide Explanation';
     }
 
-    // Function to explain answer on demand - OPTIMIZED: uses source_chunk_id for direct lookup
+    // Function to explain answer on demand - simplified without RAG for faster response
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
         const explanationDiv = document.getElementById(`answer-explanation-${questionId}`);
@@ -1228,7 +1221,6 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const questionText = state.questionText || (questionData ? questionData.question : '');
         const selectedAnswer = state.selectedAnswer || state.selected || '';
         const correctAnswer = state.correctAnswer || (questionData ? questionData.answer : '');
-        const sourceChunkId = questionData?.source_chunk_id || null;
 
         if (!questionText || !correctAnswer) {
             explanationDiv.classList.add('show');
@@ -1244,38 +1236,29 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
         try {
             let prompt;
-            const ragQuery = `${questionText} ${correctAnswer}`;
             
             if (isCorrect) {
-                prompt = `Explain why this answer is correct using the reference material provided. Question: "${questionText}" Correct Answer: "${selectedAnswer}". Cite the relevant source if applicable. Keep it concise (2-3 sentences).`;
+                prompt = `Question: "${questionText}"
+Correct Answer: "${selectedAnswer}"
+User was CORRECT.
+
+Explain why this answer is correct. Keep it concise (2-3 sentences).`;
             } else {
-                prompt = `Explain why this answer is incorrect and why the correct answer is right, using the reference material provided. Question: "${questionText}" Selected Answer: "${selectedAnswer}" Correct Answer: "${correctAnswer}". Cite the relevant source if applicable. Keep it concise (3-4 sentences).`;
+                prompt = `Question: "${questionText}"
+User's Answer: "${selectedAnswer}"
+Correct Answer: "${correctAnswer}"
+User was INCORRECT.
+
+Explain why the user's answer is incorrect and why the correct answer is right. Keep it concise (3-4 sentences).`;
             }
 
-            const result = await callOpenAI(prompt, {
-                useRAG: true,
-                sourceChunkId,  // Direct chunk lookup - more efficient than broad search
-                ragQuery: ragQuery,
-                topK: 3
-            });
+            // Call without RAG for faster response
+            const result = await callOpenAI(prompt, { useRAG: false });
 
             explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = result || 'Unable to generate explanation.';
             
-            // Handle RAG response with sources
-            if (result && typeof result === 'object' && result.answer) {
-                let content = result.answer;
-                if (result.sources && result.sources.length > 0) {
-                    content += '\n\n--- Sources ---\n';
-                    result.sources.forEach(src => {
-                        content += `[${src.index}] ${src.sectionTitle} (${src.appendix})\n`;
-                    });
-                }
-                explanationDiv.textContent = content;
-            } else {
-                explanationDiv.textContent = result || 'Unable to generate explanation.';
-            }
-            
-            button.textContent = '[AI+RAG] Hide Answer Explanation';
+            button.textContent = '[AI] Hide Answer Explanation';
         } catch (error) {
             console.error('Error explaining answer:', error);
             explanationDiv.classList.remove('loading');
@@ -2548,16 +2531,18 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         explanationDiv.style.display = 'block';
         
         const prompt = `Question: ${questionObj.question}
-        
+
 Correct Answer: ${questionObj.answer}
 User's Answer: ${state.selectedAnswer}
 User was ${state.isCorrect ? 'CORRECT' : 'INCORRECT'}
 
 Please explain why the correct answer is right and why the other options are wrong. Keep the explanation concise but educational.`;
         
-        callOpenAI([{ role: 'user', content: prompt }])
+        // Call without RAG for faster response - fixed to pass string prompt instead of array
+        callOpenAI(prompt, { useRAG: false })
             .then(response => {
-                explanationDiv.innerHTML = `<div class="explanation-content">${response.replace(/\n/g, '<br>')}</div>`;
+                const responseText = typeof response === 'string' ? response : (response?.answer || 'Unable to generate explanation.');
+                explanationDiv.innerHTML = `<div class="explanation-content">${responseText.replace(/\n/g, '<br>')}</div>`;
             })
             .catch(error => {
                 explanationDiv.innerHTML = `<div class="explanation-error">Could not get explanation: ${error.message}</div>`;
@@ -2763,8 +2748,10 @@ Please explain why the correct answer is right and why the other options are wro
     
     // Update insights summary
     function updateInsightsSummary() {
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
+        const attempted = practiceAnswers.length;
+        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
         // Update Insights panel stats (correct IDs from HTML)
@@ -2795,9 +2782,12 @@ Please explain why the correct answer is right and why the other options are wro
     
     // Update review stats
     function updateReviewStats() {
-        const incorrectCount = Object.values(answerState).filter(s => !s.correct).length;
-        // flaggedQuestions is a Set, use .size instead of Object.values()
-        const flaggedCount = flaggedQuestions.size;
+        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
+        const incorrectCount = practiceAnswers.filter(([, s]) => !s.correct).length;
+        // Filter out exam flagged questions (exam_ prefix)
+        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
+        const flaggedCount = practiceFlagged.length;
         
         // Update Review panel stats (correct IDs from HTML)
         const incorrectEl = document.getElementById('incorrect-count');
@@ -2885,9 +2875,11 @@ Please explain why the correct answer is right and why the other options are wro
         const categoryStatsEl = document.getElementById('category-stats');
         if (!categoryStatsEl) return;
         
-        // Calculate stats per appendix/category
+        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
         const categoryStats = {};
-        Object.entries(answerState).forEach(([qId, state]) => {
+        Object.entries(answerState)
+            .filter(([qId]) => !qId.startsWith('exam_'))
+            .forEach(([qId, state]) => {
             const question = quizData[qId];
             const category = question?.appendix || 'Unknown';
             const categoryTitle = question?.appendix_title || category;
@@ -2943,9 +2935,11 @@ Please explain why the correct answer is right and why the other options are wro
         const weakAreasEl = document.getElementById('weak-areas');
         if (!weakAreasEl) return;
         
-        // Calculate stats per appendix/category
+        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
         const categoryStats = {};
-        Object.entries(answerState).forEach(([qId, state]) => {
+        Object.entries(answerState)
+            .filter(([qId]) => !qId.startsWith('exam_'))
+            .forEach(([qId, state]) => {
             const question = quizData[qId];
             const category = question?.appendix || 'Unknown';
             const categoryTitle = question?.appendix_title || category;
@@ -2979,7 +2973,8 @@ Please explain why the correct answer is right and why the other options are wro
             .sort((a, b) => a.accuracy - b.accuracy);
         
         if (weakAreas.length === 0) {
-            const totalAttempted = Object.keys(answerState).length;
+            // Filter out exam questions for total count
+            const totalAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
             if (totalAttempted < 10) {
                 weakAreasEl.innerHTML = '<p class="placeholder-text">Complete more questions to identify weak areas</p>';
             } else {
@@ -3007,8 +3002,10 @@ Please explain why the correct answer is right and why the other options are wro
         const container = document.getElementById('accuracy-donut');
         if (!container) return;
         
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
+        const attempted = practiceAnswers.length;
+        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
         
         if (attempted === 0) {
@@ -3067,10 +3064,14 @@ Please explain why the correct answer is right and why the other options are wro
         const container = document.getElementById('review-donut');
         if (!container) return;
         
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(s => s.correct).length;
+        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
+        const attempted = practiceAnswers.length;
+        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
-        const flagged = flaggedQuestions.size;
+        // Filter out exam flagged questions (exam_ prefix)
+        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
+        const flagged = practiceFlagged.length;
         
         if (attempted === 0) {
             container.innerHTML = `
