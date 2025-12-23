@@ -641,28 +641,17 @@
         const stats = calculateStats();
         const streak = loadStreak();
         
-        // Update Progress panel overview stats (correct IDs from HTML)
-        const overallProgressEl = document.getElementById('overall-progress');
-        const questionsAnsweredEl = document.getElementById('questions-answered');
-        const appendicesStartedEl = document.getElementById('appendices-started');
-        const currentStreakEl = document.getElementById('current-streak');
-        const progressRingFill = document.getElementById('progress-ring-fill');
-        
         // Calculate overall progress percentage using canonical total from examQuizData (803 questions)
-        // quizData only contains dynamically loaded questions, so we use examQuizData for the true total
         const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
             ? Object.keys(examQuizData).length 
-            : 803; // Fallback to known total
-        // Include ALL answered questions (both practice and exam) for progress
+            : 803;
         const totalAttempted = Object.keys(answerState).length;
         const progressPercent = Math.min(100, Math.round((totalAttempted / totalQuestions) * 100));
+        const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
         
-        if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
-        if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
-        if (currentStreakEl) currentStreakEl.textContent = `${streak.count || 0} days`;
-        
-        // Count appendices/categories started (appendices with at least one question answered)
+        // Count appendices/categories started
         const appendicesWithProgress = new Set();
+        const masteredCategories = new Set();
         Object.keys(answerState).forEach(qId => {
             const q = getQuestionById(qId);
             if (q) {
@@ -673,20 +662,72 @@
                 }
             }
         });
-        if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
         
-        // Update progress ring SVG
-        if (progressRingFill) {
-            const circumference = 2 * Math.PI * 54; // r=54 from HTML
-            const offset = circumference - (progressPercent / 100) * circumference;
-            progressRingFill.style.strokeDasharray = `${circumference}`;
-            progressRingFill.style.strokeDashoffset = `${offset}`;
+        // Count mastered categories (>= 80% accuracy with >= 10 questions)
+        const categoryStats = getCategoryStats();
+        Object.entries(categoryStats).forEach(([cat, catStats]) => {
+            if (catStats.attempted >= 10) {
+                const catAcc = Math.round((catStats.correct / catStats.attempted) * 100);
+                if (catAcc >= 80) masteredCategories.add(cat);
+            }
+        });
+        
+        // Update SOC Progress Center elements
+        const overallProgressEl = document.getElementById('overall-progress');
+        const completionStatusEl = document.getElementById('completion-status');
+        const questionsAnsweredEl = document.getElementById('questions-answered');
+        const appendicesStartedEl = document.getElementById('appendices-started');
+        const currentStreakEl = document.getElementById('current-streak');
+        const categoriesMasteredEl = document.getElementById('categories-mastered');
+        const readinessBadgeEl = document.getElementById('readiness-badge');
+        
+        if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
+        if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
+        if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
+        if (currentStreakEl) currentStreakEl.textContent = streak.count || 0;
+        if (categoriesMasteredEl) categoriesMasteredEl.textContent = masteredCategories.size;
+        
+        // Update completion status badge
+        if (completionStatusEl) {
+            if (progressPercent >= 80) {
+                completionStatusEl.textContent = 'NEAR COMPLETE';
+                completionStatusEl.className = 'progress-status complete';
+            } else if (progressPercent >= 50) {
+                completionStatusEl.textContent = 'GOOD PROGRESS';
+                completionStatusEl.className = 'progress-status good';
+            } else if (progressPercent >= 20) {
+                completionStatusEl.textContent = 'IN PROGRESS';
+                completionStatusEl.className = 'progress-status';
+            } else {
+                completionStatusEl.textContent = 'JUST STARTED';
+                completionStatusEl.className = 'progress-status starting';
+            }
         }
         
+        // Update readiness badge
+        if (readinessBadgeEl) {
+            const readinessScore = calculateReadinessScore(progressPercent, accuracy, appendicesWithProgress.size);
+            if (readinessScore >= 80) {
+                readinessBadgeEl.textContent = 'EXAM READY';
+                readinessBadgeEl.className = 'readiness-badge ready';
+            } else if (readinessScore >= 50) {
+                readinessBadgeEl.textContent = 'PREPARING';
+                readinessBadgeEl.className = 'readiness-badge preparing';
+            } else {
+                readinessBadgeEl.textContent = 'NOT READY';
+                readinessBadgeEl.className = 'readiness-badge';
+            }
+        }
+        
+        // Render SOC Progress visualizations
+        renderProgressRing(progressPercent);
+        renderReadinessGauge(progressPercent, accuracy, appendicesWithProgress.size);
+        renderAppendixProgressGrid(categoryStats, appendicesWithProgress);
+        
+        // Also render the legacy grid if it exists
         if (!grid) return;
         const categorizedQuestions = {};
         
-        // Group practice questions by category
         Object.entries(quizData).forEach(([id, q]) => {
             const category = categorizeQuestion(q);
             if (!categorizedQuestions[category]) {
@@ -695,14 +736,12 @@
             categorizedQuestions[category].push(id);
         });
         
-        // Add exam questions as a separate category if any have been answered
         const examAnsweredIds = Object.keys(answerState).filter(qId => isExamQuestion(qId));
         if (examAnsweredIds.length > 0 || (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)) {
             const examCategory = 'Exam Questions';
             if (!categorizedQuestions[examCategory]) {
                 categorizedQuestions[examCategory] = [];
             }
-            // Add all exam question IDs that have been answered
             examAnsweredIds.forEach(qId => {
                 if (!categorizedQuestions[examCategory].includes(qId)) {
                     categorizedQuestions[examCategory].push(qId);
@@ -732,13 +771,11 @@
                 </div>
             `;
             
-            // Add click handler for reset button
             const resetBtn = item.querySelector('.category-reset-btn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const cat = e.target.dataset.category;
-                    // resetCategoryProgress already has confirmation dialog
                     resetCategoryProgress(cat);
                     updateProgressGridPanel();
                 });
@@ -746,6 +783,102 @@
             
             grid.appendChild(item);
         });
+    }
+    
+    // Calculate exam readiness score
+    function calculateReadinessScore(progressPercent, accuracy, appendicesStarted) {
+        const progressWeight = 0.3;
+        const accuracyWeight = 0.5;
+        const coverageWeight = 0.2;
+        const coverageScore = Math.min(100, (appendicesStarted / 11) * 100);
+        return Math.round(
+            (progressPercent * progressWeight) +
+            (accuracy * accuracyWeight) +
+            (coverageScore * coverageWeight)
+        );
+    }
+    
+    // Render Progress Ring
+    function renderProgressRing(progressPercent) {
+        const ringFill = document.getElementById('progress-ring-fill');
+        if (!ringFill) return;
+        
+        const circumference = 377;
+        const offset = circumference - (progressPercent / 100) * circumference;
+        ringFill.style.strokeDashoffset = offset;
+    }
+    
+    // Render Readiness Gauge
+    function renderReadinessGauge(progressPercent, accuracy, appendicesStarted) {
+        const gaugeFill = document.getElementById('readiness-gauge-fill');
+        const gaugeNeedle = document.getElementById('readiness-needle');
+        
+        if (!gaugeFill || !gaugeNeedle) return;
+        
+        const readinessScore = calculateReadinessScore(progressPercent, accuracy, appendicesStarted);
+        const arcLength = 251.2;
+        const fillAmount = (readinessScore / 100) * arcLength;
+        const needleAngle = -90 + (readinessScore / 100) * 180;
+        
+        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+    }
+    
+    // Render Appendix Progress Grid
+    function renderAppendixProgressGrid(categoryStats, appendicesWithProgress) {
+        const gridContainer = document.getElementById('appendix-progress-grid');
+        if (!gridContainer) return;
+        
+        const appendices = [
+            { letter: 'A', title: 'Soft Skills and Assessment Management' },
+            { letter: 'B', title: 'Core Technical Skills' },
+            { letter: 'C', title: 'Background Information Gathering' },
+            { letter: 'D', title: 'Networking' },
+            { letter: 'E', title: 'Microsoft Windows Security Assessment' },
+            { letter: 'F', title: 'Unix Security Assessment' },
+            { letter: 'G', title: 'Web Technologies' },
+            { letter: 'H', title: 'Web Testing Techniques' },
+            { letter: 'I', title: 'Databases' },
+            { letter: 'J', title: 'Applications' },
+            { letter: 'K', title: 'Decompilation and Debugging' }
+        ];
+        
+        let html = '';
+        appendices.forEach(app => {
+            const stats = categoryStats[app.letter];
+            let status = 'not-started';
+            let accuracy = 0;
+            let attempted = 0;
+            let correct = 0;
+            
+            if (stats && stats.attempted > 0) {
+                attempted = stats.attempted;
+                correct = stats.correct;
+                accuracy = Math.round((correct / attempted) * 100);
+                
+                if (accuracy >= 80 && attempted >= 10) {
+                    status = 'mastered';
+                } else {
+                    status = 'in-progress';
+                }
+            }
+            
+            html += `
+                <div class="appendix-progress-item ${status}" onclick="Router.navigate('appendix', '${app.letter}')">
+                    <div class="appendix-progress-header">
+                        <span class="appendix-letter">${app.letter}</span>
+                        <span class="appendix-status-dot ${status}"></span>
+                    </div>
+                    <div class="appendix-progress-title">${app.title}</div>
+                    <div class="appendix-progress-bar">
+                        <div class="appendix-progress-fill" style="width: ${accuracy}%"></div>
+                    </div>
+                    <div class="appendix-progress-stats">${correct}/${attempted} correct (${accuracy}%)</div>
+                </div>
+            `;
+        });
+        
+        gridContainer.innerHTML = html;
     }
     
     // ==================== FLAG FOR REVIEW ====================
@@ -2953,62 +3086,605 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Update insights summary
     function updateInsightsSummary() {
-        // Include ALL questions (both practice and exam) for insights
         const allAnswers = Object.entries(answerState);
         const attempted = allAnswers.length;
         const correct = allAnswers.filter(([, s]) => s.correct).length;
+        const incorrect = attempted - correct;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        // Update Insights panel stats (correct IDs from HTML)
+        // Calculate study time
+        const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
+        const totalSeconds = getStudyTime() + currentSession;
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const studyTimeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        
+        // Update SOC Command Center elements
+        const overallAccuracyEl = document.getElementById('overall-accuracy');
+        const scoreStatusEl = document.getElementById('score-status');
         const totalAttemptedEl = document.getElementById('total-attempted');
         const totalCorrectEl = document.getElementById('total-correct');
-        const overallAccuracyEl = document.getElementById('overall-accuracy');
         const studyTimeEl = document.getElementById('study-time');
+        const streakDaysEl = document.getElementById('streak-days');
+        const masteryLevelEl = document.getElementById('mastery-level');
+        const masteryBadgeEl = document.getElementById('mastery-badge');
         
+        if (overallAccuracyEl) overallAccuracyEl.textContent = `${accuracy}%`;
         if (totalAttemptedEl) totalAttemptedEl.textContent = attempted;
         if (totalCorrectEl) totalCorrectEl.textContent = correct;
-        if (overallAccuracyEl) overallAccuracyEl.textContent = `${accuracy}%`;
+        if (studyTimeEl) studyTimeEl.textContent = studyTimeStr;
         
-        // Update study time (getStudyTime() returns seconds, not minutes)
-        if (studyTimeEl) {
-            const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
-            const totalSeconds = getStudyTime() + currentSession;
-            const totalMinutes = Math.floor(totalSeconds / 60);
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = totalMinutes % 60;
-            studyTimeEl.textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        // Update score status badge
+        if (scoreStatusEl) {
+            if (accuracy >= 80) {
+                scoreStatusEl.textContent = 'EXCELLENT';
+                scoreStatusEl.className = 'kpi-status excellent';
+            } else if (accuracy >= 60) {
+                scoreStatusEl.textContent = 'GOOD';
+                scoreStatusEl.className = 'kpi-status good';
+            } else if (accuracy >= 40) {
+                scoreStatusEl.textContent = 'NEEDS WORK';
+                scoreStatusEl.className = 'kpi-status warning';
+            } else {
+                scoreStatusEl.textContent = 'CRITICAL';
+                scoreStatusEl.className = 'kpi-status critical';
+            }
         }
         
-        // Render charts and stats
-        renderAccuracyDonut();
-        renderCategoryStats();
-        renderWeakAreas();
+        // Update streak
+        if (streakDaysEl) {
+            const streak = loadStreak();
+            streakDaysEl.textContent = streak.count || 0;
+        }
+        
+        // Calculate mastery level
+        const masteryLevel = calculateMasteryLevel(accuracy, attempted);
+        if (masteryLevelEl) masteryLevelEl.textContent = `${masteryLevel}%`;
+        if (masteryBadgeEl) {
+            if (masteryLevel >= 80) {
+                masteryBadgeEl.textContent = 'EXPERT';
+                masteryBadgeEl.className = 'kpi-badge expert';
+            } else if (masteryLevel >= 60) {
+                masteryBadgeEl.textContent = 'ADVANCED';
+                masteryBadgeEl.className = 'kpi-badge advanced';
+            } else if (masteryLevel >= 40) {
+                masteryBadgeEl.textContent = 'INTERMEDIATE';
+                masteryBadgeEl.className = 'kpi-badge intermediate';
+            } else {
+                masteryBadgeEl.textContent = 'BEGINNER';
+                masteryBadgeEl.className = 'kpi-badge beginner';
+            }
+        }
+        
+        // Render SOC visualizations for Insights
+        renderInsightsGauge(accuracy);
+        renderMasteryRing(masteryLevel);
+        renderInsightsCategoryMatrix();
+        renderAccuracyDonut(correct, incorrect);
+        renderActivityTrend();
+        renderInsightsRecommendations();
+        renderAchievementsBadges();
+        renderRecentActivity();
+    }
+    
+    // Calculate mastery level based on accuracy and coverage
+    function calculateMasteryLevel(accuracy, attempted) {
+        const totalQuestions = Object.keys(window.questionBank || {}).reduce((sum, key) => {
+            return sum + (window.questionBank[key]?.length || 0);
+        }, 0) + (window.examQuestions?.length || 0);
+        
+        const coverage = totalQuestions > 0 ? (attempted / totalQuestions) * 100 : 0;
+        return Math.round((accuracy * 0.7) + (Math.min(coverage, 100) * 0.3));
+    }
+    
+    // Render Insights Gauge
+    function renderInsightsGauge(accuracy) {
+        const gaugeFill = document.getElementById('insights-gauge-fill');
+        const gaugeNeedle = document.getElementById('insights-gauge-needle');
+        
+        if (!gaugeFill || !gaugeNeedle) return;
+        
+        const arcLength = 251.2;
+        const fillAmount = (accuracy / 100) * arcLength;
+        const needleAngle = -90 + (accuracy / 100) * 180;
+        
+        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+    }
+    
+    // Render Mastery Ring
+    function renderMasteryRing(masteryLevel) {
+        const ringFill = document.getElementById('mastery-ring-fill');
+        
+        if (!ringFill) return;
+        
+        const circumference = 282.74;
+        const fillAmount = (masteryLevel / 100) * circumference;
+        ringFill.style.strokeDashoffset = circumference - fillAmount;
+    }
+    
+    // Render Insights Category Matrix
+    function renderInsightsCategoryMatrix() {
+        const matrixContainer = document.getElementById('insights-category-matrix');
+        if (!matrixContainer) return;
+        
+        const categoryStats = getCategoryStats();
+        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        
+        let html = '';
+        appendices.forEach(letter => {
+            const stats = categoryStats[letter];
+            let accuracy = 0;
+            let barClass = 'neutral';
+            let tooltip = `Appendix ${letter}: No data`;
+            
+            if (stats && stats.attempted > 0) {
+                accuracy = Math.round((stats.correct / stats.attempted) * 100);
+                if (accuracy >= 70) barClass = 'success';
+                else if (accuracy >= 50) barClass = 'warning';
+                else barClass = 'critical';
+                tooltip = `${stats.title}: ${accuracy}% (${stats.correct}/${stats.attempted})`;
+            }
+            
+            html += `
+                <div class="category-bar-item" title="${tooltip}">
+                    <div class="category-bar-header">
+                        <span class="category-bar-name">${letter}</span>
+                        <span class="category-bar-stats">${accuracy}%</span>
+                    </div>
+                    <div class="category-bar-track">
+                        <div class="category-bar-fill ${barClass}" style="width: ${accuracy}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        matrixContainer.innerHTML = html;
+    }
+    
+    // Render Accuracy Donut for Insights
+    function renderAccuracyDonut(correct, incorrect) {
+        const donutContainer = document.getElementById('insights-donut');
+        if (!donutContainer) return;
+        
+        const total = correct + incorrect;
+        if (total === 0) {
+            donutContainer.innerHTML = `
+                <div class="donut-placeholder">
+                    <svg width="100" height="100" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="12"/>
+                    </svg>
+                    <div class="donut-center">
+                        <span class="donut-value">0%</span>
+                    </div>
+                    <p>No data yet</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const correctPct = Math.round((correct / total) * 100);
+        const circumference = 251.33;
+        const correctOffset = circumference - (correctPct / 100) * circumference;
+        
+        donutContainer.innerHTML = `
+            <svg width="120" height="120" viewBox="0 0 100 100" class="donut-svg">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#ef4444" stroke-width="12"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="12" 
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${correctOffset}"
+                    transform="rotate(-90, 50, 50)" class="donut-fill"/>
+            </svg>
+            <div class="donut-legend">
+                <div class="legend-item"><span class="legend-dot correct"></span>Correct: ${correct}</div>
+                <div class="legend-item"><span class="legend-dot incorrect"></span>Incorrect: ${incorrect}</div>
+            </div>
+        `;
+    }
+    
+    // Render Activity Trend Chart
+    function renderActivityTrend() {
+        const trendContainer = document.getElementById('insights-activity-trend');
+        if (!trendContainer) return;
+        
+        const history = getPerformanceHistory();
+        if (history.length < 2) {
+            trendContainer.innerHTML = `
+                <div class="performance-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
+                    </svg>
+                    <p>Complete more questions to see trends</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const width = 300;
+        const height = 100;
+        const padding = 15;
+        const chartWidth = width - padding * 2;
+        const chartHeight = height - padding * 2;
+        
+        const points = history.map((val, i) => ({
+            x: padding + (i / (history.length - 1)) * chartWidth,
+            y: padding + chartHeight - (val / 100) * chartHeight
+        }));
+        
+        const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
+        const areaPath = linePath + ` L${points[points.length-1].x},${height - padding} L${padding},${height - padding} Z`;
+        
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const labels = history.map((_, i) => days[i % 7]).slice(0, history.length);
+        
+        trendContainer.innerHTML = `
+            <svg class="activity-svg" viewBox="0 0 ${width} ${height}">
+                <defs>
+                    <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3"/>
+                        <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0"/>
+                    </linearGradient>
+                </defs>
+                <path d="${areaPath}" fill="url(#activityGradient)"/>
+                <path d="${linePath}" fill="none" stroke="#3b82f6" stroke-width="2" class="activity-line"/>
+                ${points.map((p, i) => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#3b82f6"/>`).join('')}
+            </svg>
+            <div class="activity-labels">
+                ${labels.map(l => `<span>${l}</span>`).join('')}
+            </div>
+        `;
+    }
+    
+    // Render Insights Recommendations
+    function renderInsightsRecommendations() {
+        const alertList = document.getElementById('insights-recommendations');
+        if (!alertList) return;
+        
+        const categoryStats = getCategoryStats();
+        const weakAreas = Object.entries(categoryStats)
+            .map(([cat, stats]) => ({
+                category: cat,
+                title: stats.title,
+                accuracy: stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 100,
+                attempted: stats.attempted
+            }))
+            .filter(a => a.accuracy < 70 && a.attempted >= 2)
+            .sort((a, b) => a.accuracy - b.accuracy)
+            .slice(0, 3);
+        
+        if (weakAreas.length === 0) {
+            alertList.innerHTML = `
+                <div class="alert-placeholder">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    <p>Great progress! Keep practicing to maintain your skills.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        alertList.innerHTML = weakAreas.map(area => `
+            <div class="alert-item ${area.accuracy < 50 ? '' : 'warning'}">
+                <div class="alert-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="alert-content">
+                    <div class="alert-title">Focus on Appendix ${area.category}</div>
+                    <div class="alert-detail">${area.accuracy}% accuracy - needs improvement</div>
+                </div>
+                <button class="alert-action" onclick="Router.navigate('appendix', '${area.category}')">Practice</button>
+            </div>
+        `).join('');
+    }
+    
+    // Render Achievements Badges
+    function renderAchievementsBadges() {
+        const badgesGrid = document.getElementById('achievements-grid');
+        if (!badgesGrid) return;
+        
+        const earnedBadges = loadBadges();
+        const allBadges = [
+            { id: 'first_question', name: 'First Step', icon: '1' },
+            { id: 'ten_correct', name: '10 Correct', icon: '10' },
+            { id: 'fifty_correct', name: '50 Correct', icon: '50' },
+            { id: 'hundred_correct', name: 'Century', icon: '100' },
+            { id: 'perfect_category', name: 'Perfect Score', icon: 'S' },
+            { id: 'streak_3', name: '3 Day Streak', icon: '3d' },
+            { id: 'streak_7', name: 'Week Warrior', icon: '7d' },
+            { id: 'all_categories', name: 'Explorer', icon: 'E' }
+        ];
+        
+        badgesGrid.innerHTML = allBadges.map(badge => `
+            <div class="achievement-badge ${earnedBadges.includes(badge.id) ? 'earned' : ''}">
+                <span class="badge-icon">${badge.icon}</span>
+                <span class="badge-name">${badge.name}</span>
+            </div>
+        `).join('');
+    }
+    
+    // Render Recent Activity Timeline
+    function renderRecentActivity() {
+        const timelineList = document.getElementById('activity-timeline');
+        if (!timelineList) return;
+        
+        const allAnswers = Object.entries(answerState);
+        const recentAnswers = allAnswers.slice(-10).reverse();
+        
+        if (recentAnswers.length === 0) {
+            timelineList.innerHTML = `
+                <div class="timeline-placeholder">
+                    <p>No recent activity. Start practicing!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        timelineList.innerHTML = recentAnswers.map(([qId, state]) => {
+            const question = getQuestionById(qId);
+            const questionText = question?.question || 'Question';
+            const truncated = questionText.length > 50 ? questionText.substring(0, 50) + '...' : questionText;
+            const category = question?.appendix || 'Exam';
+            
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot ${state.correct ? 'correct' : 'incorrect'}"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-question">${escapeHtml(truncated)}</div>
+                        <div class="timeline-meta">Appendix ${category} - ${state.correct ? 'Correct' : 'Incorrect'}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
     
     // Update review stats
     function updateReviewStats() {
-        // Include ALL questions (both practice and exam) for review stats
         const allAnswers = Object.entries(answerState);
-        const incorrectCount = allAnswers.filter(([, s]) => !s.correct).length;
-        // Include ALL flagged questions (both practice and exam)
+        const attempted = allAnswers.length;
+        const correctCount = allAnswers.filter(([, s]) => s.correct).length;
+        const incorrectCount = attempted - correctCount;
         const flaggedCount = flaggedQuestions.size;
+        const totalReviewCount = incorrectCount + flaggedCount;
+        const accuracy = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
         
-        // Update Review panel stats (correct IDs from HTML)
+        // Update SOC Dashboard elements
         const incorrectEl = document.getElementById('incorrect-count');
         const flaggedEl = document.getElementById('flagged-count');
+        const totalReviewEl = document.getElementById('total-review-count');
+        const attemptedEl = document.getElementById('total-attempted-review');
+        const accuracyEl = document.getElementById('review-accuracy');
+        const filterAllCount = document.getElementById('filter-all-count');
+        const filterIncorrectCount = document.getElementById('filter-incorrect-count');
+        const filterFlaggedCount = document.getElementById('filter-flagged-count');
+        const queueCount = document.getElementById('queue-count');
+        const alertCount = document.getElementById('alert-count');
         
         if (incorrectEl) incorrectEl.textContent = incorrectCount;
         if (flaggedEl) flaggedEl.textContent = flaggedCount;
+        if (totalReviewEl) totalReviewEl.textContent = totalReviewCount;
+        if (attemptedEl) attemptedEl.textContent = attempted;
+        if (accuracyEl) accuracyEl.textContent = accuracy + '%';
+        if (filterAllCount) filterAllCount.textContent = totalReviewCount;
+        if (filterIncorrectCount) filterIncorrectCount.textContent = incorrectCount;
+        if (filterFlaggedCount) filterFlaggedCount.textContent = flaggedCount;
+        if (queueCount) queueCount.textContent = totalReviewCount + ' items';
+        if (alertCount) alertCount.textContent = getWeakAreasCount() + ' areas need attention';
         
-        // Update sidebar review badge (shows total items needing review)
+        // Update sidebar review badge
         const reviewBadge = document.getElementById('review-count');
         if (reviewBadge) {
-            const totalReviewCount = incorrectCount + flaggedCount;
             reviewBadge.textContent = totalReviewCount;
         }
         
-        // Render review donut chart
-        renderReviewDonut();
+        // Render SOC visualizations
+        renderRiskGauge(accuracy);
+        renderAccuracyRing(accuracy);
+        renderCategoryHeatmap();
+        renderTrendChart();
+        renderWeakAreasAlerts();
+    }
+    
+    // Get count of weak areas (categories with <70% accuracy)
+    function getWeakAreasCount() {
+        const categoryStats = getCategoryStats();
+        return Object.values(categoryStats).filter(stats => {
+            const acc = stats.attempted > 0 ? (stats.correct / stats.attempted) * 100 : 100;
+            return acc < 70 && stats.attempted >= 3;
+        }).length;
+    }
+    
+    // Get category statistics
+    function getCategoryStats() {
+        const categoryStats = {};
+        Object.entries(answerState).forEach(([qId, state]) => {
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
+            
+            if (!categoryStats[category]) {
+                categoryStats[category] = { title: categoryTitle, attempted: 0, correct: 0, isExam };
+            }
+            categoryStats[category].attempted++;
+            if (state.correct) categoryStats[category].correct++;
+        });
+        return categoryStats;
+    }
+    
+    // Render Risk Level Gauge
+    function renderRiskGauge(accuracy) {
+        const gaugeFill = document.getElementById('gauge-fill');
+        const gaugeNeedle = document.getElementById('gauge-needle');
+        const riskBadge = document.getElementById('risk-badge');
+        
+        if (!gaugeFill || !gaugeNeedle || !riskBadge) return;
+        
+        const riskLevel = 100 - accuracy;
+        const arcLength = 251.2;
+        const fillAmount = (riskLevel / 100) * arcLength;
+        const needleAngle = -90 + (riskLevel / 100) * 180;
+        
+        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        
+        if (riskLevel < 30) {
+            riskBadge.textContent = 'LOW';
+            riskBadge.className = 'metric-badge';
+        } else if (riskLevel < 60) {
+            riskBadge.textContent = 'MEDIUM';
+            riskBadge.className = 'metric-badge medium';
+        } else {
+            riskBadge.textContent = 'HIGH';
+            riskBadge.className = 'metric-badge high';
+        }
+    }
+    
+    // Render Accuracy Ring
+    function renderAccuracyRing(accuracy) {
+        const ringFill = document.getElementById('accuracy-ring-fill');
+        const accuracyTrend = document.getElementById('accuracy-trend');
+        
+        if (!ringFill) return;
+        
+        const circumference = 314.16;
+        const fillAmount = (accuracy / 100) * circumference;
+        ringFill.style.strokeDashoffset = circumference - fillAmount;
+        
+        if (accuracyTrend) {
+            const trend = accuracy >= 70 ? '+' : '';
+            accuracyTrend.textContent = trend + (accuracy - 50) + '% vs avg';
+            accuracyTrend.className = 'metric-trend ' + (accuracy >= 50 ? 'positive' : 'negative');
+        }
+    }
+    
+    // Render Category Heatmap
+    function renderCategoryHeatmap() {
+        const heatmapGrid = document.getElementById('heatmap-grid');
+        if (!heatmapGrid) return;
+        
+        const categoryStats = getCategoryStats();
+        const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+        
+        let html = '';
+        appendices.forEach(letter => {
+            const stats = categoryStats[letter];
+            let cellClass = 'neutral';
+            let accuracy = 0;
+            let tooltip = `Appendix ${letter}: No data`;
+            
+            if (stats && stats.attempted > 0) {
+                accuracy = Math.round((stats.correct / stats.attempted) * 100);
+                if (accuracy < 50) cellClass = 'critical';
+                else if (accuracy < 70) cellClass = 'warning';
+                else cellClass = 'success';
+                tooltip = `Appendix ${letter}: ${accuracy}% (${stats.correct}/${stats.attempted})`;
+            }
+            
+            html += `
+                <div class="heatmap-cell ${cellClass}" title="${tooltip}">
+                    ${letter}
+                    <span class="cell-tooltip">${tooltip}</span>
+                </div>
+            `;
+        });
+        
+        heatmapGrid.innerHTML = html;
+    }
+    
+    // Render Trend Chart
+    function renderTrendChart() {
+        const trendLine = document.getElementById('trend-line');
+        const trendArea = document.getElementById('trend-area');
+        const trendPoints = document.getElementById('trend-points');
+        
+        if (!trendLine || !trendArea || !trendPoints) return;
+        
+        const history = getPerformanceHistory();
+        if (history.length < 2) {
+            trendLine.setAttribute('d', '');
+            trendArea.setAttribute('d', '');
+            trendPoints.innerHTML = '';
+            return;
+        }
+        
+        const width = 400;
+        const height = 150;
+        const padding = 20;
+        const chartWidth = width - padding * 2;
+        const chartHeight = height - padding * 2;
+        
+        const points = history.map((val, i) => ({
+            x: padding + (i / (history.length - 1)) * chartWidth,
+            y: padding + chartHeight - (val / 100) * chartHeight
+        }));
+        
+        const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
+        const areaPath = linePath + ` L${points[points.length-1].x},${height - padding} L${padding},${height - padding} Z`;
+        
+        trendLine.setAttribute('d', linePath);
+        trendArea.setAttribute('d', areaPath);
+        
+        trendPoints.innerHTML = points.map((p, i) => 
+            `<circle cx="${p.x}" cy="${p.y}" r="4" data-value="${history[i]}%"/>`
+        ).join('');
+    }
+    
+    // Get performance history (simulated from current data)
+    function getPerformanceHistory() {
+        const allAnswers = Object.entries(answerState);
+        if (allAnswers.length < 5) return [];
+        
+        const chunkSize = Math.ceil(allAnswers.length / 7);
+        const history = [];
+        
+        for (let i = 0; i < 7 && i * chunkSize < allAnswers.length; i++) {
+            const chunk = allAnswers.slice(0, (i + 1) * chunkSize);
+            const correct = chunk.filter(([, s]) => s.correct).length;
+            history.push(Math.round((correct / chunk.length) * 100));
+        }
+        
+        return history;
+    }
+    
+    // Render Weak Areas Alerts
+    function renderWeakAreasAlerts() {
+        const alertList = document.getElementById('review-weak-areas');
+        if (!alertList) return;
+        
+        const categoryStats = getCategoryStats();
+        const weakAreas = Object.entries(categoryStats)
+            .map(([cat, stats]) => ({
+                category: cat,
+                title: stats.title,
+                accuracy: stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 100,
+                attempted: stats.attempted,
+                incorrect: stats.attempted - stats.correct
+            }))
+            .filter(a => a.accuracy < 70 && a.attempted >= 3)
+            .sort((a, b) => a.accuracy - b.accuracy)
+            .slice(0, 5);
+        
+        if (weakAreas.length === 0) {
+            alertList.innerHTML = `
+                <div class="alert-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    <p>Great job! No critical weak areas detected.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        alertList.innerHTML = weakAreas.map(area => `
+            <div class="alert-item ${area.accuracy < 50 ? '' : 'warning'}">
+                <div class="alert-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="alert-content">
+                    <div class="alert-title">Appendix ${area.category}: ${escapeHtml(area.title)}</div>
+                    <div class="alert-detail">${area.accuracy}% accuracy - ${area.incorrect} mistakes in ${area.attempted} questions</div>
+                </div>
+                <button class="alert-action" onclick="Router.navigate('appendix', '${area.category}')">Practice</button>
+            </div>
+        `).join('');
     }
     
     // Render questions into the review panel's #review-list container
