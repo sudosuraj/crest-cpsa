@@ -798,18 +798,29 @@
         );
     }
     
-    // Render Progress Ring
-    function renderProgressRing(progressPercent) {
+    // Render Progress Ring with page load animation
+    function renderProgressRing(progressPercent, animate = true) {
         const ringFill = document.getElementById('progress-ring-fill');
         if (!ringFill) return;
         
         const circumference = 377;
         const offset = circumference - (progressPercent / 100) * circumference;
-        ringFill.style.strokeDashoffset = offset;
+        
+        if (animate) {
+            ringFill.style.strokeDashoffset = circumference;
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    ringFill.style.strokeDashoffset = offset;
+                }, 100);
+            });
+        } else {
+            ringFill.style.strokeDashoffset = offset;
+        }
     }
     
-    // Render Readiness Gauge
-    function renderReadinessGauge(progressPercent, accuracy, appendicesStarted) {
+    // Render Readiness Gauge with page load animation
+    function renderReadinessGauge(progressPercent, accuracy, appendicesStarted, animate = true) {
         const gaugeFill = document.getElementById('readiness-gauge-fill');
         const gaugeNeedle = document.getElementById('readiness-needle');
         
@@ -820,12 +831,24 @@
         const fillAmount = (readinessScore / 100) * arcLength;
         const needleAngle = -90 + (readinessScore / 100) * 180;
         
-        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        if (animate) {
+            gaugeFill.style.strokeDashoffset = arcLength;
+            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+                }, 150);
+            });
+        } else {
+            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        }
     }
     
     // Render Appendix Progress Grid
-    function renderAppendixProgressGrid(categoryStats, appendicesWithProgress) {
+    function renderAppendixProgressGrid(categoryStats, appendicesWithProgress, animate = true) {
         const gridContainer = document.getElementById('appendix-progress-grid');
         if (!gridContainer) return;
         
@@ -871,7 +894,7 @@
                     </div>
                     <div class="appendix-progress-title">${app.title}</div>
                     <div class="appendix-progress-bar">
-                        <div class="appendix-progress-fill" style="width: ${accuracy}%"></div>
+                        <div class="appendix-progress-fill" data-width="${accuracy}" style="width: ${animate ? 0 : accuracy}%"></div>
                     </div>
                     <div class="appendix-progress-stats">${correct}/${attempted} correct (${accuracy}%)</div>
                 </div>
@@ -879,6 +902,18 @@
         });
         
         gridContainer.innerHTML = html;
+        
+        if (animate) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    gridContainer.querySelectorAll('.appendix-progress-fill').forEach((bar, i) => {
+                        setTimeout(() => {
+                            bar.style.width = bar.dataset.width + '%';
+                        }, i * 30);
+                    });
+                }, 100);
+            });
+        }
     }
     
     // ==================== FLAG FOR REVIEW ====================
@@ -3178,8 +3213,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         return Math.round((accuracy * 0.7) + (Math.min(coverage, 100) * 0.3));
     }
     
-    // Render Insights Gauge
-    function renderInsightsGauge(accuracy) {
+    // Render Insights Gauge with page load animation
+    function renderInsightsGauge(accuracy, animate = true) {
         const gaugeFill = document.getElementById('insights-gauge-fill');
         const gaugeNeedle = document.getElementById('insights-gauge-needle');
         
@@ -3189,23 +3224,46 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const fillAmount = (accuracy / 100) * arcLength;
         const needleAngle = -90 + (accuracy / 100) * 180;
         
-        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        if (animate) {
+            gaugeFill.style.strokeDashoffset = arcLength;
+            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+                }, 100);
+            });
+        } else {
+            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        }
     }
     
-    // Render Mastery Ring
-    function renderMasteryRing(masteryLevel) {
+    // Render Mastery Ring with page load animation
+    function renderMasteryRing(masteryLevel, animate = true) {
         const ringFill = document.getElementById('mastery-ring-fill');
         
         if (!ringFill) return;
         
         const circumference = 282.74;
         const fillAmount = (masteryLevel / 100) * circumference;
-        ringFill.style.strokeDashoffset = circumference - fillAmount;
+        
+        if (animate) {
+            ringFill.style.strokeDashoffset = circumference;
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    ringFill.style.strokeDashoffset = circumference - fillAmount;
+                }, 150);
+            });
+        } else {
+            ringFill.style.strokeDashoffset = circumference - fillAmount;
+        }
     }
     
     // Render Insights Category Matrix
-    function renderInsightsCategoryMatrix() {
+    function renderInsightsCategoryMatrix(animate = true) {
         const matrixContainer = document.getElementById('insights-category-matrix');
         if (!matrixContainer) return;
         
@@ -3213,7 +3271,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
         
         let html = '';
-        appendices.forEach(letter => {
+        appendices.forEach((letter, index) => {
             const stats = categoryStats[letter];
             let accuracy = 0;
             let barClass = 'neutral';
@@ -3234,17 +3292,29 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         <span class="category-bar-stats">${accuracy}%</span>
                     </div>
                     <div class="category-bar-track">
-                        <div class="category-bar-fill ${barClass}" style="width: ${accuracy}%"></div>
+                        <div class="category-bar-fill ${barClass}" data-width="${accuracy}" style="width: ${animate ? 0 : accuracy}%"></div>
                     </div>
                 </div>
             `;
         });
         
         matrixContainer.innerHTML = html;
+        
+        if (animate) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    matrixContainer.querySelectorAll('.category-bar-fill').forEach((bar, i) => {
+                        setTimeout(() => {
+                            bar.style.width = bar.dataset.width + '%';
+                        }, i * 50);
+                    });
+                }, 100);
+            });
+        }
     }
     
     // Render Accuracy Donut for Insights
-    function renderAccuracyDonut(correct, incorrect) {
+    function renderAccuracyDonut(correct, incorrect, animate = true) {
         const donutContainer = document.getElementById('insights-donut');
         if (!donutContainer) return;
         
@@ -3272,14 +3342,25 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             <svg width="120" height="120" viewBox="0 0 100 100" class="donut-svg">
                 <circle cx="50" cy="50" r="40" fill="none" stroke="#ef4444" stroke-width="12"/>
                 <circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="12" 
-                    stroke-dasharray="${circumference}" stroke-dashoffset="${correctOffset}"
-                    transform="rotate(-90, 50, 50)" class="donut-fill"/>
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${animate ? circumference : correctOffset}"
+                    transform="rotate(-90, 50, 50)" class="donut-fill" id="donut-correct-fill"/>
             </svg>
             <div class="donut-legend">
                 <div class="legend-item"><span class="legend-dot correct"></span>Correct: ${correct}</div>
                 <div class="legend-item"><span class="legend-dot incorrect"></span>Incorrect: ${incorrect}</div>
             </div>
         `;
+        
+        if (animate) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const donutFill = document.getElementById('donut-correct-fill');
+                    if (donutFill) {
+                        donutFill.style.strokeDashoffset = correctOffset;
+                    }
+                }, 200);
+            });
+        }
     }
     
     // Render Activity Trend Chart
@@ -3510,8 +3591,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         return categoryStats;
     }
     
-    // Render Risk Level Gauge
-    function renderRiskGauge(accuracy) {
+    // Render Risk Level Gauge with page load animation
+    function renderRiskGauge(accuracy, animate = true) {
         const gaugeFill = document.getElementById('gauge-fill');
         const gaugeNeedle = document.getElementById('gauge-needle');
         const riskBadge = document.getElementById('risk-badge');
@@ -3523,8 +3604,20 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const fillAmount = (riskLevel / 100) * arcLength;
         const needleAngle = -90 + (riskLevel / 100) * 180;
         
-        gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
-        gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        if (animate) {
+            gaugeFill.style.strokeDashoffset = arcLength;
+            gaugeNeedle.setAttribute('transform', 'rotate(-90, 100, 100)');
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+                    gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+                }, 100);
+            });
+        } else {
+            gaugeFill.style.strokeDashoffset = arcLength - fillAmount;
+            gaugeNeedle.setAttribute('transform', `rotate(${needleAngle}, 100, 100)`);
+        }
         
         if (riskLevel < 30) {
             riskBadge.textContent = 'LOW';
@@ -3538,8 +3631,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         }
     }
     
-    // Render Accuracy Ring
-    function renderAccuracyRing(accuracy) {
+    // Render Accuracy Ring with page load animation
+    function renderAccuracyRing(accuracy, animate = true) {
         const ringFill = document.getElementById('accuracy-ring-fill');
         const accuracyTrend = document.getElementById('accuracy-trend');
         
@@ -3547,7 +3640,18 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         
         const circumference = 314.16;
         const fillAmount = (accuracy / 100) * circumference;
-        ringFill.style.strokeDashoffset = circumference - fillAmount;
+        
+        if (animate) {
+            ringFill.style.strokeDashoffset = circumference;
+            
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    ringFill.style.strokeDashoffset = circumference - fillAmount;
+                }, 150);
+            });
+        } else {
+            ringFill.style.strokeDashoffset = circumference - fillAmount;
+        }
         
         if (accuracyTrend) {
             const trend = accuracy >= 70 ? '+' : '';
