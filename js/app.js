@@ -25,7 +25,7 @@
                 if (type === 'appendix' && /^[A-J]$/.test(value)) {
                     return { type: 'appendix', value: value };
                 }
-                if (type === 'tab' && ['study', 'practice', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
+                if (type === 'tab' && ['study', 'practice', 'exam', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
                     return { type: 'tab', value: parts[1].toLowerCase() };
                 }
             }
@@ -2267,6 +2267,303 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // - displayQuestions (use displayQuestionsWithPagination instead)
     // - expandAllCategories, collapseAllCategories, filterCategories, resetFilters (category UI removed)
 
+    // ==================== EXAM PANEL ====================
+    // Exam panel uses pre-loaded questions from examQuizData (CREST repo)
+    // Questions are shuffled on every load for variety
+    
+    const EXAM_STORAGE_KEY = 'cpsa_exam_progress';
+    const examAnswerState = {};
+    let examScore = 0;
+    let examLoaded = false;
+    
+    function loadExamProgress() {
+        try {
+            const saved = localStorage.getItem(EXAM_STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                examScore = data.score || 0;
+                Object.assign(examAnswerState, data.answerState || {});
+                return data;
+            }
+        } catch (e) {
+            console.error('Error loading exam progress:', e);
+        }
+        return null;
+    }
+    
+    function saveExamProgress() {
+        try {
+            const data = {
+                score: examScore,
+                answerState: examAnswerState,
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem(EXAM_STORAGE_KEY, JSON.stringify(data));
+            scheduleUIUpdate();
+        } catch (e) {
+            console.error('Error saving exam progress:', e);
+        }
+    }
+    
+    function loadExamQuiz() {
+        const examContainer = document.getElementById('exam-container');
+        if (!examContainer) return;
+        
+        // Load saved exam progress
+        loadExamProgress();
+        
+        // Get all questions from examQuizData and shuffle them
+        const questionKeys = Object.keys(examQuizData);
+        shuffleArray(questionKeys);
+        
+        const totalQuestions = questionKeys.length;
+        
+        // Clear container and build UI
+        examContainer.innerHTML = '';
+        
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'quiz-header-pagination';
+        
+        const titleEl = document.createElement('h2');
+        titleEl.className = 'appendix-quiz-title';
+        titleEl.textContent = 'CPSA Exam Practice';
+        header.appendChild(titleEl);
+        
+        const infoEl = document.createElement('div');
+        infoEl.className = 'pagination-info';
+        const examAttempted = Object.keys(examAnswerState).length;
+        const examCorrect = Object.values(examAnswerState).filter(a => a.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        infoEl.innerHTML = `
+            <span class="page-counter">${totalQuestions} questions available</span>
+            <span class="chunk-progress">Attempted: ${examAttempted} | Correct: ${examCorrect} | Accuracy: ${examAccuracy}%</span>
+        `;
+        header.appendChild(infoEl);
+        
+        // Add shuffle button
+        const shuffleBtn = document.createElement('button');
+        shuffleBtn.className = 'action-btn';
+        shuffleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg> Shuffle Questions';
+        shuffleBtn.addEventListener('click', () => loadExamQuiz());
+        header.appendChild(shuffleBtn);
+        
+        examContainer.appendChild(header);
+        
+        // Create questions container
+        const questionsContainer = document.createElement('div');
+        questionsContainer.id = 'exam-questions-list';
+        questionsContainer.className = 'questions-container flat-list';
+        
+        let questionNumber = 1;
+        questionKeys.forEach(key => {
+            const questionObj = examQuizData[key];
+            const examKey = `exam_${key}`;
+            
+            const questionCard = document.createElement('div');
+            questionCard.classList.add('question-card');
+            questionCard.dataset.questionId = examKey;
+            
+            // Check if already answered
+            if (examAnswerState[examKey]) {
+                questionCard.classList.add(examAnswerState[examKey].correct ? 'answered-correct' : 'answered-incorrect');
+            }
+            
+            // Question header
+            const questionHeader = document.createElement('div');
+            questionHeader.classList.add('question-card-header');
+            
+            const questionBadge = document.createElement('span');
+            questionBadge.classList.add('question-number-badge');
+            questionBadge.textContent = questionNumber;
+            
+            const questionActions = document.createElement('div');
+            questionActions.classList.add('question-card-actions');
+            
+            // Flag button
+            const flagBtn = document.createElement('button');
+            flagBtn.classList.add('flag-btn');
+            flagBtn.title = 'Flag for review';
+            flagBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>';
+            flagBtn.addEventListener('click', () => toggleFlag(examKey));
+            
+            // Explain button
+            const explainBtn = document.createElement('button');
+            explainBtn.classList.add('gemini-btn');
+            explainBtn.id = `explain-answer-btn-${examKey}`;
+            explainBtn.title = 'Select an answer first';
+            explainBtn.disabled = !examAnswerState[examKey];
+            explainBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <defs>
+                    <linearGradient id="gemini-grad-${examKey}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4285f4"/>
+                        <stop offset="25%" style="stop-color:#9b72cb"/>
+                        <stop offset="50%" style="stop-color:#d96570"/>
+                        <stop offset="75%" style="stop-color:#d96570"/>
+                        <stop offset="100%" style="stop-color:#9b72cb"/>
+                    </linearGradient>
+                </defs>
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-${examKey})"/>
+            </svg>`;
+            explainBtn.addEventListener('click', () => explainExamAnswer(examKey, questionObj));
+            
+            questionActions.appendChild(flagBtn);
+            questionActions.appendChild(explainBtn);
+            questionHeader.appendChild(questionBadge);
+            questionHeader.appendChild(questionActions);
+            
+            // Question text
+            const questionText = document.createElement('div');
+            questionText.classList.add('question-card-text');
+            questionText.textContent = questionObj.question;
+            
+            // Options container
+            const optionsDiv = document.createElement('div');
+            optionsDiv.classList.add('question-card-options');
+            
+            const allAnswers = [questionObj.answer, ...questionObj.incorrect];
+            shuffleArray(allAnswers);
+            
+            allAnswers.forEach((answer, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.classList.add('option-tile');
+                
+                const optionLetter = document.createElement('span');
+                optionLetter.classList.add('option-letter');
+                optionLetter.textContent = String.fromCharCode(65 + index);
+                
+                const optionText = document.createElement('span');
+                optionText.classList.add('option-text');
+                optionText.textContent = answer;
+                
+                optionDiv.appendChild(optionLetter);
+                optionDiv.appendChild(optionText);
+                optionDiv.dataset.correct = answer === questionObj.answer ? 'true' : 'false';
+                
+                // Restore previous answer state
+                if (examAnswerState[examKey]) {
+                    optionDiv.classList.add('answered');
+                    if (optionDiv.dataset.correct === 'true') {
+                        optionDiv.classList.add('correct');
+                    } else if (examAnswerState[examKey].selectedAnswer === answer) {
+                        optionDiv.classList.add('incorrect');
+                    }
+                }
+                
+                optionDiv.addEventListener('click', function() {
+                    if (this.classList.contains('answered')) return;
+                    
+                    const isCorrect = this.dataset.correct === 'true';
+                    const selectedAnswer = this.querySelector('.option-text').textContent;
+                    
+                    optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
+                        opt.classList.add('answered');
+                        if (opt.dataset.correct === 'true') {
+                            opt.classList.add('correct');
+                        } else if (opt === this && !isCorrect) {
+                            opt.classList.add('incorrect');
+                        }
+                    });
+                    
+                    questionCard.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
+                    
+                    explainBtn.disabled = false;
+                    explainBtn.title = 'Explain Answer';
+                    
+                    examAnswerState[examKey] = {
+                        selected: selectedAnswer,
+                        correct: isCorrect,
+                        timestamp: Date.now(),
+                        questionText: questionObj.question,
+                        selectedAnswer: selectedAnswer,
+                        correctAnswer: questionObj.answer,
+                        isCorrect: isCorrect
+                    };
+                    
+                    // Also update main answerState for unified progress tracking
+                    answerState[examKey] = examAnswerState[examKey];
+                    
+                    if (isCorrect) {
+                        examScore++;
+                        score++;
+                        addXP(10);
+                        updateStreak();
+                    }
+                    
+                    updateCounts();
+                    saveExamProgress();
+                    saveProgress();
+                    checkAndAwardBadges();
+                    updateAllUI();
+                    updateExamStats();
+                });
+                
+                optionsDiv.appendChild(optionDiv);
+            });
+            
+            // Answer explanation container
+            const answerExplanation = document.createElement('div');
+            answerExplanation.id = `answer-explanation-${examKey}`;
+            answerExplanation.classList.add('answer-explanation');
+            
+            questionCard.appendChild(questionHeader);
+            questionCard.appendChild(questionText);
+            questionCard.appendChild(optionsDiv);
+            questionCard.appendChild(answerExplanation);
+            
+            questionsContainer.appendChild(questionCard);
+            questionNumber++;
+        });
+        
+        examContainer.appendChild(questionsContainer);
+        
+        // Update stats
+        updateExamStats();
+        examLoaded = true;
+    }
+    
+    function updateExamStats() {
+        const examAttempted = Object.keys(examAnswerState).length;
+        const examCorrect = Object.values(examAnswerState).filter(a => a.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        
+        const infoEl = document.querySelector('#exam-container .pagination-info');
+        if (infoEl) {
+            const totalQuestions = Object.keys(examQuizData).length;
+            infoEl.innerHTML = `
+                <span class="page-counter">${totalQuestions} questions available</span>
+                <span class="chunk-progress">Attempted: ${examAttempted} | Correct: ${examCorrect} | Accuracy: ${examAccuracy}%</span>
+            `;
+        }
+    }
+    
+    function explainExamAnswer(examKey, questionObj) {
+        const state = examAnswerState[examKey];
+        if (!state) return;
+        
+        const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
+        if (!explanationDiv) return;
+        
+        explanationDiv.innerHTML = '<div class="loading-explanation"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span> Getting explanation...</div>';
+        explanationDiv.style.display = 'block';
+        
+        const prompt = `Question: ${questionObj.question}
+        
+Correct Answer: ${questionObj.answer}
+User's Answer: ${state.selectedAnswer}
+User was ${state.isCorrect ? 'CORRECT' : 'INCORRECT'}
+
+Please explain why the correct answer is right and why the other options are wrong. Keep the explanation concise but educational.`;
+        
+        callOpenAI([{ role: 'user', content: prompt }])
+            .then(response => {
+                explanationDiv.innerHTML = `<div class="explanation-content">${response.replace(/\n/g, '<br>')}</div>`;
+            })
+            .catch(error => {
+                explanationDiv.innerHTML = `<div class="explanation-error">Could not get explanation: ${error.message}</div>`;
+            });
+    }
+
         function setupUtilities() {
             // Legacy expand/collapse buttons removed - category UI no longer exists
             const resetProgressBtn = document.getElementById("reset-progress-btn");
@@ -4481,6 +4778,11 @@ Try it yourself: ${url}`,
         if (updateUrl && panelName !== 'practice' && typeof Router !== 'undefined') {
             Router.navigate('tab', panelName, { skipHandler: true });
         }
+        
+        // Load exam quiz when switching to exam panel
+        if (panelName === 'exam' && typeof loadExamQuiz === 'function') {
+            loadExamQuiz();
+        }
     }
     
     // Update sidebar stats (called from updateAllUI, not setInterval)
@@ -4612,6 +4914,7 @@ Try it yourself: ${url}`,
             
                 const panels = [
                     { id: 'practice', title: 'Practice', desc: 'Start practicing questions' },
+                    { id: 'exam', title: 'Exam', desc: 'Full exam practice with all CREST questions' },
                     { id: 'review', title: 'Review', desc: 'Review incorrect and flagged questions' },
                     { id: 'insights', title: 'Insights', desc: 'View performance analytics' },
                     { id: 'progress', title: 'Progress', desc: 'Track your learning journey' }
