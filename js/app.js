@@ -2534,33 +2534,101 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         }
     }
     
-    function explainExamAnswer(examKey, questionObj) {
+    // Cache for exam AI explanations to avoid repeated LLM calls
+    const examExplanationCache = {};
+    
+    async function explainExamAnswer(examKey, questionObj) {
         const state = examAnswerState[examKey];
-        if (!state) return;
-        
         const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
-        if (!explanationDiv) return;
-        
+        const button = document.getElementById(`explain-answer-btn-${examKey}`);
+        if (!explanationDiv || !button) return;
+
+        if (!state) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Answer the question first to get an explanation.';
+            return;
+        }
+
+        // Toggle: if already showing and not loading, hide it (no LLM call needed)
+        if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
+            explanationDiv.classList.remove('show');
+            // Restore the icon-only button
+            button.innerHTML = getGeminiIcon(examKey);
+            button.title = 'Show explanation';
+            return;
+        }
+
+        // Check cache first - if we have a cached explanation, show it without LLM call
+        if (examExplanationCache[examKey]) {
+            const cached = examExplanationCache[examKey];
+            explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
+            explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
+            explanationDiv.textContent = cached.explanation;
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+            return;
+        }
+
+        const isCorrect = state.isCorrect;
+        const questionText = questionObj.question;
+        const selectedAnswer = state.selectedAnswer;
+        const correctAnswer = questionObj.answer;
+
+        if (!questionText || !correctAnswer) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Unable to generate explanation - question data not available.';
+            return;
+        }
+
+        explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
+        explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
         explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
-        explanationDiv.style.display = 'block';
-        
-        const prompt = `Question: ${questionObj.question}
+        button.disabled = true;
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
-Correct Answer: ${questionObj.answer}
-User's Answer: ${state.selectedAnswer}
-User was ${state.isCorrect ? 'CORRECT' : 'INCORRECT'}
+        try {
+            // Simplified prompt - only explain why the selected answer is right or wrong
+            let prompt;
+            
+            if (isCorrect) {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
 
-Please explain why the correct answer is right and why the other options are wrong. Keep the explanation concise but educational.`;
-        
-        // Call without RAG for faster response - fixed to pass string prompt instead of array
-        callOpenAI(prompt, { useRAG: false })
-            .then(response => {
-                const responseText = typeof response === 'string' ? response : (response?.answer || 'Unable to generate explanation.');
-                explanationDiv.innerHTML = `<div class="explanation-content">${responseText.replace(/\n/g, '<br>')}</div>`;
-            })
-            .catch(error => {
-                explanationDiv.innerHTML = `<div class="explanation-error">Could not get explanation: ${error.message}</div>`;
-            });
+You answered correctly. Briefly explain why "${selectedAnswer}" is the right answer in 2-3 sentences.`;
+            } else {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+Correct Answer: "${correctAnswer}"
+
+You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and why "${correctAnswer}" is correct in 2-3 sentences.`;
+            }
+
+            // Call without RAG for faster response
+            const result = await callOpenAI(prompt, { useRAG: false });
+            const explanation = result || 'Unable to generate explanation.';
+
+            // Cache the result
+            examExplanationCache[examKey] = {
+                explanation: explanation,
+                isCorrect: isCorrect
+            };
+
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = explanation;
+            
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+        } catch (error) {
+            console.error('Error explaining exam answer:', error);
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = 'Error generating explanation. Please try again.';
+            // Restore icon on error
+            button.innerHTML = getGeminiIcon(examKey);
+        } finally {
+            button.disabled = false;
+        }
     }
 
         function setupUtilities() {
