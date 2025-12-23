@@ -22,7 +22,7 @@
                 const type = parts[0].toLowerCase();
                 const value = parts[1].toUpperCase();
                 
-                if (type === 'appendix' && /^[A-J]$/.test(value)) {
+                if (type === 'appendix' && /^[A-K]$/.test(value)) {
                     return { type: 'appendix', value: value };
                 }
                 if (type === 'tab' && ['study', 'practice', 'exam', 'review', 'insights', 'progress'].includes(parts[1].toLowerCase())) {
@@ -869,11 +869,14 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 answerExplanation.textContent = "";
             }
             
-            // Reset explain answer button
-            const explainBtn = container.querySelector(".ai-button[id^='explain-answer-btn-']");
+            // Reset explain answer button (icon-only)
+            const explainBtn = container.querySelector(".gemini-btn[id^='explain-answer-btn-']");
             if (explainBtn) {
                 explainBtn.disabled = true;
-                explainBtn.textContent = "[AI] Explain Answer";
+                explainBtn.title = 'Select an answer first';
+                // Reset to outline icon
+                const qId = key;
+                explainBtn.innerHTML = getGeminiIcon(qId);
             }
         });
         
@@ -1147,7 +1150,10 @@ Provide background context and key concepts/terms that are relevant to understan
         button.textContent = '[AI] Hide Explanation';
     }
 
-    // Function to explain answer on demand - simplified without RAG for faster response
+    // Cache for AI explanations to avoid repeated LLM calls
+    const explanationCache = {};
+    
+    // Function to explain answer on demand - simplified to only explain why selected answer is right/wrong
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
         const explanationDiv = document.getElementById(`answer-explanation-${questionId}`);
@@ -1160,9 +1166,24 @@ Provide background context and key concepts/terms that are relevant to understan
             return;
         }
 
+        // Toggle: if already showing and not loading, hide it (no LLM call needed)
         if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
             explanationDiv.classList.remove('show');
-            button.textContent = '[AI] Explain Answer';
+            // Restore the icon-only button
+            button.innerHTML = getGeminiIcon(questionId);
+            button.title = 'Show explanation';
+            return;
+        }
+
+        // Check cache first - if we have a cached explanation, show it without LLM call
+        if (explanationCache[questionId]) {
+            const cached = explanationCache[questionId];
+            explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
+            explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
+            explanationDiv.textContent = cached.explanation;
+            // Update button to show "hide" state with icon only
+            button.innerHTML = getGeminiIconFilled(questionId);
+            button.title = 'Hide explanation';
             return;
         }
 
@@ -1186,37 +1207,79 @@ Provide background context and key concepts/terms that are relevant to understan
         button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
         try {
+            // Simplified prompt - only explain why the selected answer is right or wrong
             let prompt;
             
             if (isCorrect) {
                 prompt = `Question: "${questionText}"
-Correct Answer: "${selectedAnswer}"
-User was CORRECT.
+Your Answer: "${selectedAnswer}"
 
-Explain why this answer is correct. Keep it concise (2-3 sentences).`;
+You answered correctly. Briefly explain why "${selectedAnswer}" is the right answer in 2-3 sentences.`;
             } else {
                 prompt = `Question: "${questionText}"
-User's Answer: "${selectedAnswer}"
+Your Answer: "${selectedAnswer}"
 Correct Answer: "${correctAnswer}"
-User was INCORRECT.
 
-Explain why the user's answer is incorrect and why the correct answer is right. Keep it concise (3-4 sentences).`;
+You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and why "${correctAnswer}" is correct in 2-3 sentences.`;
             }
 
             // Call without RAG for faster response
             const result = await callOpenAI(prompt, { useRAG: false });
+            const explanation = result || 'Unable to generate explanation.';
+
+            // Cache the result
+            explanationCache[questionId] = {
+                explanation: explanation,
+                isCorrect: isCorrect
+            };
 
             explanationDiv.classList.remove('loading');
-            explanationDiv.textContent = result || 'Unable to generate explanation.';
+            explanationDiv.textContent = explanation;
             
-            button.textContent = '[AI] Hide Answer Explanation';
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(questionId);
+            button.title = 'Hide explanation';
         } catch (error) {
             console.error('Error explaining answer:', error);
             explanationDiv.classList.remove('loading');
             explanationDiv.textContent = 'Error generating explanation. Please try again.';
+            // Restore icon on error
+            button.innerHTML = getGeminiIcon(questionId);
         } finally {
             button.disabled = false;
         }
+    }
+    
+    // Helper function to get the Gemini icon SVG (outline version)
+    function getGeminiIcon(id) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <defs>
+                <linearGradient id="gemini-grad-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="url(#gemini-grad-${id})" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+    }
+    
+    // Helper function to get the Gemini icon SVG (filled version for active state)
+    function getGeminiIconFilled(id) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+            <defs>
+                <linearGradient id="gemini-grad-filled-${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4285f4"/>
+                    <stop offset="25%" style="stop-color:#9b72cb"/>
+                    <stop offset="50%" style="stop-color:#d96570"/>
+                    <stop offset="75%" style="stop-color:#d96570"/>
+                    <stop offset="100%" style="stop-color:#9b72cb"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-filled-${id})"/>
+        </svg>`;
     }
 
     async function loadQuiz() {
