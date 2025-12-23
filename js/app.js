@@ -641,20 +641,24 @@
         const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
             ? Object.keys(examQuizData).length 
             : 803; // Fallback to known total
-        // Filter out exam questions (exam_ prefix) from attempted count for practice progress
-        const practiceAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
-        const progressPercent = Math.min(100, Math.round((practiceAttempted / totalQuestions) * 100));
+        // Include ALL answered questions (both practice and exam) for progress
+        const totalAttempted = Object.keys(answerState).length;
+        const progressPercent = Math.min(100, Math.round((totalAttempted / totalQuestions) * 100));
         
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
         if (currentStreakEl) currentStreakEl.textContent = `${streak.count || 0} days`;
         
-        // Count appendices started (appendices with at least one question answered)
+        // Count appendices/categories started (appendices with at least one question answered)
         const appendicesWithProgress = new Set();
         Object.keys(answerState).forEach(qId => {
-            const q = quizData[qId];
-            if (q && q.appendix) {
-                appendicesWithProgress.add(q.appendix);
+            const q = getQuestionById(qId);
+            if (q) {
+                if (isExamQuestion(qId)) {
+                    appendicesWithProgress.add('Exam');
+                } else if (q.appendix) {
+                    appendicesWithProgress.add(q.appendix);
+                }
             }
         });
         if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
@@ -670,7 +674,7 @@
         if (!grid) return;
         const categorizedQuestions = {};
         
-        // Group questions by category
+        // Group practice questions by category
         Object.entries(quizData).forEach(([id, q]) => {
             const category = categorizeQuestion(q);
             if (!categorizedQuestions[category]) {
@@ -678,6 +682,21 @@
             }
             categorizedQuestions[category].push(id);
         });
+        
+        // Add exam questions as a separate category if any have been answered
+        const examAnsweredIds = Object.keys(answerState).filter(qId => isExamQuestion(qId));
+        if (examAnsweredIds.length > 0 || (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)) {
+            const examCategory = 'Exam Questions';
+            if (!categorizedQuestions[examCategory]) {
+                categorizedQuestions[examCategory] = [];
+            }
+            // Add all exam question IDs that have been answered
+            examAnsweredIds.forEach(qId => {
+                if (!categorizedQuestions[examCategory].includes(qId)) {
+                    categorizedQuestions[examCategory].push(qId);
+                }
+            });
+        }
         
         grid.innerHTML = '';
         
@@ -743,6 +762,9 @@
                 }
             }
         }
+        
+        // Update all UI panels to reflect the flag change across all pages
+        updateAllUI();
     }
     
     // ==================== SHARE PROGRESS ====================
@@ -1006,7 +1028,53 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return "Unknown Appendix";
     }
 
-    // Function to call LLM API (no key required) - Now with CONDITIONAL RAG support
+    // ==================== CROSS-PAGE HELPER FUNCTIONS ====================
+    // These helpers enable all pages to work with both practice and exam questions
+    
+    // Check if a question ID is from the exam panel
+    function isExamQuestion(qId) {
+        return qId && qId.startsWith('exam_');
+    }
+    
+    // Get the base ID for an exam question (strips 'exam_' prefix)
+    function getBaseExamId(qId) {
+        return isExamQuestion(qId) ? qId.substring(5) : qId;
+    }
+    
+    // Unified question lookup - resolves from both quizData and examQuizData
+    function getQuestionById(qId) {
+        // First check quizData (practice questions)
+        if (quizData[qId]) {
+            return quizData[qId];
+        }
+        // For exam questions, look up in examQuizData
+        if (isExamQuestion(qId) && typeof examQuizData !== 'undefined') {
+            const baseId = getBaseExamId(qId);
+            const examQ = examQuizData[baseId];
+            if (examQ) {
+                // Return with exam-specific metadata
+                return {
+                    ...examQ,
+                    appendix: examQ.appendix || 'Exam',
+                    appendix_title: examQ.appendix_title || 'Exam Questions',
+                    isExam: true
+                };
+            }
+        }
+        return null;
+    }
+    
+    // Get category for any question ID (works for both practice and exam)
+    function getCategoryForQuestion(qId) {
+        const question = getQuestionById(qId);
+        if (!question) return 'Unknown';
+        if (isExamQuestion(qId) && !question.appendix) {
+            return 'Exam Questions';
+        }
+        return categorizeQuestion(question);
+    }
+
+    // Function to call LLM API(no key required) - Now with CONDITIONAL RAG support
     // For explain buttons: uses source_chunk_id directly if provided (more accurate, fewer tokens)
     // For general queries: only attaches RAG if query is CPSA-specific OR has high BM25 score
     async function callOpenAI(prompt, options = {}) {
@@ -2830,10 +2898,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Update insights summary
     function updateInsightsSummary() {
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for insights
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
         // Update Insights panel stats (correct IDs from HTML)
@@ -2864,12 +2932,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Update review stats
     function updateReviewStats() {
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const incorrectCount = practiceAnswers.filter(([, s]) => !s.correct).length;
-        // Filter out exam flagged questions (exam_ prefix)
-        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
-        const flaggedCount = practiceFlagged.length;
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const incorrectCount = allAnswers.filter(([, s]) => !s.correct).length;
+        // Include ALL flagged questions (both practice and exam)
+        const flaggedCount = flaggedQuestions.size;
         
         // Update Review panel stats (correct IDs from HTML)
         const incorrectEl = document.getElementById('incorrect-count');
@@ -2902,9 +2969,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         let html = `<h3 class="review-section-title">${escapeHtml(title)} (${questionIds.length})</h3>`;
         
         questionIds.forEach((qId, index) => {
-            const question = quizData[qId];
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
+            const isExam = isExamQuestion(qId);
             
             // Handle case where question data is not available (e.g., from previous session)
             const questionText = question?.question || 'Question data not available - please reload the appendix';
@@ -2912,14 +2981,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const selectedAnswer = state?.selectedAnswer || 'N/A';
             const isCorrect = state?.correct || false;
             const explanation = question?.explanation || '';
-            const appendix = question?.appendix || '';
+            const appendix = isExam ? 'Exam' : (question?.appendix || '');
             const appendixTitle = question?.appendix_title || '';
             
             html += `
                 <div class="review-question-card ${isCorrect ? 'correct' : 'incorrect'} ${isFlagged ? 'flagged' : ''}" data-question-id="${qId}">
                     <div class="review-question-header">
                         <span class="review-question-number">#${index + 1}</span>
-                        ${appendix ? `<span class="review-question-appendix">Appendix ${appendix}</span>` : ''}
+                        ${appendix ? `<span class="review-question-appendix">${isExam ? 'Exam' : 'Appendix ' + appendix}</span>` : ''}
                         <span class="review-question-status ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span>
                         ${isFlagged ? '<span class="review-question-flag">Flagged</span>' : ''}
                     </div>
@@ -2957,20 +3026,21 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const categoryStatsEl = document.getElementById('category-stats');
         if (!categoryStatsEl) return;
         
-        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
-        Object.entries(answerState)
-            .filter(([qId]) => !qId.startsWith('exam_'))
-            .forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+        Object.entries(answerState).forEach(([qId, state]) => {
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -2984,19 +3054,24 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return;
         }
         
-        // Sort by appendix letter
+        // Sort by appendix letter (Exam goes last)
         const sortedCategories = Object.entries(categoryStats)
-            .sort(([a], [b]) => a.localeCompare(b));
+            .sort(([a, statsA], [b, statsB]) => {
+                if (statsA.isExam) return 1;
+                if (statsB.isExam) return -1;
+                return a.localeCompare(b);
+            });
         
         let html = '';
         sortedCategories.forEach(([category, stats]) => {
             const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
             const barColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
+            const categoryLabel = stats.isExam ? 'Exam Questions' : `Appendix ${category}: ${escapeHtml(stats.title)}`;
             
             html += `
                 <div class="category-stat-item">
                     <div class="category-stat-header">
-                        <span class="category-stat-name">Appendix ${category}: ${escapeHtml(stats.title)}</span>
+                        <span class="category-stat-name">${categoryLabel}</span>
                         <span class="category-stat-accuracy">${accuracy}%</span>
                     </div>
                     <div class="category-stat-bar">
@@ -3017,20 +3092,21 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const weakAreasEl = document.getElementById('weak-areas');
         if (!weakAreasEl) return;
         
-        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
-        Object.entries(answerState)
-            .filter(([qId]) => !qId.startsWith('exam_'))
-            .forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+        Object.entries(answerState).forEach(([qId, state]) => {
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -3050,13 +3126,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 title: stats.title,
                 accuracy: Math.round((stats.correct / stats.attempted) * 100),
                 attempted: stats.attempted,
-                correct: stats.correct
+                correct: stats.correct,
+                isExam: stats.isExam
             }))
             .sort((a, b) => a.accuracy - b.accuracy);
         
         if (weakAreas.length === 0) {
-            // Filter out exam questions for total count
-            const totalAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
+            // Include ALL questions for total count
+            const totalAttempted = Object.keys(answerState).length;
             if (totalAttempted < 10) {
                 weakAreasEl.innerHTML = '<p class="placeholder-text">Complete more questions to identify weak areas</p>';
             } else {
@@ -3067,9 +3144,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         
         let html = '<ul class="weak-areas-list">';
         weakAreas.slice(0, 5).forEach(area => {
+            const areaLabel = area.isExam ? 'Exam Questions' : `Appendix ${area.category}`;
             html += `
                 <li class="weak-area-item">
-                    <span class="weak-area-name">Appendix ${area.category}</span>
+                    <span class="weak-area-name">${areaLabel}</span>
                     <span class="weak-area-accuracy">${area.accuracy}% (${area.correct}/${area.attempted})</span>
                 </li>
             `;
@@ -3084,10 +3162,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const container = document.getElementById('accuracy-donut');
         if (!container) return;
         
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for accuracy stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
         
         if (attempted === 0) {
@@ -3146,14 +3224,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const container = document.getElementById('review-donut');
         if (!container) return;
         
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
-        // Filter out exam flagged questions (exam_ prefix)
-        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
-        const flagged = practiceFlagged.length;
+        // Include ALL flagged questions (both practice and exam)
+        const flagged = flaggedQuestions.size;
         
         if (attempted === 0) {
             container.innerHTML = `
