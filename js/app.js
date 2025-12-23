@@ -379,17 +379,19 @@
         return earnedBadges;
     }
     
-    function calculateStats() {
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(a => a.correct).length;
-        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        function calculateStats() {
+            const attempted = Object.keys(answerState).length;
+            const correct = Object.values(answerState).filter(a => a.correct).length;
+            const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        // Calculate category stats
-        const categoryStats = {};
-        Object.entries(answerState).forEach(([qId, state]) => {
-            const question = quizData[qId];
-            if (question) {
-                const category = categorizeQuestion(question);
+            // Calculate category stats (includes both practice and exam questions)
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                // Use 'Exam' category for exam questions, otherwise use appendix-based category
+                const category = isExam ? 'Exam' : (question ? categorizeQuestion(question) : 'Unknown');
+            
                 if (!categoryStats[category]) {
                     categoryStats[category] = { attempted: 0, correct: 0 };
                 }
@@ -397,16 +399,15 @@
                 if (state.correct) {
                     categoryStats[category].correct++;
                 }
-            }
-        });
+            });
         
-        const categoriesAttempted = Object.keys(categoryStats).length;
-        const perfectCategories = Object.values(categoryStats).filter(
-            cat => cat.attempted >= 5 && cat.correct === cat.attempted
-        ).length;
+            const categoriesAttempted = Object.keys(categoryStats).length;
+            const perfectCategories = Object.values(categoryStats).filter(
+                cat => cat.attempted >= 5 && cat.correct === cat.attempted
+            ).length;
         
-        return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
-    }
+            return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
+        }
     
     // ==================== TOAST NOTIFICATIONS ====================
     // Enhanced toast notification system with interactive SVG animations
@@ -641,20 +642,24 @@
         const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
             ? Object.keys(examQuizData).length 
             : 803; // Fallback to known total
-        // Filter out exam questions (exam_ prefix) from attempted count for practice progress
-        const practiceAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
-        const progressPercent = Math.min(100, Math.round((practiceAttempted / totalQuestions) * 100));
+        // Include ALL answered questions (both practice and exam) for progress
+        const totalAttempted = Object.keys(answerState).length;
+        const progressPercent = Math.min(100, Math.round((totalAttempted / totalQuestions) * 100));
         
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
         if (currentStreakEl) currentStreakEl.textContent = `${streak.count || 0} days`;
         
-        // Count appendices started (appendices with at least one question answered)
+        // Count appendices/categories started (appendices with at least one question answered)
         const appendicesWithProgress = new Set();
         Object.keys(answerState).forEach(qId => {
-            const q = quizData[qId];
-            if (q && q.appendix) {
-                appendicesWithProgress.add(q.appendix);
+            const q = getQuestionById(qId);
+            if (q) {
+                if (isExamQuestion(qId)) {
+                    appendicesWithProgress.add('Exam');
+                } else if (q.appendix) {
+                    appendicesWithProgress.add(q.appendix);
+                }
             }
         });
         if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
@@ -670,7 +675,7 @@
         if (!grid) return;
         const categorizedQuestions = {};
         
-        // Group questions by category
+        // Group practice questions by category
         Object.entries(quizData).forEach(([id, q]) => {
             const category = categorizeQuestion(q);
             if (!categorizedQuestions[category]) {
@@ -678,6 +683,21 @@
             }
             categorizedQuestions[category].push(id);
         });
+        
+        // Add exam questions as a separate category if any have been answered
+        const examAnsweredIds = Object.keys(answerState).filter(qId => isExamQuestion(qId));
+        if (examAnsweredIds.length > 0 || (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)) {
+            const examCategory = 'Exam Questions';
+            if (!categorizedQuestions[examCategory]) {
+                categorizedQuestions[examCategory] = [];
+            }
+            // Add all exam question IDs that have been answered
+            examAnsweredIds.forEach(qId => {
+                if (!categorizedQuestions[examCategory].includes(qId)) {
+                    categorizedQuestions[examCategory].push(qId);
+                }
+            });
+        }
         
         grid.innerHTML = '';
         
@@ -743,6 +763,9 @@
                 }
             }
         }
+        
+        // Update all UI panels to reflect the flag change across all pages
+        updateAllUI();
     }
     
     // ==================== SHARE PROGRESS ====================
@@ -784,24 +807,27 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     // ==================== RESET PROGRESS ====================
-    function resetProgress() {
-        if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-            return;
+        function resetProgress() {
+            if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                return;
+            }
+        
+            // Clear state (both practice and exam)
+            score = 0;
+            examScore = 0;
+            Object.keys(answerState).forEach(key => delete answerState[key]);
+            Object.keys(examAnswerState).forEach(key => delete examAnswerState[key]);
+            flaggedQuestions.clear();
+        
+            // Clear localStorage (both practice and exam)
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(EXAM_STORAGE_KEY);
+            localStorage.removeItem(STREAK_KEY);
+            localStorage.removeItem(BADGES_KEY);
+        
+            // Reload page to reset UI
+            location.reload();
         }
-        
-        // Clear state
-        score = 0;
-        Object.keys(answerState).forEach(key => delete answerState[key]);
-        flaggedQuestions.clear();
-        
-        // Clear localStorage
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STREAK_KEY);
-        localStorage.removeItem(BADGES_KEY);
-        
-        // Reload page to reset UI
-        location.reload();
-    }
     
     // Reset progress for a specific category
     function resetCategoryProgress(categoryName) {
@@ -926,34 +952,35 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // ==================== CENTRALIZED UI UPDATE ====================
     let uiUpdateTimer = null;
     
-    function updateAllUI() {
-        updateCounts();
-        updateProgressGridPanel();
-        updateInsightsSummary();
-        updateReviewStats();
-        updateMobileSidebarStats();
-        updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
-        renderStreak();
-        renderXP();
+        function updateAllUI() {
+            updateCounts();
+            updateProgressGridPanel();
+            updateInsightsSummary();
+            updateReviewStats();
+            updateMobileSidebarStats();
+            updateSidebarStats(); // Update desktop sidebar stats (event-driven, not polling)
+            renderStreak();
+            renderXP();
+            updateAdditionalVisualizations(); // Update new KPIs and charts
         
-        // Update nav bar stats
-        const stats = calculateStats();
-        const percentageElement = document.getElementById("percentage");
-        const accuracyBar = document.getElementById("accuracy-bar");
-        const attemptedCount = document.getElementById("attempted-count");
+            // Update nav bar stats
+            const stats = calculateStats();
+            const percentageElement = document.getElementById("percentage");
+            const accuracyBar = document.getElementById("accuracy-bar");
+            const attemptedCount = document.getElementById("attempted-count");
         
-        if (percentageElement) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            percentageElement.textContent = percentage;
+            if (percentageElement) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                percentageElement.textContent = percentage;
+            }
+            if (accuracyBar) {
+                const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
+                accuracyBar.style.width = `${percentage}%`;
+            }
+            if (attemptedCount) {
+                attemptedCount.textContent = stats.attempted;
+            }
         }
-        if (accuracyBar) {
-            const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-            accuracyBar.style.width = `${percentage}%`;
-        }
-        if (attemptedCount) {
-            attemptedCount.textContent = stats.attempted;
-        }
-    }
     
     function scheduleUIUpdate() {
         if (uiUpdateTimer) {
@@ -1006,7 +1033,53 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return "Unknown Appendix";
     }
 
-    // Function to call LLM API (no key required) - Now with CONDITIONAL RAG support
+    // ==================== CROSS-PAGE HELPER FUNCTIONS ====================
+    // These helpers enable all pages to work with both practice and exam questions
+    
+    // Check if a question ID is from the exam panel
+    function isExamQuestion(qId) {
+        return qId && qId.startsWith('exam_');
+    }
+    
+    // Get the base ID for an exam question (strips 'exam_' prefix)
+    function getBaseExamId(qId) {
+        return isExamQuestion(qId) ? qId.substring(5) : qId;
+    }
+    
+    // Unified question lookup - resolves from both quizData and examQuizData
+    function getQuestionById(qId) {
+        // First check quizData (practice questions)
+        if (quizData[qId]) {
+            return quizData[qId];
+        }
+        // For exam questions, look up in examQuizData
+        if (isExamQuestion(qId) && typeof examQuizData !== 'undefined') {
+            const baseId = getBaseExamId(qId);
+            const examQ = examQuizData[baseId];
+            if (examQ) {
+                // Return with exam-specific metadata
+                return {
+                    ...examQ,
+                    appendix: examQ.appendix || 'Exam',
+                    appendix_title: examQ.appendix_title || 'Exam Questions',
+                    isExam: true
+                };
+            }
+        }
+        return null;
+    }
+    
+    // Get category for any question ID (works for both practice and exam)
+    function getCategoryForQuestion(qId) {
+        const question = getQuestionById(qId);
+        if (!question) return 'Unknown';
+        if (isExamQuestion(qId) && !question.appendix) {
+            return 'Exam Questions';
+        }
+        return categorizeQuestion(question);
+    }
+
+    // Function to call LLM API(no key required) - Now with CONDITIONAL RAG support
     // For explain buttons: uses source_chunk_id directly if provided (more accurate, fewer tokens)
     // For general queries: only attaches RAG if query is CPSA-specific OR has high BM25 score
     async function callOpenAI(prompt, options = {}) {
@@ -2273,20 +2346,22 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     let examScore = 0;
     let examLoaded = false;
     
-    function loadExamProgress() {
-        try {
-            const saved = localStorage.getItem(EXAM_STORAGE_KEY);
-            if (saved) {
-                const data = JSON.parse(saved);
-                examScore = data.score || 0;
-                Object.assign(examAnswerState, data.answerState || {});
-                return data;
+        function loadExamProgress() {
+            try {
+                const saved = localStorage.getItem(EXAM_STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    examScore = data.score || 0;
+                    Object.assign(examAnswerState, data.answerState || {});
+                    // Sync exam answers to main answerState for unified tracking across all pages
+                    Object.assign(answerState, data.answerState || {});
+                    return data;
+                }
+            } catch (e) {
+                console.error('Error loading exam progress:', e);
             }
-        } catch (e) {
-            console.error('Error loading exam progress:', e);
+            return null;
         }
-        return null;
-    }
     
     function saveExamProgress() {
         try {
@@ -2534,33 +2609,101 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         }
     }
     
-    function explainExamAnswer(examKey, questionObj) {
+    // Cache for exam AI explanations to avoid repeated LLM calls
+    const examExplanationCache = {};
+    
+    async function explainExamAnswer(examKey, questionObj) {
         const state = examAnswerState[examKey];
-        if (!state) return;
-        
         const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
-        if (!explanationDiv) return;
-        
+        const button = document.getElementById(`explain-answer-btn-${examKey}`);
+        if (!explanationDiv || !button) return;
+
+        if (!state) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Answer the question first to get an explanation.';
+            return;
+        }
+
+        // Toggle: if already showing and not loading, hide it (no LLM call needed)
+        if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
+            explanationDiv.classList.remove('show');
+            // Restore the icon-only button
+            button.innerHTML = getGeminiIcon(examKey);
+            button.title = 'Show explanation';
+            return;
+        }
+
+        // Check cache first - if we have a cached explanation, show it without LLM call
+        if (examExplanationCache[examKey]) {
+            const cached = examExplanationCache[examKey];
+            explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
+            explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
+            explanationDiv.textContent = cached.explanation;
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+            return;
+        }
+
+        const isCorrect = state.isCorrect;
+        const questionText = questionObj.question;
+        const selectedAnswer = state.selectedAnswer;
+        const correctAnswer = questionObj.answer;
+
+        if (!questionText || !correctAnswer) {
+            explanationDiv.classList.add('show');
+            explanationDiv.textContent = 'Unable to generate explanation - question data not available.';
+            return;
+        }
+
+        explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
+        explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
         explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
-        explanationDiv.style.display = 'block';
-        
-        const prompt = `Question: ${questionObj.question}
+        button.disabled = true;
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
-Correct Answer: ${questionObj.answer}
-User's Answer: ${state.selectedAnswer}
-User was ${state.isCorrect ? 'CORRECT' : 'INCORRECT'}
+        try {
+            // Simplified prompt - only explain why the selected answer is right or wrong
+            let prompt;
+            
+            if (isCorrect) {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
 
-Please explain why the correct answer is right and why the other options are wrong. Keep the explanation concise but educational.`;
-        
-        // Call without RAG for faster response - fixed to pass string prompt instead of array
-        callOpenAI(prompt, { useRAG: false })
-            .then(response => {
-                const responseText = typeof response === 'string' ? response : (response?.answer || 'Unable to generate explanation.');
-                explanationDiv.innerHTML = `<div class="explanation-content">${responseText.replace(/\n/g, '<br>')}</div>`;
-            })
-            .catch(error => {
-                explanationDiv.innerHTML = `<div class="explanation-error">Could not get explanation: ${error.message}</div>`;
-            });
+You answered correctly. Briefly explain why "${selectedAnswer}" is the right answer in 2-3 sentences.`;
+            } else {
+                prompt = `Question: "${questionText}"
+Your Answer: "${selectedAnswer}"
+Correct Answer: "${correctAnswer}"
+
+You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and why "${correctAnswer}" is correct in 2-3 sentences.`;
+            }
+
+            // Call without RAG for faster response
+            const result = await callOpenAI(prompt, { useRAG: false });
+            const explanation = result || 'Unable to generate explanation.';
+
+            // Cache the result
+            examExplanationCache[examKey] = {
+                explanation: explanation,
+                isCorrect: isCorrect
+            };
+
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = explanation;
+            
+            // Update button to show "hide" state with filled icon
+            button.innerHTML = getGeminiIconFilled(examKey);
+            button.title = 'Hide explanation';
+        } catch (error) {
+            console.error('Error explaining exam answer:', error);
+            explanationDiv.classList.remove('loading');
+            explanationDiv.textContent = 'Error generating explanation. Please try again.';
+            // Restore icon on error
+            button.innerHTML = getGeminiIcon(examKey);
+        } finally {
+            button.disabled = false;
+        }
     }
 
         function setupUtilities() {
@@ -2762,10 +2905,10 @@ Please explain why the correct answer is right and why the other options are wro
     
     // Update insights summary
     function updateInsightsSummary() {
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for insights
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
         // Update Insights panel stats (correct IDs from HTML)
@@ -2796,12 +2939,11 @@ Please explain why the correct answer is right and why the other options are wro
     
     // Update review stats
     function updateReviewStats() {
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const incorrectCount = practiceAnswers.filter(([, s]) => !s.correct).length;
-        // Filter out exam flagged questions (exam_ prefix)
-        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
-        const flaggedCount = practiceFlagged.length;
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const incorrectCount = allAnswers.filter(([, s]) => !s.correct).length;
+        // Include ALL flagged questions (both practice and exam)
+        const flaggedCount = flaggedQuestions.size;
         
         // Update Review panel stats (correct IDs from HTML)
         const incorrectEl = document.getElementById('incorrect-count');
@@ -2834,9 +2976,11 @@ Please explain why the correct answer is right and why the other options are wro
         let html = `<h3 class="review-section-title">${escapeHtml(title)} (${questionIds.length})</h3>`;
         
         questionIds.forEach((qId, index) => {
-            const question = quizData[qId];
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
+            const isExam = isExamQuestion(qId);
             
             // Handle case where question data is not available (e.g., from previous session)
             const questionText = question?.question || 'Question data not available - please reload the appendix';
@@ -2844,14 +2988,14 @@ Please explain why the correct answer is right and why the other options are wro
             const selectedAnswer = state?.selectedAnswer || 'N/A';
             const isCorrect = state?.correct || false;
             const explanation = question?.explanation || '';
-            const appendix = question?.appendix || '';
+            const appendix = isExam ? 'Exam' : (question?.appendix || '');
             const appendixTitle = question?.appendix_title || '';
             
             html += `
                 <div class="review-question-card ${isCorrect ? 'correct' : 'incorrect'} ${isFlagged ? 'flagged' : ''}" data-question-id="${qId}">
                     <div class="review-question-header">
                         <span class="review-question-number">#${index + 1}</span>
-                        ${appendix ? `<span class="review-question-appendix">Appendix ${appendix}</span>` : ''}
+                        ${appendix ? `<span class="review-question-appendix">${isExam ? 'Exam' : 'Appendix ' + appendix}</span>` : ''}
                         <span class="review-question-status ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span>
                         ${isFlagged ? '<span class="review-question-flag">Flagged</span>' : ''}
                     </div>
@@ -2889,20 +3033,21 @@ Please explain why the correct answer is right and why the other options are wro
         const categoryStatsEl = document.getElementById('category-stats');
         if (!categoryStatsEl) return;
         
-        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
-        Object.entries(answerState)
-            .filter(([qId]) => !qId.startsWith('exam_'))
-            .forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+        Object.entries(answerState).forEach(([qId, state]) => {
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -2916,19 +3061,24 @@ Please explain why the correct answer is right and why the other options are wro
             return;
         }
         
-        // Sort by appendix letter
+        // Sort by appendix letter (Exam goes last)
         const sortedCategories = Object.entries(categoryStats)
-            .sort(([a], [b]) => a.localeCompare(b));
+            .sort(([a, statsA], [b, statsB]) => {
+                if (statsA.isExam) return 1;
+                if (statsB.isExam) return -1;
+                return a.localeCompare(b);
+            });
         
         let html = '';
         sortedCategories.forEach(([category, stats]) => {
             const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
             const barColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
+            const categoryLabel = stats.isExam ? 'Exam Questions' : `Appendix ${category}: ${escapeHtml(stats.title)}`;
             
             html += `
                 <div class="category-stat-item">
                     <div class="category-stat-header">
-                        <span class="category-stat-name">Appendix ${category}: ${escapeHtml(stats.title)}</span>
+                        <span class="category-stat-name">${categoryLabel}</span>
                         <span class="category-stat-accuracy">${accuracy}%</span>
                     </div>
                     <div class="category-stat-bar">
@@ -2949,20 +3099,21 @@ Please explain why the correct answer is right and why the other options are wro
         const weakAreasEl = document.getElementById('weak-areas');
         if (!weakAreasEl) return;
         
-        // Calculate stats per appendix/category - filter out exam questions (exam_ prefix)
+        // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
-        Object.entries(answerState)
-            .filter(([qId]) => !qId.startsWith('exam_'))
-            .forEach(([qId, state]) => {
-            const question = quizData[qId];
-            const category = question?.appendix || 'Unknown';
-            const categoryTitle = question?.appendix_title || category;
+        Object.entries(answerState).forEach(([qId, state]) => {
+            // Use unified getQuestionById to resolve from both quizData and examQuizData
+            const question = getQuestionById(qId);
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+            const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
             
             if (!categoryStats[category]) {
                 categoryStats[category] = { 
                     title: categoryTitle,
                     attempted: 0, 
-                    correct: 0 
+                    correct: 0,
+                    isExam: isExam
                 };
             }
             categoryStats[category].attempted++;
@@ -2982,13 +3133,14 @@ Please explain why the correct answer is right and why the other options are wro
                 title: stats.title,
                 accuracy: Math.round((stats.correct / stats.attempted) * 100),
                 attempted: stats.attempted,
-                correct: stats.correct
+                correct: stats.correct,
+                isExam: stats.isExam
             }))
             .sort((a, b) => a.accuracy - b.accuracy);
         
         if (weakAreas.length === 0) {
-            // Filter out exam questions for total count
-            const totalAttempted = Object.keys(answerState).filter(qId => !qId.startsWith('exam_')).length;
+            // Include ALL questions for total count
+            const totalAttempted = Object.keys(answerState).length;
             if (totalAttempted < 10) {
                 weakAreasEl.innerHTML = '<p class="placeholder-text">Complete more questions to identify weak areas</p>';
             } else {
@@ -2999,9 +3151,10 @@ Please explain why the correct answer is right and why the other options are wro
         
         let html = '<ul class="weak-areas-list">';
         weakAreas.slice(0, 5).forEach(area => {
+            const areaLabel = area.isExam ? 'Exam Questions' : `Appendix ${area.category}`;
             html += `
                 <li class="weak-area-item">
-                    <span class="weak-area-name">Appendix ${area.category}</span>
+                    <span class="weak-area-name">${areaLabel}</span>
                     <span class="weak-area-accuracy">${area.accuracy}% (${area.correct}/${area.attempted})</span>
                 </li>
             `;
@@ -3016,10 +3169,10 @@ Please explain why the correct answer is right and why the other options are wro
         const container = document.getElementById('accuracy-donut');
         if (!container) return;
         
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for accuracy stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
         
         if (attempted === 0) {
@@ -3078,14 +3231,13 @@ Please explain why the correct answer is right and why the other options are wro
         const container = document.getElementById('review-donut');
         if (!container) return;
         
-        // Filter out exam questions (exam_ prefix) to show only practice/appendix stats
-        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !qId.startsWith('exam_'));
-        const attempted = practiceAnswers.length;
-        const correct = practiceAnswers.filter(([, s]) => s.correct).length;
+        // Include ALL questions (both practice and exam) for review stats
+        const allAnswers = Object.entries(answerState);
+        const attempted = allAnswers.length;
+        const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
-        // Filter out exam flagged questions (exam_ prefix)
-        const practiceFlagged = Array.from(flaggedQuestions).filter(qId => !qId.startsWith('exam_'));
-        const flagged = practiceFlagged.length;
+        // Include ALL flagged questions (both practice and exam)
+        const flagged = flaggedQuestions.size;
         
         if (attempted === 0) {
             container.innerHTML = `
@@ -3120,6 +3272,242 @@ Please explain why the correct answer is right and why the other options are wro
                 </div>
             </div>
         `;
+    }
+    
+    // ==================== ADDITIONAL KPI & VISUALIZATION FUNCTIONS ====================
+    
+    // Render Practice vs Exam comparison chart
+    function renderPracticeExamComparison() {
+        const container = document.getElementById('practice-exam-comparison');
+        if (!container) return;
+        
+        // Calculate practice stats (non-exam questions)
+        const practiceAnswers = Object.entries(answerState).filter(([qId]) => !isExamQuestion(qId));
+        const practiceAttempted = practiceAnswers.length;
+        const practiceCorrect = practiceAnswers.filter(([, s]) => s.correct).length;
+        const practiceAccuracy = practiceAttempted > 0 ? Math.round((practiceCorrect / practiceAttempted) * 100) : 0;
+        
+        // Calculate exam stats
+        const examAnswers = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
+        const examAttempted = examAnswers.length;
+        const examCorrect = examAnswers.filter(([, s]) => s.correct).length;
+        const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
+        
+        if (practiceAttempted === 0 && examAttempted === 0) {
+            container.innerHTML = '<p class="placeholder-text">No data yet</p>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Practice</span><span>${practiceCorrect}/${practiceAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill practice" style="width: ${practiceAccuracy}%">
+                        ${practiceAccuracy > 15 ? `<span class="comparison-bar-value">${practiceAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="comparison-bar-group">
+                <div class="comparison-bar-label"><span>Exam</span><span>${examCorrect}/${examAttempted}</span></div>
+                <div class="comparison-bar">
+                    <div class="comparison-bar-fill exam" style="width: ${examAccuracy}%">
+                        ${examAccuracy > 15 ? `<span class="comparison-bar-value">${examAccuracy}%</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render 7-day activity chart
+    function renderWeeklyActivityChart() {
+        const container = document.getElementById('weekly-activity-chart');
+        if (!container) return;
+        
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        const days = [];
+        
+        // Get last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            days.push({
+                date: date,
+                dayName: dayNames[date.getDay()],
+                isToday: i === 0
+            });
+        }
+        
+        // Count questions answered per day
+        const dailyCounts = days.map(day => {
+            const dayStart = new Date(day.date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(day.date);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            let count = 0;
+            Object.values(answerState).forEach(state => {
+                if (state.timestamp) {
+                    const answerDate = new Date(state.timestamp);
+                    if (answerDate >= dayStart && answerDate <= dayEnd) {
+                        count++;
+                    }
+                }
+            });
+            return count;
+        });
+        
+        const maxCount = Math.max(...dailyCounts, 1);
+        
+        let html = '<div class="activity-days">';
+        days.forEach((day, i) => {
+            const count = dailyCounts[i];
+            const height = Math.max(4, (count / maxCount) * 80);
+            const barClass = day.isToday ? 'today' : (count > 0 ? 'active' : 'inactive');
+            
+            html += `
+                <div class="activity-day">
+                    <div class="activity-bar-container">
+                        <div class="activity-bar ${barClass}" style="height: ${height}px" title="${count} questions"></div>
+                    </div>
+                    <span class="activity-day-label">${day.dayName}</span>
+                    ${count > 0 ? `<span class="activity-day-count">${count}</span>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+    }
+    
+    // Render additional KPI metrics
+    function renderKPIMetrics() {
+        // Average speed (questions per minute based on study time)
+        const avgSpeedEl = document.getElementById('avg-speed');
+        const masteryLevelEl = document.getElementById('mastery-level');
+        const bestCategoryEl = document.getElementById('best-category');
+        const longestStreakEl = document.getElementById('longest-streak');
+        
+        const totalAttempted = Object.keys(answerState).length;
+        const studySeconds = getStudyTime();
+        
+        if (avgSpeedEl) {
+            if (totalAttempted > 0 && studySeconds > 60) {
+                const questionsPerMin = (totalAttempted / (studySeconds / 60)).toFixed(1);
+                avgSpeedEl.textContent = `${questionsPerMin}/min`;
+            } else {
+                avgSpeedEl.textContent = '--';
+            }
+        }
+        
+        // Categories mastered (>80% accuracy with 5+ questions)
+        if (masteryLevelEl) {
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
+                
+                if (!categoryStats[category]) {
+                    categoryStats[category] = { attempted: 0, correct: 0 };
+                }
+                categoryStats[category].attempted++;
+                if (state.correct) categoryStats[category].correct++;
+            });
+            
+            let masteredCount = 0;
+            let bestCategory = null;
+            let bestAccuracy = 0;
+            
+            Object.entries(categoryStats).forEach(([cat, stats]) => {
+                if (stats.attempted >= 5) {
+                    const accuracy = (stats.correct / stats.attempted) * 100;
+                    if (accuracy >= 80) masteredCount++;
+                    if (accuracy > bestAccuracy) {
+                        bestAccuracy = accuracy;
+                        bestCategory = cat;
+                    }
+                }
+            });
+            
+            masteryLevelEl.textContent = masteredCount;
+            
+            if (bestCategoryEl) {
+                bestCategoryEl.textContent = bestCategory ? (bestCategory.length > 8 ? bestCategory.substring(0, 8) + '...' : bestCategory) : '--';
+            }
+        }
+        
+        // Longest streak
+        if (longestStreakEl) {
+            const streak = loadStreak();
+            longestStreakEl.textContent = `${streak.longest || streak.count || 0}d`;
+        }
+    }
+    
+    // Render recent activity feed
+    function renderRecentActivity() {
+        const container = document.getElementById('recent-activity');
+        if (!container) return;
+        
+        // Get recent answers sorted by timestamp
+        const recentAnswers = Object.entries(answerState)
+            .filter(([, state]) => state.timestamp)
+            .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
+            .slice(0, 8);
+        
+        if (recentAnswers.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No activity yet</p>';
+            return;
+        }
+        
+        let html = '';
+        recentAnswers.forEach(([qId, state]) => {
+            const question = getQuestionById(qId);
+            const questionText = question?.question || 'Question';
+            const truncatedText = questionText.length > 60 ? questionText.substring(0, 60) + '...' : questionText;
+            const isExam = isExamQuestion(qId);
+            const category = isExam ? 'Exam' : (question?.appendix || '?');
+            const timeAgo = getTimeAgo(new Date(state.timestamp));
+            
+            html += `
+                <div class="recent-activity-item">
+                    <div class="recent-activity-icon ${state.correct ? 'correct' : 'incorrect'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            ${state.correct 
+                                ? '<path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/>' 
+                                : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
+                        </svg>
+                    </div>
+                    <div class="recent-activity-content">
+                        <div class="recent-activity-question">${escapeHtml(truncatedText)}</div>
+                        <div class="recent-activity-meta">${isExam ? 'Exam' : 'App. ' + category}</div>
+                    </div>
+                    <span class="recent-activity-time">${timeAgo}</span>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // Helper: Get time ago string
+    function getTimeAgo(date) {
+        const seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return 'now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h`;
+        const days = Math.floor(hours / 24);
+        return `${days}d`;
+    }
+    
+    // Update all additional visualizations
+    function updateAdditionalVisualizations() {
+        renderPracticeExamComparison();
+        renderWeeklyActivityChart();
+        renderKPIMetrics();
+        renderRecentActivity();
     }
     
     // Mode toggle (Study/Exam)
@@ -3695,9 +4083,10 @@ Try it yourself: ${url}`,
 	        }
 	    }
 
-	    document.addEventListener("DOMContentLoaded", async () => {
-	        // Load saved progress first
-	        loadProgress();
+	    	    document.addEventListener("DOMContentLoaded", async () => {
+	    	        // Load saved progress first (practice + exam)
+	    	        loadProgress();
+	    	        loadExamProgress(); // Load exam progress to sync with main answerState
         
 	        // Initialize the Router and get the initial route from URL hash
 	        const initialRoute = Router.init();

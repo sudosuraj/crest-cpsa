@@ -306,6 +306,71 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Additional Analytics Row -->
+                    <div class="insights-charts-row">
+                        <div class="insight-card chart-card">
+                            <h3>Practice vs Exam</h3>
+                            <p class="card-subtitle">Compare your performance</p>
+                            <div class="comparison-chart-container" id="practice-exam-comparison"></div>
+                        </div>
+                        <div class="insight-card chart-card">
+                            <h3>7-Day Activity</h3>
+                            <p class="card-subtitle">Your study streak</p>
+                            <div class="activity-chart-container" id="weekly-activity-chart"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI Metrics Row -->
+                    <div class="insights-summary-row kpi-row">
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon speed">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="avg-speed">--</span>
+                                <span class="summary-label">Avg. Speed</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon mastery">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="mastery-level">0</span>
+                                <span class="summary-label">Categories Mastered</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon best">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="best-category">--</span>
+                                <span class="summary-label">Best Category</span>
+                            </div>
+                        </div>
+                        <div class="summary-card kpi-card">
+                            <div class="summary-icon streak-bonus">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                            </div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="longest-streak">0</span>
+                                <span class="summary-label">Longest Streak</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="insights-details-row">
+                        <div class="insight-card full-width">
+                            <h3>Recent Activity</h3>
+                            <p class="card-subtitle">Your latest answered questions</p>
+                            <div class="recent-activity-list" id="recent-activity">
+                                <p class="placeholder-text">Answer some questions to see your activity</p>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <section class="toolbar-panel" id="progress-panel" role="tabpanel">
