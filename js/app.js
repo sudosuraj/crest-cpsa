@@ -3679,6 +3679,11 @@ Try it yourself: ${url}`,
 	                pdfViewer.contentWindow.postMessage({ type: 'panelVisible' }, window.location.origin);
 	            }
 	        }
+	        
+	        // Load exam quiz when activating exam panel
+	        if (panelId === 'exam' && typeof loadExamQuiz === 'function') {
+	            loadExamQuiz();
+	        }
 	    }
 
 	    document.addEventListener("DOMContentLoaded", async () => {
