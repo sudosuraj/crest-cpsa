@@ -1075,61 +1075,18 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
-    // Help chatbot API wrapper (keeps conversation history) - Now with CONDITIONAL RAG support
-    // Only does RAG search if query is CPSA-specific (avoids unnecessary search for general questions)
-    async function callTutor(messages, options = {}) {
-        const { useRAG = true, scoreThreshold = 5.0 } = options;
+    // Help chatbot API wrapper (keeps conversation history) - Simplified without RAG for faster responses
+    async function callTutor(messages) {
+        const systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
         
-        // Get the last user message for RAG query
-        const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-        const ragQuery = lastUserMessage?.content || '';
-        
-        let systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
-        let sources = [];
-        let contextMessage = null;
-        
-        // CONDITIONAL RAG: Only do RAG search if query is CPSA-specific
-        // This avoids unnecessary BM25 search for general questions like "hello" or "thanks"
-        if (useRAG && typeof RAG !== 'undefined' && RAG.isReady() && ragQuery) {
-            // First check if query is CPSA-specific BEFORE doing any search
-            const isCPSASpecific = RAG.isCPSAQuery(ragQuery);
-            
-            // Only do BM25 search if query is CPSA-specific
-            if (isCPSASpecific) {
-                const scoredResults = RAG.searchWithScores(ragQuery, 5);
-                const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
-                
-                // Only attach RAG context if BM25 score is high enough
-                if (topScore >= scoreThreshold) {
-                    const retrievedChunks = scoredResults.map(r => r.chunk);
-                    
-                    if (retrievedChunks.length > 0) {
-                        // Use token-budgeted context formatting
-                        const context = RAG.formatContext(retrievedChunks, { maxTokens: 2000 });
-                        sources = RAG.formatSources(retrievedChunks);
-                        
-                        // Add context as a separate message to save system prompt tokens
-                        contextMessage = { role: 'user', content: `[Study notes for reference]:\n${context}` };
-                    }
-                }
-            }
-        }
-        
-        // Build payload with optional context message
+        // Build payload - simple system message + conversation
         const payload = [
             {
                 role: 'system',
                 content: systemContent
-            }
+            },
+            ...messages
         ];
-        
-        // Add context message before conversation if RAG found relevant content
-        if (contextMessage) {
-            payload.push(contextMessage);
-        }
-        
-        // Add conversation messages
-        payload.push(...messages);
 
         try {
             // LLMClient is required - no direct fetch fallback to ensure rate limiting
@@ -1143,13 +1100,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 temperature: 0.5
             });
 
-            const answer = data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
-            
-            // Return with sources if RAG was used
-            if (useRAG && sources.length > 0) {
-                return { answer, sources };
-            }
-            return answer;
+            return data.choices?.[0]?.message?.content?.trim() || 'No reply received.';
         } catch (error) {
             if (error.name === 'AbortError') {
                 return 'Sorry, the tutor timed out. Please try again.';
@@ -3584,24 +3535,18 @@ Try it yourself: ${url}`,
         input.focus();
         sendBtn.disabled = true;
 
-        const placeholder = appendChatMessage("assistant", "Searching study notes...");
+        // Show typing indicator with animated dots (reuses existing .ai-dots CSS animation)
+        const placeholder = document.createElement("div");
+        placeholder.classList.add("chat-message", "assistant");
+        placeholder.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
+        messagesEl.appendChild(placeholder);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        
         const result = await callTutor(chatHistory.slice(-10));
         
-        // Handle RAG response with sources
-        let replyText;
-        if (result && typeof result === 'object' && result.answer) {
-            replyText = result.answer;
-            if (result.sources && result.sources.length > 0) {
-                replyText += '\n\n[Sources: ';
-                replyText += result.sources.map(src => `${src.sectionId}`).join(', ');
-                replyText += ']';
-            }
-        } else {
-            replyText = result;
-        }
-        
+        // callTutor now returns a string directly (RAG removed for faster responses)
         if (placeholder) {
-            placeholder.textContent = replyText;
+            placeholder.textContent = result;
         }
         chatHistory.push({ role: "assistant", content: replyText });
         if (chatHistory.length > MAX_CHAT_TURNS) {
