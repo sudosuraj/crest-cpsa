@@ -379,17 +379,19 @@
         return earnedBadges;
     }
     
-    function calculateStats() {
-        const attempted = Object.keys(answerState).length;
-        const correct = Object.values(answerState).filter(a => a.correct).length;
-        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        function calculateStats() {
+            const attempted = Object.keys(answerState).length;
+            const correct = Object.values(answerState).filter(a => a.correct).length;
+            const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         
-        // Calculate category stats
-        const categoryStats = {};
-        Object.entries(answerState).forEach(([qId, state]) => {
-            const question = quizData[qId];
-            if (question) {
-                const category = categorizeQuestion(question);
+            // Calculate category stats (includes both practice and exam questions)
+            const categoryStats = {};
+            Object.entries(answerState).forEach(([qId, state]) => {
+                const question = getQuestionById(qId);
+                const isExam = isExamQuestion(qId);
+                // Use 'Exam' category for exam questions, otherwise use appendix-based category
+                const category = isExam ? 'Exam' : (question ? categorizeQuestion(question) : 'Unknown');
+            
                 if (!categoryStats[category]) {
                     categoryStats[category] = { attempted: 0, correct: 0 };
                 }
@@ -397,16 +399,15 @@
                 if (state.correct) {
                     categoryStats[category].correct++;
                 }
-            }
-        });
+            });
         
-        const categoriesAttempted = Object.keys(categoryStats).length;
-        const perfectCategories = Object.values(categoryStats).filter(
-            cat => cat.attempted >= 5 && cat.correct === cat.attempted
-        ).length;
+            const categoriesAttempted = Object.keys(categoryStats).length;
+            const perfectCategories = Object.values(categoryStats).filter(
+                cat => cat.attempted >= 5 && cat.correct === cat.attempted
+            ).length;
         
-        return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
-    }
+            return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
+        }
     
     // ==================== TOAST NOTIFICATIONS ====================
     // Enhanced toast notification system with interactive SVG animations
@@ -806,24 +807,27 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
     
     // ==================== RESET PROGRESS ====================
-    function resetProgress() {
-        if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-            return;
+        function resetProgress() {
+            if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                return;
+            }
+        
+            // Clear state (both practice and exam)
+            score = 0;
+            examScore = 0;
+            Object.keys(answerState).forEach(key => delete answerState[key]);
+            Object.keys(examAnswerState).forEach(key => delete examAnswerState[key]);
+            flaggedQuestions.clear();
+        
+            // Clear localStorage (both practice and exam)
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(EXAM_STORAGE_KEY);
+            localStorage.removeItem(STREAK_KEY);
+            localStorage.removeItem(BADGES_KEY);
+        
+            // Reload page to reset UI
+            location.reload();
         }
-        
-        // Clear state
-        score = 0;
-        Object.keys(answerState).forEach(key => delete answerState[key]);
-        flaggedQuestions.clear();
-        
-        // Clear localStorage
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(STREAK_KEY);
-        localStorage.removeItem(BADGES_KEY);
-        
-        // Reload page to reset UI
-        location.reload();
-    }
     
     // Reset progress for a specific category
     function resetCategoryProgress(categoryName) {
@@ -2342,20 +2346,22 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     let examScore = 0;
     let examLoaded = false;
     
-    function loadExamProgress() {
-        try {
-            const saved = localStorage.getItem(EXAM_STORAGE_KEY);
-            if (saved) {
-                const data = JSON.parse(saved);
-                examScore = data.score || 0;
-                Object.assign(examAnswerState, data.answerState || {});
-                return data;
+        function loadExamProgress() {
+            try {
+                const saved = localStorage.getItem(EXAM_STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    examScore = data.score || 0;
+                    Object.assign(examAnswerState, data.answerState || {});
+                    // Sync exam answers to main answerState for unified tracking across all pages
+                    Object.assign(answerState, data.answerState || {});
+                    return data;
+                }
+            } catch (e) {
+                console.error('Error loading exam progress:', e);
             }
-        } catch (e) {
-            console.error('Error loading exam progress:', e);
+            return null;
         }
-        return null;
-    }
     
     function saveExamProgress() {
         try {
@@ -4077,9 +4083,10 @@ Try it yourself: ${url}`,
 	        }
 	    }
 
-	    document.addEventListener("DOMContentLoaded", async () => {
-	        // Load saved progress first
-	        loadProgress();
+	    	    document.addEventListener("DOMContentLoaded", async () => {
+	    	        // Load saved progress first (practice + exam)
+	    	        loadProgress();
+	    	        loadExamProgress(); // Load exam progress to sync with main answerState
         
 	        // Initialize the Router and get the initial route from URL hash
 	        const initialRoute = Router.init();
