@@ -726,6 +726,8 @@
         
         // Also render the legacy grid if it exists
         if (!grid) return;
+        if (typeof quizData === 'undefined' || !quizData) return;
+        
         const categorizedQuestions = {};
         
         Object.entries(quizData).forEach(([id, q]) => {
@@ -3560,7 +3562,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         renderRiskGauge(accuracy);
         renderAccuracyRing(accuracy);
         renderCategoryHeatmap();
-        renderTrendChart();
+        renderReviewTrendChart();
         renderWeakAreasAlerts();
     }
     
@@ -3694,8 +3696,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         heatmapGrid.innerHTML = html;
     }
     
-    // Render Trend Chart
-    function renderTrendChart() {
+    // Render Review Trend Chart (SOC Dashboard - uses SVG)
+    function renderReviewTrendChart() {
         const trendLine = document.getElementById('trend-line');
         const trendArea = document.getElementById('trend-area');
         const trendPoints = document.getElementById('trend-points');
@@ -5328,12 +5330,16 @@ Try it yourself: ${url}`,
         renderCategoryStats();
     }
     
-    function renderTrendChart() {
+    // Render Analytics Trend Chart (canvas-based, for analytics panel)
+    function renderAnalyticsTrendChart() {
         const canvas = document.getElementById('trend-canvas');
         if (!canvas) return;
         
         const ctx = canvas.getContext('2d');
-        const width = canvas.parentElement.clientWidth - 32;
+        const parentWidth = canvas.parentElement?.clientWidth;
+        if (!parentWidth) return;
+        
+        const width = parentWidth - 32;
         const height = 160;
         canvas.width = width;
         canvas.height = height;
@@ -5385,16 +5391,20 @@ Try it yourself: ${url}`,
             ctx.fill();
         });
         
-        // Update trend summary
+        // Update trend summary (with null guards)
         const last7 = days.slice(-7);
         const last30 = days;
         const avg7 = last7.reduce((a, d) => a + d.accuracy, 0) / last7.filter(d => d.count > 0).length || 0;
         const avg30 = last30.reduce((a, d) => a + d.accuracy, 0) / last30.filter(d => d.count > 0).length || 0;
         const best = Math.max(...days.map(d => d.accuracy));
         
-        document.getElementById('trend-7day').textContent = `${Math.round(avg7)}%`;
-        document.getElementById('trend-30day').textContent = `${Math.round(avg30)}%`;
-        document.getElementById('trend-best').textContent = `${best}%`;
+        const trend7dayEl = document.getElementById('trend-7day');
+        const trend30dayEl = document.getElementById('trend-30day');
+        const trendBestEl = document.getElementById('trend-best');
+        
+        if (trend7dayEl) trend7dayEl.textContent = `${Math.round(avg7)}%`;
+        if (trend30dayEl) trend30dayEl.textContent = `${Math.round(avg30)}%`;
+        if (trendBestEl) trendBestEl.textContent = `${best}%`;
     }
     
     function renderMissedQuestions() {
