@@ -9,6 +9,10 @@
     const ChartManager = {
         charts: {},
         
+        isReady() {
+            return typeof Chart !== 'undefined';
+        },
+        
         getChartColors() {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             return {
@@ -1112,6 +1116,10 @@
     
     // Render Progress page Chart.js charts
     function renderProgressCharts(progressPercent, accuracy, appendicesStarted, categoryStats) {
+        if (!ChartManager.isReady()) {
+            requestAnimationFrame(() => renderProgressCharts(progressPercent, accuracy, appendicesStarted, categoryStats));
+            return;
+        }
         const colors = ChartManager.getChartColors();
         
         // Overall Completion Doughnut
@@ -3419,6 +3427,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Render Insights page Chart.js charts
     function renderInsightsCharts(accuracy, masteryLevel, correct, incorrect) {
+        if (!ChartManager.isReady()) {
+            requestAnimationFrame(() => renderInsightsCharts(accuracy, masteryLevel, correct, incorrect));
+            return;
+        }
         const colors = ChartManager.getChartColors();
         
         // Overall Score Gauge (semi-circle)
@@ -3659,6 +3671,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Render Review page Chart.js charts
     function renderReviewCharts(accuracy) {
+        if (!ChartManager.isReady()) {
+            requestAnimationFrame(() => renderReviewCharts(accuracy));
+            return;
+        }
         const colors = ChartManager.getChartColors();
         const riskLevel = 100 - accuracy;
         
@@ -4316,7 +4332,6 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     
     // Update all additional visualizations
     function updateAdditionalVisualizations() {
-        renderPracticeExamComparison();
         renderWeeklyActivityChart();
         renderKPIMetrics();
         renderRecentActivity();
