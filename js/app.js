@@ -1122,9 +1122,9 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
 
         button.disabled = true;
-        button.textContent = 'Loading...';
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
         explanationDiv.classList.add('show', 'loading');
-        explanationDiv.textContent = 'Generating explanation...';
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
         // Get question data for context
         const questionData = quizData[questionId];
@@ -1181,9 +1181,9 @@ Provide background context and key concepts/terms that are relevant to understan
 
         explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation');
         explanationDiv.classList.add(isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show', 'loading');
-        explanationDiv.textContent = 'Generating explanation...';
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
         button.disabled = true;
-        button.textContent = 'Loading...';
+        button.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
 
         try {
             let prompt;
@@ -2478,7 +2478,7 @@ Explain why the user's answer is incorrect and why the correct answer is right. 
         const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
         if (!explanationDiv) return;
         
-        explanationDiv.innerHTML = '<div class="loading-explanation"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span> Getting explanation...</div>';
+        explanationDiv.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
         explanationDiv.style.display = 'block';
         
         const prompt = `Question: ${questionObj.question}
