@@ -62,10 +62,7 @@
                         legend: { display: false },
                         tooltip: { enabled: true }
                     },
-                    animation: {
-                        animateRotate: true,
-                        duration: 1000
-                    }
+                    animation: false
                 },
                 plugins: [{
                     id: 'centerText',
@@ -121,10 +118,7 @@
                         legend: { display: false },
                         tooltip: { enabled: false }
                     },
-                    animation: {
-                        animateRotate: true,
-                        duration: 1000
-                    }
+                    animation: false
                 },
                 plugins: [{
                     id: 'gaugeText',
@@ -199,10 +193,7 @@
                             }
                         }
                     },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeOutQuart'
-                    }
+                    animation: false
                 }
             });
             
@@ -253,9 +244,7 @@
                             }
                         }
                     },
-                    animation: {
-                        duration: 1000
-                    }
+                    animation: false
                 }
             });
             
@@ -304,9 +293,7 @@
                             }
                         }
                     },
-                    animation: {
-                        duration: 1000
-                    }
+                    animation: false
                 }
             });
             
