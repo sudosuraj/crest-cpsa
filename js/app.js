@@ -151,6 +151,17 @@
     // Make Router available globally for other modules
     window.Router = Router;
     
+    // Helper function to check if we're on a practice/appendix route
+    // Used to prevent async callbacks from "stealing" the UI when user navigated away
+    function isOnPracticeRoute() {
+        const route = Router.currentRoute;
+        if (!route) return false;
+        // Practice route includes: appendix routes, home (appendix selection), and practice tab
+        return route.type === 'appendix' || 
+               route.type === 'home' || 
+               (route.type === 'tab' && route.value === 'practice');
+    }
+    
     // HTML escape helper to prevent XSS when inserting untrusted content
     function escapeHtml(str) {
         if (typeof str !== 'string') return str;
@@ -1516,12 +1527,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         
         // CRITICAL: Ensure practice panel is active before loading any content
         // This fixes the blank page bug when navigating to appendix routes
-        const practicePanel = document.getElementById('practice-panel');
-        const practiceTab = document.getElementById('tab-practice');
-        if (practicePanel) practicePanel.classList.add('active');
-        if (practiceTab) {
-            practiceTab.classList.add('active');
-            practiceTab.setAttribute('aria-selected', 'true');
+        // Only activate if we're on a practice/appendix route to prevent "stealing" UI from other tabs
+        if (isOnPracticeRoute()) {
+            const practicePanel = document.getElementById('practice-panel');
+            const practiceTab = document.getElementById('tab-practice');
+            if (practicePanel) practicePanel.classList.add('active');
+            if (practiceTab) {
+                practiceTab.classList.add('active');
+                practiceTab.setAttribute('aria-selected', 'true');
+            }
         }
         
         // Check if this appendix has been preloaded
@@ -1687,8 +1701,21 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 totalElement.textContent = totalQuestions;
             }
 
-            // Final display update with complete results
-            displayQuestionsWithPagination(result.questions, appendixLetter, appendixTitle, result);
+            // NOTE: Do NOT call displayQuestionsWithPagination() here!
+            // Questions are already displayed via addStreamedQuestion() during streaming.
+            // Calling displayQuestionsWithPagination() would re-render and shuffle all questions,
+            // causing the "questions appearing from above" issue.
+            
+            // Just update the pagination info
+            const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
+            const infoEl = document.querySelector('.pagination-info');
+            if (infoEl && paginationInfo) {
+                infoEl.innerHTML = `
+                    <span class="page-counter">Page ${paginationInfo.currentPage} | ${paginationInfo.totalQuestions} questions loaded</span>
+                    <span class="chunk-progress">Chunks: ${paginationInfo.chunksProcessed}/${paginationInfo.totalChunks}</span>
+                    ${paginationInfo.exhausted ? '<span class="exhausted-badge">All content processed</span>' : ''}
+                `;
+            }
             
             // Remove streaming indicator
             const streamingIndicator = document.getElementById('streaming-indicator');
@@ -1716,6 +1743,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
      * Matches the structure used in displayQuestionsWithPagination
      */
     function addStreamedQuestion(question, id, questionNumber) {
+        // Route guard: Only update UI if we're on a practice/appendix route
+        if (!isOnPracticeRoute()) {
+            return;
+        }
+        
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
         
@@ -1971,6 +2003,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
      * This replaces the manual "Next Page" button with automatic generation
      */
     async function continuouslyGenerateMoreQuestions(appendixLetter, retryCount = 0) {
+        // Route guard: Only continue if we're on a practice/appendix route
+        if (!isOnPracticeRoute()) {
+            console.log('continuouslyGenerateMoreQuestions: Stopping - not on practice route');
+            return;
+        }
+        
         const MAX_RETRIES = 3;
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
@@ -2074,6 +2112,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     }
 
     function displayQuestionsWithPagination(questions, appendixLetter, appendixTitle, paginationResult) {
+        // Route guard: Only update UI if we're on a practice/appendix route
+        // This prevents async callbacks from "stealing" the UI when user navigated to another tab
+        if (!isOnPracticeRoute()) {
+            console.log('displayQuestionsWithPagination: Skipping UI update - not on practice route');
+            return;
+        }
+        
         const quizContainer = document.getElementById("quiz-container");
         const scoreElement = document.getElementById("score");
         const percentageElement = document.getElementById("percentage");
@@ -2089,8 +2134,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             mainContent.classList.add('toolbar-collapsed');
         }
         
-        // Remove active state from all tabs, then activate practice panel
-        // This ensures the practice panel is visible when displaying questions
+        // Activate practice panel only if we're on a practice/appendix route (already checked above)
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
@@ -2160,9 +2204,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         questionsContainer.className = 'questions-container flat-list';
 
         // Render questions as flat list (no category grouping)
-        // Shuffle question order for variety (options are also shuffled within each question)
+        // Only shuffle question order when NOT in streaming mode
+        // In streaming mode, questions are added in order via addStreamedQuestion()
+        // and shuffling would cause inconsistent ordering
         const questionKeys = Object.keys(questions);
-        shuffleArray(questionKeys);
+        if (!paginationResult.isStreaming) {
+            shuffleArray(questionKeys);
+        }
         
         let questionNumber = 1;
         questionKeys.forEach(key => {
