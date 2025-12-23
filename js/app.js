@@ -3548,7 +3548,7 @@ Try it yourself: ${url}`,
         if (placeholder) {
             placeholder.textContent = result;
         }
-        chatHistory.push({ role: "assistant", content: replyText });
+        chatHistory.push({ role: "assistant", content: result });
         if (chatHistory.length > MAX_CHAT_TURNS) {
             chatHistory.shift();
         }
