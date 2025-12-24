@@ -723,6 +723,25 @@
             return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
         }
     
+    // Calculate exam-specific stats (for Practice vs Exam comparison)
+    function calculateExamStats() {
+        // examAnswerState is defined later in the file, so we need to check if it exists
+        // and also check answerState for exam questions as a fallback
+        if (typeof examAnswerState !== 'undefined' && Object.keys(examAnswerState).length > 0) {
+            const attempted = Object.keys(examAnswerState).length;
+            const correct = Object.values(examAnswerState).filter(a => a.correct).length;
+            const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+            return { attempted, correct, accuracy };
+        }
+        
+        // Fallback: calculate from answerState by filtering exam questions
+        const examEntries = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
+        const attempted = examEntries.length;
+        const correct = examEntries.filter(([, state]) => state.correct).length;
+        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        return { attempted, correct, accuracy };
+    }
+    
     // ==================== TOAST NOTIFICATIONS ====================
     // Enhanced toast notification system with interactive SVG animations
     function showToast(message, options = {}) {
