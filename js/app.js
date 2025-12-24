@@ -1588,8 +1588,81 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return context;
     }
 
+    function getUiSnapshot() {
+        const MAX_CHARS = 1500;
+        let snapshot = [];
+
+        const activeTab = document.querySelector('.sidebar-nav-item.active, .sidebar-nav-item[aria-selected="true"]');
+        const tabName = activeTab?.querySelector('span')?.textContent?.trim() || activeTab?.textContent?.trim() || 'Unknown';
+        snapshot.push(`Current tab: ${tabName}`);
+
+        const breadcrumb = document.querySelector('header nav')?.textContent?.trim();
+        if (breadcrumb) snapshot.push(`Breadcrumb: ${breadcrumb}`);
+
+        const activePanel = document.querySelector('.toolbar-panel.active');
+        if (!activePanel) {
+            snapshot.push('No active panel found.');
+            return snapshot.join('. ');
+        }
+
+        const panelId = activePanel.id || 'unknown';
+        snapshot.push(`Panel: ${panelId}`);
+
+        const headings = Array.from(activePanel.querySelectorAll('h1, h2, h3, h4')).slice(0, 5).map(h => h.textContent?.trim()).filter(Boolean);
+        if (headings.length) snapshot.push(`Headings: ${headings.join(', ')}`);
+
+        const descriptions = Array.from(activePanel.querySelectorAll('.panel-header p, .chart-title')).slice(0, 6).map(p => p.textContent?.trim()).filter(Boolean);
+        if (descriptions.length) snapshot.push(`Sections: ${descriptions.join(', ')}`);
+
+        const visibleButtons = Array.from(activePanel.querySelectorAll('button, a.action-btn')).filter(el => el.offsetParent !== null).slice(0, 8).map(btn => btn.textContent?.trim().replace(/\s+/g, ' ')).filter(Boolean);
+        if (visibleButtons.length) snapshot.push(`Actions: ${visibleButtons.join(', ')}`);
+
+        const statValues = Array.from(activePanel.querySelectorAll('.stat-value, .stat-label, .quick-stat')).slice(0, 10).map(el => el.textContent?.trim()).filter(Boolean);
+        if (statValues.length) snapshot.push(`Stats shown: ${statValues.join(', ')}`);
+
+        const badges = Array.from(activePanel.querySelectorAll('.metric-badge, .kpi-badge, .readiness-badge, .progress-status')).map(b => b.textContent?.trim()).filter(Boolean);
+        if (badges.length) snapshot.push(`Status badges: ${badges.join(', ')}`);
+
+        if (activePanel.querySelector('iframe[src*="pdf"]')) {
+            snapshot.push('Content: PDF viewer showing CPSA Study Notes');
+        }
+
+        if (activePanel.querySelector('#quiz-container')) {
+            const quizContent = document.getElementById('quiz-container');
+            const appendixCards = quizContent?.querySelectorAll('.appendix-card');
+            if (appendixCards?.length) {
+                const cardTitles = Array.from(appendixCards).slice(0, 6).map(c => c.querySelector('h3, .card-title')?.textContent?.trim()).filter(Boolean);
+                snapshot.push(`Quiz selection: ${cardTitles.length} appendix cards visible (${cardTitles.join(', ')})`);
+            }
+            const questionText = quizContent?.querySelector('.question-text, .question')?.textContent?.trim();
+            if (questionText) {
+                snapshot.push(`Current question: "${questionText.substring(0, 100)}${questionText.length > 100 ? '...' : ''}"`);
+            }
+        }
+
+        if (activePanel.querySelector('#exam-container')) {
+            const examContent = document.getElementById('exam-container');
+            const examCards = examContent?.querySelectorAll('.exam-card');
+            if (examCards?.length) {
+                snapshot.push(`Exam selection: ${examCards.length} exam options visible`);
+            }
+        }
+
+        const chartTitles = Array.from(activePanel.querySelectorAll('.chart-title')).slice(0, 8).map(t => t.textContent?.trim()).filter(Boolean);
+        if (chartTitles.length > 0 && !descriptions.length) {
+            snapshot.push(`Charts: ${chartTitles.join(', ')}`);
+        }
+
+        let result = snapshot.join('. ');
+        if (result.length > MAX_CHARS) {
+            result = result.substring(0, MAX_CHARS) + '...';
+        }
+        return result;
+    }
+
     function getCopilotSystemPrompt() {
         const platformContext = getPlatformContext();
+        const uiSnapshot = getUiSnapshot();
 
         return `You are CPSA Copilot, the AI assistant for the CREST CPSA Practice Quiz app.
 
@@ -1597,11 +1670,15 @@ Creator: This app and CPSA Copilot were created by Suraj Sharma (@sudosuraj). Wh
 
 Platform: ${platformContext}
 
+Current View (what you can see on the user's screen):
+${uiSnapshot}
+
 Behavior:
+- You CAN see what's on the user's screen via the "Current View" above. When asked "what do you see" or "what's on this page", describe the current view based on that information.
 - Help users study for CPSA certification and navigate this app
 - Plain text only, no markdown
 - Be concise and helpful
-- If asked about features not in the platform context, ask the user to describe what they see`;
+- Guide users to relevant features based on what they're currently viewing`;
     }
 
     // Help chatbot API wrapper (keeps conversation history) - Simplified without RAG for faster responses
