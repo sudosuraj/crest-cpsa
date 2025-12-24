@@ -1,7 +1,6 @@
     let score = 0; // Initialize the score
     let totalQuestions = 0; // Will be updated dynamically as questions are generated
     const chatHistory = []; // Chatbot conversation
-    let chatGreeted = false; // Only show the welcome bubble once per load
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
 
@@ -5166,10 +5165,6 @@ Try it yourself: ${url}`,
             panel.classList.toggle("open", shouldShow);
             if (toggle) {
                 toggle.setAttribute("aria-expanded", shouldShow ? "true" : "false");
-            }
-            if (shouldShow && !chatGreeted) {
-                appendChatMessage("assistant", "Hi! I'm CPSA Copilot, created by Suraj Sharma. I can help with CPSA concepts, practice questions, and navigating this app.");
-                chatGreeted = true;
             }
             if (shouldShow) {
                 renderSuggestedQuestions();
