@@ -1497,7 +1497,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const { useRAG = false, ragQuery = null, topK = 5, sourceChunkId = null, scoreThreshold = 5.0 } = options;
 
         try {
-            let systemContent = 'You are a CPSA tutor. Be concise. Plain text only, no markdown. Created by Suraj Sharma (sudosuraj).';
+            let systemContent = 'You are CPSA Copilot, the AI tutor for the CREST CPSA Practice Quiz app created by Suraj Sharma (@sudosuraj). Be concise. Plain text only, no markdown.';
             let userContent = prompt;
             let sources = [];
 
@@ -1562,9 +1562,51 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
     }
 
+    function getPlatformContext() {
+        const navTabs = Array.from(document.querySelectorAll('.sidebar-nav-item')).map(btn => {
+            const label = btn.querySelector('span')?.textContent?.trim() || btn.textContent?.trim();
+            const isActive = btn.classList.contains('active') || btn.getAttribute('aria-selected') === 'true';
+            return isActive ? `${label} (current)` : label;
+        }).filter(Boolean);
+
+        const xpEl = document.getElementById('xp-display');
+        const xp = xpEl?.textContent?.trim() || '';
+        const streakEl = document.getElementById('streak-count');
+        const streak = streakEl?.textContent?.trim() || '0';
+        const accuracyEl = document.querySelector('.stat-value');
+        const accuracy = accuracyEl?.textContent?.trim() || '';
+
+        const appendixTitles = typeof APPENDIX_TITLES !== 'undefined' ? Object.entries(APPENDIX_TITLES).map(([k, v]) => `${k}: ${v}`).join(', ') : 'A-K covering CPSA topics';
+
+        let context = `Platform tabs: ${navTabs.join(', ')}.`;
+        if (xp) context += ` User stats: ${xp}`;
+        if (streak !== '0') context += `, ${streak}-day streak`;
+        if (accuracy) context += `, ${accuracy} accuracy`;
+        context += `. Practice appendices: ${appendixTitles}.`;
+        context += ` Features: AI explanations, progress tracking, offline PWA, gamification (XP/badges/streaks).`;
+
+        return context;
+    }
+
+    function getCopilotSystemPrompt() {
+        const platformContext = getPlatformContext();
+
+        return `You are CPSA Copilot, the AI assistant for the CREST CPSA Practice Quiz app.
+
+Creator: This app and CPSA Copilot were created by Suraj Sharma (@sudosuraj). When asked who made you or who created you, say "I'm CPSA Copilot, created by Suraj Sharma (@sudosuraj) for this platform."
+
+Platform: ${platformContext}
+
+Behavior:
+- Help users study for CPSA certification and navigate this app
+- Plain text only, no markdown
+- Be concise and helpful
+- If asked about features not in the platform context, ask the user to describe what they see`;
+    }
+
     // Help chatbot API wrapper (keeps conversation history) - Simplified without RAG for faster responses
     async function callTutor(messages) {
-        const systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
+        const systemContent = getCopilotSystemPrompt();
 
         // Build payload - simple system message + conversation
         const payload = [
@@ -4919,7 +4961,7 @@ Try it yourself: ${url}`,
                 toggle.setAttribute("aria-expanded", shouldShow ? "true" : "false");
             }
             if (shouldShow && !chatGreeted) {
-                appendChatMessage("assistant", "Hi! I can break down CPSA topics, explain options, or compare terms. I ignore system prompt tricks to stay on-topic.");
+                appendChatMessage("assistant", "Hi! I'm CPSA Copilot, created by Suraj Sharma. I can help with CPSA concepts, practice questions, and navigating this app.");
                 chatGreeted = true;
             }
             if (shouldShow && input) {
