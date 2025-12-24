@@ -386,6 +386,11 @@
 
             try {
                 if (route.type === 'appendix' && route.value) {
+                    // CRITICAL: Switch to practice panel BEFORE loading appendix content
+                    // This fixes the routing bug where UI doesn't update when navigating from other tabs
+                    if (typeof switchPanel === 'function') {
+                        switchPanel('practice', { updateUrl: false });
+                    }
                     // Load the specific appendix
                     const appendixTitle = APPENDIX_TITLES[route.value] || `Appendix ${route.value}`;
                     await loadAppendixQuiz(route.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
@@ -396,6 +401,10 @@
                     }
                 } else {
                     // Home - show appendix selection
+                    // Also ensure practice panel is active when going home
+                    if (typeof switchPanel === 'function') {
+                        switchPanel('practice', { updateUrl: false });
+                    }
                     await loadQuiz();
                 }
             } finally {
@@ -1887,6 +1896,34 @@ Provide background context and key concepts/terms that are relevant to understan
     // Cache for AI explanations to avoid repeated LLM calls
     const explanationCache = {};
 
+    // Track active typing animations for explanations (to allow cancellation)
+    const activeExplanationTyping = {};
+
+    // Helper function to type text character by character in explanation divs (similar to chatbot typeText)
+    function typeExplanationText(element, text, questionId, speed = 15) {
+        return new Promise((resolve) => {
+            let index = 0;
+            activeExplanationTyping[questionId] = { cancelled: false };
+
+            function typeChar() {
+                if (activeExplanationTyping[questionId]?.cancelled) {
+                    element.textContent = text;
+                    resolve();
+                    return;
+                }
+                if (index < text.length) {
+                    element.textContent += text.charAt(index);
+                    index++;
+                    setTimeout(typeChar, speed);
+                } else {
+                    delete activeExplanationTyping[questionId];
+                    resolve();
+                }
+            }
+            typeChar();
+        });
+    }
+
     // Function to explain answer on demand - simplified to only explain why selected answer is right/wrong
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
@@ -1902,6 +1939,10 @@ Provide background context and key concepts/terms that are relevant to understan
 
         // Toggle: if already showing and not loading, hide it (no LLM call needed)
         if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
+            // Cancel any active typing animation
+            if (activeExplanationTyping[questionId]) {
+                activeExplanationTyping[questionId].cancelled = true;
+            }
             explanationDiv.classList.remove('show');
             // Restore the icon-only button
             button.innerHTML = getGeminiIcon(questionId);
@@ -1909,15 +1950,17 @@ Provide background context and key concepts/terms that are relevant to understan
             return;
         }
 
-        // Check cache first - if we have a cached explanation, show it without LLM call
+        // Check cache first - if we have a cached explanation, show it with typing animation
         if (explanationCache[questionId]) {
             const cached = explanationCache[questionId];
             explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
             explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
-            explanationDiv.textContent = cached.explanation;
+            explanationDiv.textContent = '';
             // Update button to show "hide" state with icon only
             button.innerHTML = getGeminiIconFilled(questionId);
             button.title = 'Hide explanation';
+            // Type out cached explanation character by character
+            await typeExplanationText(explanationDiv, cached.explanation, questionId);
             return;
         }
 
@@ -1968,11 +2011,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             };
 
             explanationDiv.classList.remove('loading');
-            explanationDiv.textContent = explanation;
+            explanationDiv.textContent = '';
 
             // Update button to show "hide" state with filled icon
             button.innerHTML = getGeminiIconFilled(questionId);
             button.title = 'Hide explanation';
+
+            // Type out explanation character by character (like chatbot)
+            await typeExplanationText(explanationDiv, explanation, questionId);
         } catch (error) {
             console.error('Error explaining answer:', error);
             explanationDiv.classList.remove('loading');
@@ -3324,6 +3370,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
         // Toggle: if already showing and not loading, hide it (no LLM call needed)
         if (explanationDiv.classList.contains('show') && !explanationDiv.classList.contains('loading')) {
+            // Cancel any active typing animation
+            if (activeExplanationTyping[examKey]) {
+                activeExplanationTyping[examKey].cancelled = true;
+            }
             explanationDiv.classList.remove('show');
             // Restore the icon-only button
             button.innerHTML = getGeminiIcon(examKey);
@@ -3331,15 +3381,17 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return;
         }
 
-        // Check cache first - if we have a cached explanation, show it without LLM call
+        // Check cache first - if we have a cached explanation, show it with typing animation
         if (examExplanationCache[examKey]) {
             const cached = examExplanationCache[examKey];
             explanationDiv.classList.remove('correct-explanation', 'incorrect-explanation', 'loading');
             explanationDiv.classList.add(cached.isCorrect ? 'correct-explanation' : 'incorrect-explanation', 'show');
-            explanationDiv.textContent = cached.explanation;
+            explanationDiv.textContent = '';
             // Update button to show "hide" state with filled icon
             button.innerHTML = getGeminiIconFilled(examKey);
             button.title = 'Hide explanation';
+            // Type out cached explanation character by character
+            await typeExplanationText(explanationDiv, cached.explanation, examKey);
             return;
         }
 
@@ -3388,11 +3440,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             };
 
             explanationDiv.classList.remove('loading');
-            explanationDiv.textContent = explanation;
+            explanationDiv.textContent = '';
 
             // Update button to show "hide" state with filled icon
             button.innerHTML = getGeminiIconFilled(examKey);
             button.title = 'Hide explanation';
+
+            // Type out explanation character by character (like chatbot)
+            await typeExplanationText(explanationDiv, explanation, examKey);
         } catch (error) {
             console.error('Error explaining exam answer:', error);
             explanationDiv.classList.remove('loading');
