@@ -1569,7 +1569,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             return isActive ? `${label} (current)` : label;
         }).filter(Boolean);
 
-        const xpEl = document.getElementById('xp-display');
+        const xpEl = document.getElementById('xp-text');
         const xp = xpEl?.textContent?.trim() || '';
         const streakEl = document.getElementById('streak-count');
         const streak = streakEl?.textContent?.trim() || '0';
@@ -1623,7 +1623,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         const badges = Array.from(activePanel.querySelectorAll('.metric-badge, .kpi-badge, .readiness-badge, .progress-status')).map(b => b.textContent?.trim()).filter(Boolean);
         if (badges.length) snapshot.push(`Status badges: ${badges.join(', ')}`);
 
-        if (activePanel.querySelector('iframe[src*="pdf"]')) {
+        if (activePanel.querySelector('iframe[src*="pdfjs"], iframe[src*="pdf"]')) {
             snapshot.push('Content: PDF viewer showing CPSA Study Notes');
         }
 
@@ -1660,6 +1660,94 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return result;
     }
 
+    function getSuggestedQuestions() {
+        const activePanel = document.querySelector('.toolbar-panel.active');
+        const panelId = activePanel?.id || 'study-panel';
+        
+        const accuracy = document.getElementById('percentage')?.textContent?.trim() || '0';
+        const attempted = document.getElementById('attempted-count')?.textContent?.trim() || '0';
+        const xpText = document.getElementById('xp-text')?.textContent?.trim() || '0 XP';
+        const streak = document.getElementById('streak-count')?.textContent?.trim() || '0';
+        
+        const questionTemplates = {
+            'study-panel': [
+                'What am I looking at on this page?',
+                'How should I use the Study Notes to prepare?',
+                'What topics should I focus on first?'
+            ],
+            'practice-panel': [
+                'Which appendix should I practice next?',
+                `Explain my ${accuracy}% accuracy - how can I improve?`,
+                'What topics am I weakest in?'
+            ],
+            'exam-panel': [
+                'How does the exam mode work?',
+                'What score do I need to pass CPSA?',
+                'Tips for managing exam time?'
+            ],
+            'review-panel': [
+                'Explain my performance stats',
+                'What patterns do you see in my mistakes?',
+                'How can I improve my weak areas?'
+            ],
+            'insights-panel': [
+                `Explain my ${accuracy}% accuracy and ${attempted} attempts`,
+                'What do these charts tell me about my progress?',
+                'What should I focus on this week?'
+            ],
+            'progress-panel': [
+                `Explain my stats: ${attempted} attempted, ${accuracy}% accuracy`,
+                `How is my ${streak}-day streak helping me learn?`,
+                'Am I ready for the CPSA exam?'
+            ]
+        };
+        
+        return questionTemplates[panelId] || questionTemplates['study-panel'];
+    }
+
+    function renderSuggestedQuestions() {
+        const container = document.getElementById('chat-suggestions');
+        if (!container) return;
+        
+        const questions = getSuggestedQuestions();
+        container.innerHTML = '';
+        
+        questions.forEach(question => {
+            const chip = document.createElement('button');
+            chip.className = 'chat-suggestion-chip';
+            chip.textContent = question;
+            chip.addEventListener('click', () => {
+                const input = document.getElementById('chat-input');
+                if (input) {
+                    input.value = question;
+                    sendChatMessage();
+                }
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    function setupSuggestionObserver() {
+        const contentArea = document.querySelector('.content-area');
+        if (!contentArea) return;
+        
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const panel = document.getElementById('chatbot-panel');
+                    if (panel?.classList.contains('open')) {
+                        renderSuggestedQuestions();
+                    }
+                    break;
+                }
+            }
+        });
+        
+        document.querySelectorAll('.toolbar-panel').forEach(panel => {
+            observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+        });
+    }
+
     function getCopilotSystemPrompt() {
         const platformContext = getPlatformContext();
         const uiSnapshot = getUiSnapshot();
@@ -1668,7 +1756,46 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
 Creator: This app and CPSA Copilot were created by Suraj Sharma (@sudosuraj). When asked who made you or who created you, say "I'm CPSA Copilot, created by Suraj Sharma (@sudosuraj) for this platform."
 
-Platform: ${platformContext}
+Platform Overview: ${platformContext}
+
+App Features & How They Work:
+
+STUDY TAB: Displays the official CPSA Study Notes PDF in an embedded viewer. Users can read, search, and navigate the PDF. Best for learning concepts before practicing.
+
+PRACTICE TAB: Practice questions organized by appendix (A through K). Each appendix covers specific CPSA topics. Users select an appendix, then answer multiple-choice questions. After answering, they see if correct/incorrect with AI-powered explanations. Questions are generated using RAG (Retrieval-Augmented Generation) from the study materials. Users can flag questions for later review and filter by status (all/unanswered/correct/incorrect/flagged).
+
+EXAM TAB: Simulates real CPSA exam conditions. Users can configure: number of questions (default 60), time limit (default 90 minutes), and which appendices to include. During exam: timer counts down, questions are randomized, no immediate feedback. After completion: shows score, pass/fail status (70% to pass), and detailed review of answers.
+
+REVIEW TAB: Shows flagged questions and incorrect answers for targeted review. Users can revisit questions they struggled with and practice until mastered.
+
+INSIGHTS TAB: Analytics dashboard showing: overall accuracy percentage, questions attempted, performance by appendix/category (bar charts), accuracy trends over time (line chart), and study patterns. Helps identify weak areas to focus on.
+
+PROGRESS TAB: Tracks completion status across all appendices. Shows: total questions attempted, accuracy rate, XP earned, current streak, badges earned, and exam readiness score. Includes a grid view of all questions showing which are answered correctly, incorrectly, or unanswered.
+
+Gamification System:
+- XP: Earn 10 XP per correct answer. Level up every 100 XP.
+- Streaks: Daily streak counter for consecutive days of practice. Encourages consistent study habits.
+- Badges: 11 achievement badges including First Steps (first correct answer), Perfect Score (100% on appendix), Streak Master (7-day streak), Completionist (finish all questions), and more.
+
+Additional Features:
+- AI Explanations: Click "Explain" on any question to get AI-generated explanation of the correct answer and why other options are wrong.
+- Offline Support: Works offline as a PWA (Progressive Web App). Install on mobile/desktop for offline access.
+- Progress Sync: Progress is saved locally and persists across sessions.
+- Share Progress: Share your stats on social media or copy to clipboard.
+- Reset Options: Can reset progress for individual appendices or all progress.
+
+Appendices Cover:
+A: Soft Skills & Customer Service
+B: Core Technical Skills
+C: Background Information Gathering
+D: Internet Footprinting
+E: Detecting Live Systems
+F: Enumeration
+G: Vulnerability Research & Verification
+H: Unix/Linux
+I: Windows
+J: Network Devices
+K: Web Technologies
 
 Current View (what you can see on the user's screen):
 ${uiSnapshot}
@@ -1676,6 +1803,9 @@ ${uiSnapshot}
 Behavior:
 - You CAN see what's on the user's screen via the "Current View" above. When asked "what do you see" or "what's on this page", describe the current view based on that information.
 - Help users study for CPSA certification and navigate this app
+- Answer questions about any feature, tab, or functionality of this platform
+- Explain how to use specific features when asked
+- Provide study tips and exam preparation advice
 - Plain text only, no markdown
 - Be concise and helpful
 - Guide users to relevant features based on what they're currently viewing`;
@@ -5041,8 +5171,9 @@ Try it yourself: ${url}`,
                 appendChatMessage("assistant", "Hi! I'm CPSA Copilot, created by Suraj Sharma. I can help with CPSA concepts, practice questions, and navigating this app.");
                 chatGreeted = true;
             }
-            if (shouldShow && input) {
-                input.focus();
+            if (shouldShow) {
+                renderSuggestedQuestions();
+                if (input) input.focus();
             }
         };
 
@@ -5124,6 +5255,7 @@ Try it yourself: ${url}`,
 
 	        setupUtilities();
 	        setupChatbot();
+	        setupSuggestionObserver();
 
 	        // Restore UI state from saved progress
 	        restoreUIState();
