@@ -28,6 +28,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; -webkit-font-smoothing: antialiased; }
 body { min-height: 100%; font-family: var(--font); font-size: 16px; line-height: 1.5; background: var(--bg); color: var(--text); }
+
+::selection { background: var(--accent); color: white; }
+::-moz-selection { background: var(--accent); color: white; }
+
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { font-family: inherit; font-size: inherit; cursor: pointer; border: none; background: none; }

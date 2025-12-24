@@ -5328,7 +5328,7 @@ Try it yourself: ${url}`,
 
         // Calculate and restore percentage
         const attempted = Object.keys(answerState).length;
-        if (attempted > 0) {
+        if (attempted > 0 && totalQuestions > 0) {
             const percentage = ((score / totalQuestions) * 100).toFixed(2);
             if (percentageElement) {
                 percentageElement.textContent = percentage;
