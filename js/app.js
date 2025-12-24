@@ -1660,6 +1660,94 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         return result;
     }
 
+    function getSuggestedQuestions() {
+        const activePanel = document.querySelector('.toolbar-panel.active');
+        const panelId = activePanel?.id || 'study-panel';
+        
+        const accuracy = document.getElementById('percentage')?.textContent?.trim() || '0';
+        const attempted = document.getElementById('attempted-count')?.textContent?.trim() || '0';
+        const xpText = document.getElementById('xp-text')?.textContent?.trim() || '0 XP';
+        const streak = document.getElementById('streak-count')?.textContent?.trim() || '0';
+        
+        const questionTemplates = {
+            'study-panel': [
+                'What am I looking at on this page?',
+                'How should I use the Study Notes to prepare?',
+                'What topics should I focus on first?'
+            ],
+            'practice-panel': [
+                'Which appendix should I practice next?',
+                `Explain my ${accuracy}% accuracy - how can I improve?`,
+                'What topics am I weakest in?'
+            ],
+            'exam-panel': [
+                'How does the exam mode work?',
+                'What score do I need to pass CPSA?',
+                'Tips for managing exam time?'
+            ],
+            'review-panel': [
+                'Explain my performance stats',
+                'What patterns do you see in my mistakes?',
+                'How can I improve my weak areas?'
+            ],
+            'insights-panel': [
+                `Explain my ${accuracy}% accuracy and ${attempted} attempts`,
+                'What do these charts tell me about my progress?',
+                'What should I focus on this week?'
+            ],
+            'progress-panel': [
+                `Explain my stats: ${attempted} attempted, ${accuracy}% accuracy`,
+                `How is my ${streak}-day streak helping me learn?`,
+                'Am I ready for the CPSA exam?'
+            ]
+        };
+        
+        return questionTemplates[panelId] || questionTemplates['study-panel'];
+    }
+
+    function renderSuggestedQuestions() {
+        const container = document.getElementById('chat-suggestions');
+        if (!container) return;
+        
+        const questions = getSuggestedQuestions();
+        container.innerHTML = '';
+        
+        questions.forEach(question => {
+            const chip = document.createElement('button');
+            chip.className = 'chat-suggestion-chip';
+            chip.textContent = question;
+            chip.addEventListener('click', () => {
+                const input = document.getElementById('chat-input');
+                if (input) {
+                    input.value = question;
+                    sendChatMessage();
+                }
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    function setupSuggestionObserver() {
+        const contentArea = document.querySelector('.content-area');
+        if (!contentArea) return;
+        
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const panel = document.getElementById('chatbot-panel');
+                    if (panel?.classList.contains('open')) {
+                        renderSuggestedQuestions();
+                    }
+                    break;
+                }
+            }
+        });
+        
+        document.querySelectorAll('.toolbar-panel').forEach(panel => {
+            observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+        });
+    }
+
     function getCopilotSystemPrompt() {
         const platformContext = getPlatformContext();
         const uiSnapshot = getUiSnapshot();
@@ -5041,8 +5129,9 @@ Try it yourself: ${url}`,
                 appendChatMessage("assistant", "Hi! I'm CPSA Copilot, created by Suraj Sharma. I can help with CPSA concepts, practice questions, and navigating this app.");
                 chatGreeted = true;
             }
-            if (shouldShow && input) {
-                input.focus();
+            if (shouldShow) {
+                renderSuggestedQuestions();
+                if (input) input.focus();
             }
         };
 
@@ -5124,6 +5213,7 @@ Try it yourself: ${url}`,
 
 	        setupUtilities();
 	        setupChatbot();
+	        setupSuggestionObserver();
 
 	        // Restore UI state from saved progress
 	        restoreUIState();
