@@ -3264,20 +3264,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     mainContent.classList.remove('toolbar-collapsed');
                 }
                 
-                // Use centralized switchPanel which handles URL updates
+                // Use centralized switchPanel which handles URL updates and panel-specific content
                 switchPanel(tabName);
-                
-                // Update tab-specific content
-                if (tabName === 'insights') {
-                    updateInsightsSummary();
-                }
-                if (tabName === 'review') {
-                    updateReviewStats();
-                }
-                if (tabName === 'progress') {
-                    updateProgressGridPanel();
-                }
-                
             });
         });
         
@@ -6102,6 +6090,20 @@ Try it yourself: ${url}`,
         if (panelName === 'exam' && typeof loadExamQuiz === 'function') {
             loadExamQuiz();
         }
+        
+        // Update panel-specific content after panel is visible
+        // Use requestAnimationFrame to ensure panel is rendered before updating charts
+        requestAnimationFrame(() => {
+            if (panelName === 'insights' && typeof updateInsightsSummary === 'function') {
+                updateInsightsSummary();
+            }
+            if (panelName === 'review' && typeof updateReviewStats === 'function') {
+                updateReviewStats();
+            }
+            if (panelName === 'progress' && typeof updateProgressGridPanel === 'function') {
+                updateProgressGridPanel();
+            }
+        });
     }
     
     // Update sidebar stats (called from updateAllUI, not setInterval)
