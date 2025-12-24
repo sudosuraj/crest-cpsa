@@ -4,15 +4,15 @@
     let chatGreeted = false; // Only show the welcome bubble once per load
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
-    
+
     // ==================== CHART.JS MANAGER ====================
     const ChartManager = {
         charts: {},
-        
+
         isReady() {
             return typeof Chart !== 'undefined';
         },
-        
+
         getChartColors() {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             return {
@@ -28,22 +28,22 @@
                 indigo: '#6366f1'
             };
         },
-        
+
         destroyChart(id) {
             if (this.charts[id]) {
                 this.charts[id].destroy();
                 delete this.charts[id];
             }
         },
-        
+
         createDoughnutChart(canvasId, value, maxValue, color, label) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
-            
+
             this.destroyChart(canvasId);
             const colors = this.getChartColors();
             const remainder = maxValue - value;
-            
+
             this.charts[canvasId] = new Chart(canvas, {
                 type: 'doughnut',
                 data: {
@@ -70,7 +70,7 @@
                         const ctx = chart.ctx;
                         const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
                         const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-                        
+
                         ctx.save();
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
@@ -84,21 +84,21 @@
                     }
                 }]
             });
-            
+
             return this.charts[canvasId];
         },
-        
+
         createGaugeChart(canvasId, value, label) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
-            
+
             this.destroyChart(canvasId);
             const colors = this.getChartColors();
-            
+
             let gaugeColor = colors.green;
             if (value > 30 && value <= 60) gaugeColor = colors.yellow;
             else if (value > 60) gaugeColor = colors.red;
-            
+
             this.charts[canvasId] = new Chart(canvas, {
                 type: 'doughnut',
                 data: {
@@ -126,7 +126,7 @@
                         const ctx = chart.ctx;
                         const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
                         const bottom = chart.chartArea.bottom;
-                        
+
                         ctx.save();
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'bottom';
@@ -140,23 +140,23 @@
                     }
                 }]
             });
-            
+
             return this.charts[canvasId];
         },
-        
+
         createBarChart(canvasId, labels, data, colors) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
-            
+
             this.destroyChart(canvasId);
             const chartColors = this.getChartColors();
-            
+
             const backgroundColors = data.map(val => {
                 if (val < 50) return chartColors.red;
                 if (val < 70) return chartColors.yellow;
                 return chartColors.green;
             });
-            
+
             this.charts[canvasId] = new Chart(canvas, {
                 type: 'bar',
                 data: {
@@ -196,17 +196,17 @@
                     animation: false
                 }
             });
-            
+
             return this.charts[canvasId];
         },
-        
+
         createLineChart(canvasId, labels, data) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
-            
+
             this.destroyChart(canvasId);
             const colors = this.getChartColors();
-            
+
             this.charts[canvasId] = new Chart(canvas, {
                 type: 'line',
                 data: {
@@ -247,17 +247,17 @@
                     animation: false
                 }
             });
-            
+
             return this.charts[canvasId];
         },
-        
+
         createComparisonChart(canvasId, practiceAcc, examAcc) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
-            
+
             this.destroyChart(canvasId);
             const colors = this.getChartColors();
-            
+
             this.charts[canvasId] = new Chart(canvas, {
                 type: 'bar',
                 data: {
@@ -296,10 +296,10 @@
                     animation: false
                 }
             });
-            
+
             return this.charts[canvasId];
         },
-        
+
         updateChart(id, newData) {
             if (this.charts[id]) {
                 this.charts[id].data.datasets[0].data = newData;
@@ -307,24 +307,24 @@
             }
         }
     };
-    
+
     // ==================== URL ROUTER ====================
     // Hash-based routing for better student navigation
     // Supports: #appendix/A, #appendix/B, #tab/review, #tab/insights, #tab/progress
     const Router = {
         currentRoute: { type: null, value: null },
         isNavigating: false,
-        
+
         // Parse the current URL hash into a route object
         parseHash() {
             const hash = window.location.hash.slice(1); // Remove the #
             if (!hash) return { type: 'tab', value: 'study' };
-            
+
             const parts = hash.split('/');
             if (parts.length >= 2) {
                 const type = parts[0].toLowerCase();
                 const value = parts[1].toUpperCase();
-                
+
                 if (type === 'appendix' && /^[A-K]$/.test(value)) {
                     return { type: 'appendix', value: value };
                 }
@@ -332,43 +332,43 @@
                     return { type: 'tab', value: parts[1].toLowerCase() };
                 }
             }
-            
+
             return { type: 'home', value: null };
         },
-        
+
         // Navigate to a new route (updates URL and triggers navigation)
         navigate(type, value, options = {}) {
             const { replace = false, skipHandler = false } = options;
-            
+
             let hash = '';
             if (type === 'appendix' && value) {
                 hash = `#appendix/${value}`;
             } else if (type === 'tab' && value) {
                 hash = `#tab/${value}`;
             }
-            
+
             // Update URL
             if (replace) {
                 history.replaceState({ type, value }, '', hash || window.location.pathname);
             } else {
                 history.pushState({ type, value }, '', hash || window.location.pathname);
             }
-            
+
             this.currentRoute = { type, value };
-            
+
             // Update breadcrumbs
             this.updateBreadcrumbs(type, value);
-            
+
             if (!skipHandler) {
                 this.handleRoute({ type, value });
             }
         },
-        
+
         // Go back to home (appendix selection)
         goHome(options = {}) {
             this.navigate('home', null, options);
         },
-        
+
         // Smart back navigation - uses history.back() with fallback to home
         goBack() {
             if (window.history.length > 1) {
@@ -377,12 +377,12 @@
                 this.goHome();
             }
         },
-        
+
         // Handle route changes (called on popstate and initial load)
         async handleRoute(route) {
             if (this.isNavigating) return;
             this.isNavigating = true;
-            
+
             try {
                 if (route.type === 'appendix' && route.value) {
                     // Load the specific appendix
@@ -401,14 +401,14 @@
                 this.isNavigating = false;
             }
         },
-        
+
         // Update breadcrumbs based on current route
         updateBreadcrumbs(type, value) {
             const breadcrumbs = document.getElementById('breadcrumbs');
             if (!breadcrumbs) return;
-            
+
             let html = '<a href="#" class="breadcrumb-item" data-nav="home">Home</a>';
-            
+
             if (type === 'appendix' && value) {
                 const title = APPENDIX_TITLES[value] || `Appendix ${value}`;
                 html += `<span class="breadcrumb-separator">/</span>`;
@@ -418,9 +418,9 @@
                 html += `<span class="breadcrumb-separator">/</span>`;
                 html += `<span class="breadcrumb-item active">${tabName}</span>`;
             }
-            
+
             breadcrumbs.innerHTML = html;
-            
+
             // Add click handler for home breadcrumb
             const homeLink = breadcrumbs.querySelector('[data-nav="home"]');
             if (homeLink) {
@@ -430,7 +430,7 @@
                 });
             }
         },
-        
+
         // Initialize the router
         init() {
             // Handle browser back/forward buttons
@@ -440,31 +440,31 @@
                 this.updateBreadcrumbs(route.type, route.value);
                 this.handleRoute(route);
             });
-            
+
             // Handle initial route on page load
             const initialRoute = this.parseHash();
             this.currentRoute = initialRoute;
             this.updateBreadcrumbs(initialRoute.type, initialRoute.value);
-            
+
             // Return the initial route so the app can handle it
             return initialRoute;
         }
     };
-    
+
     // Make Router available globally for other modules
     window.Router = Router;
-    
+
     // Helper function to check if we're on a practice/appendix route
     // Used to prevent async callbacks from "stealing" the UI when user navigated away
     function isOnPracticeRoute() {
         const route = Router.currentRoute;
         if (!route) return false;
         // Practice route includes: appendix routes, home (appendix selection), and practice tab
-        return route.type === 'appendix' || 
-               route.type === 'home' || 
+        return route.type === 'appendix' ||
+               route.type === 'home' ||
                (route.type === 'tab' && route.value === 'practice');
     }
-    
+
     // HTML escape helper to prevent XSS when inserting untrusted content
     function escapeHtml(str) {
         if (typeof str !== 'string') return str;
@@ -486,14 +486,14 @@
     const answerState = {}; // Tracks last selected answers per question
     const flaggedQuestions = new Set(); // Track flagged questions
     let searchDebounceTimer = null; // For debouncing search input
-    
+
     // ==================== PROGRESS PERSISTENCE ====================
     const STORAGE_KEY = 'cpsa_quiz_progress';
     const STREAK_KEY = 'cpsa_quiz_streak';
     const BADGES_KEY = 'cpsa_quiz_badges';
     const STUDY_TIME_KEY = 'cpsa_study_time';
     let sessionStartTime = Date.now();
-    
+
     // Load saved progress from localStorage
     function loadProgress() {
         try {
@@ -510,7 +510,7 @@
         }
         return null;
     }
-    
+
     // Save progress to localStorage
     function saveProgress() {
         try {
@@ -526,7 +526,7 @@
             console.error('Error saving progress:', e);
         }
     }
-    
+
     // ==================== STUDY TIME TRACKING ====================
     function getStudyTime() {
         try {
@@ -535,7 +535,7 @@
             return 0;
         }
     }
-    
+
     function saveStudyTime() {
         try {
             const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
@@ -546,14 +546,14 @@
             console.error('Error saving study time:', e);
         }
     }
-    
+
     // Save study time periodically and on page unload
     setInterval(saveStudyTime, 60000);
     window.addEventListener('beforeunload', saveStudyTime);
     window.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') saveStudyTime();
     });
-    
+
     // ==================== STREAK TRACKING ====================
     function loadStreak() {
         try {
@@ -566,19 +566,19 @@
         }
         return { count: 0, lastDate: null, history: [] };
     }
-    
+
     function updateStreak() {
         const streak = loadStreak();
         const today = new Date().toDateString();
-        
+
         if (streak.lastDate === today) {
             // Already practiced today
             return streak;
         }
-        
+
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        
+
         if (streak.lastDate === yesterday.toDateString()) {
             // Continuing streak
             streak.count++;
@@ -586,7 +586,7 @@
             // Streak broken, start fresh
             streak.count = 1;
         }
-        
+
         streak.lastDate = today;
         streak.history = streak.history || [];
         if (!streak.history.includes(today)) {
@@ -596,25 +596,25 @@
                 streak.history = streak.history.slice(-7);
             }
         }
-        
+
         try {
             localStorage.setItem(STREAK_KEY, JSON.stringify(streak));
         } catch (e) {
             console.error('Error saving streak:', e);
         }
-        
+
         return streak;
     }
-    
+
     function renderStreak() {
         const streak = loadStreak();
         const streakCount = document.getElementById('streak-count');
         const streakIndicator = document.getElementById('streak-indicator');
-        
+
         if (streakCount) {
             streakCount.textContent = streak.count;
         }
-        
+
         if (streakIndicator) {
             // Show last 7 days as dots
             streakIndicator.innerHTML = '';
@@ -630,7 +630,7 @@
             }
         }
     }
-    
+
     // ==================== BADGE SYSTEM ====================
     // Note: Badge icons use emojis as they're displayed in toast notifications where emojis are appropriate
     const BADGE_DEFINITIONS = [
@@ -646,7 +646,7 @@
         { id: 'half_complete', name: 'Halfway There', desc: 'Answer 400+ questions', icon: '[>]', check: (stats) => stats.attempted >= 400 },
         { id: 'completionist', name: 'Completionist', desc: 'Answer all 803 questions', icon: '[$]', check: (stats) => stats.attempted >= 803 }
     ];
-    
+
     function loadBadges() {
         try {
             const saved = localStorage.getItem(BADGES_KEY);
@@ -655,7 +655,7 @@
             return [];
         }
     }
-    
+
     function saveBadges(badges) {
         try {
             localStorage.setItem(BADGES_KEY, JSON.stringify(badges));
@@ -663,22 +663,22 @@
             console.error('Error saving badges:', e);
         }
     }
-    
+
     function checkAndAwardBadges() {
         const earnedBadges = loadBadges();
         const stats = calculateStats();
         const streak = loadStreak();
         stats.streak = streak.count;
-        
+
         let newBadges = [];
-        
+
         BADGE_DEFINITIONS.forEach(badge => {
             if (!earnedBadges.includes(badge.id) && badge.check(stats)) {
                 earnedBadges.push(badge.id);
                 newBadges.push(badge);
             }
         });
-        
+
         if (newBadges.length > 0) {
             saveBadges(earnedBadges);
             newBadges.forEach(badge => {
@@ -689,15 +689,15 @@
                 });
             });
         }
-        
+
         return earnedBadges;
     }
-    
+
         function calculateStats() {
             const attempted = Object.keys(answerState).length;
             const correct = Object.values(answerState).filter(a => a.correct).length;
             const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-        
+
             // Calculate category stats (includes both practice and exam questions)
             const categoryStats = {};
             Object.entries(answerState).forEach(([qId, state]) => {
@@ -705,7 +705,7 @@
                 const isExam = isExamQuestion(qId);
                 // Use 'Exam' category for exam questions, otherwise use appendix-based category
                 const category = isExam ? 'Exam' : (question ? categorizeQuestion(question) : 'Unknown');
-            
+
                 if (!categoryStats[category]) {
                     categoryStats[category] = { attempted: 0, correct: 0 };
                 }
@@ -714,15 +714,15 @@
                     categoryStats[category].correct++;
                 }
             });
-        
+
             const categoriesAttempted = Object.keys(categoryStats).length;
             const perfectCategories = Object.values(categoryStats).filter(
                 cat => cat.attempted >= 5 && cat.correct === cat.attempted
             ).length;
-        
+
             return { attempted, correct, accuracy, categoriesAttempted, perfectCategories, categoryStats };
         }
-    
+
     // Calculate exam-specific stats (for Practice vs Exam comparison)
     function calculateExamStats() {
         // examAnswerState is defined later in the file, so we need to check if it exists
@@ -733,7 +733,7 @@
             const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
             return { attempted, correct, accuracy };
         }
-        
+
         // Fallback: calculate from answerState by filtering exam questions
         const examEntries = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
         const attempted = examEntries.length;
@@ -741,7 +741,7 @@
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
         return { attempted, correct, accuracy };
     }
-    
+
     // ==================== TOAST NOTIFICATIONS ====================
     // Enhanced toast notification system with interactive SVG animations
     function showToast(message, options = {}) {
@@ -749,17 +749,17 @@
         const variant = options.variant || 'info';
         const title = options.title || null;
         const action = options.action || null;
-        
+
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
             container.className = 'toast-container';
             document.body.appendChild(container);
         }
-        
+
         const toast = document.createElement('div');
         toast.className = `toast toast-${variant}`;
-        
+
         // SVG icons for different variants
         const icons = {
             info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
@@ -773,7 +773,7 @@
                       <div class="toast-glow"></div>`,
             streak: `<svg class="toast-icon toast-icon-streak" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" class="flame-outer"/><path d="M12 8c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5z" class="flame-inner"/></svg>`
         };
-        
+
         // Build toast content
         let content = `
             <div class="toast-icon-wrapper">
@@ -788,7 +788,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         `;
-        
+
         // Add confetti for badge/levelup variants
         if (variant === 'badge' || variant === 'levelup') {
             content += `<div class="toast-confetti">
@@ -796,10 +796,10 @@
                 <span class="confetti c4"></span><span class="confetti c5"></span><span class="confetti c6"></span>
             </div>`;
         }
-        
+
         toast.innerHTML = content;
         container.appendChild(toast);
-        
+
         // Auto-dismiss timer
         let timeoutId;
         const startTimer = () => {
@@ -808,18 +808,18 @@
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         };
-        
+
         // Pause on hover for interactivity
         toast.addEventListener('mouseenter', () => clearTimeout(timeoutId));
         toast.addEventListener('mouseleave', startTimer);
-        
+
         // Close button
         toast.querySelector('.toast-close').addEventListener('click', () => {
             clearTimeout(timeoutId);
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
         });
-        
+
         // Action button handler
         const actionBtn = toast.querySelector('.toast-action');
         if (actionBtn && action && action.onClick) {
@@ -830,19 +830,19 @@
                 setTimeout(() => toast.remove(), 300);
             });
         }
-        
+
         // Trigger animation
         requestAnimationFrame(() => {
             toast.classList.add('show');
             startTimer();
         });
     }
-    
+
     // ==================== BACK TO TOP ====================
     function setupBackToTop() {
         const btn = document.getElementById('back-to-top');
         if (!btn) return;
-        
+
         window.addEventListener('scroll', () => {
             if (window.scrollY > 400) {
                 btn.classList.add('show');
@@ -850,17 +850,17 @@
                 btn.classList.remove('show');
             }
         }, { passive: true });
-        
+
         btn.addEventListener('click', () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
-    
+
     // ==================== OFFLINE DETECTION ====================
     function setupOfflineDetection() {
         const indicator = document.getElementById('offline-indicator');
         if (!indicator) return;
-        
+
         function updateOnlineStatus() {
             if (navigator.onLine) {
                 indicator.classList.remove('show');
@@ -868,40 +868,40 @@
                 indicator.classList.add('show');
             }
         }
-        
+
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
         updateOnlineStatus();
     }
-    
+
     // ==================== SERVICE WORKER REGISTRATION ====================
     function registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             // Detect the correct base path for service worker registration
-            const basePath = window.location.pathname.includes('/crest-cpsa/') ? '/crest-cpsa/' : 
+            const basePath = window.location.pathname.includes('/crest-cpsa/') ? '/crest-cpsa/' :
                             window.location.pathname.includes('/CREST/') ? '/CREST/' : '/';
             navigator.serviceWorker.register(basePath + 'sw.js')
                 .then(reg => console.log('Service Worker registered:', reg.scope))
                 .catch(err => console.log('Service Worker registration failed:', err));
         }
     }
-    
+
     // ==================== FILTER FUNCTIONALITY ====================
     function setupFilters() {
         const filterSelect = document.getElementById('filter-select');
         if (!filterSelect) return;
-        
+
         filterSelect.addEventListener('change', () => {
             applyFilters();
         });
     }
-    
+
     function applyFilters() {
         const filterSelect = document.getElementById('filter-select');
         const searchInput = document.getElementById('search-input');
         const filterValue = filterSelect?.value || 'all';
         const searchQuery = searchInput?.value?.toLowerCase() || '';
-        
+
         // Support both old (.question-container) and new (.question-card) DOM structures
         const questionElements = document.querySelectorAll('.question-card, .question-container');
         questionElements.forEach(container => {
@@ -909,9 +909,9 @@
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
             // Support both old (h3) and new (.question-card-text) question text elements
-            const questionText = (container.querySelector('.question-card-text')?.textContent || 
+            const questionText = (container.querySelector('.question-card-text')?.textContent ||
                                  container.querySelector('h3')?.textContent || '').toLowerCase();
-            
+
             let showByFilter = true;
             switch (filterValue) {
                 case 'unanswered':
@@ -929,25 +929,25 @@
                 default:
                     showByFilter = true;
             }
-            
+
             const showBySearch = !searchQuery || questionText.includes(searchQuery);
             container.style.display = (showByFilter && showBySearch) ? '' : 'none';
         });
-        
+
         // Update category visibility (for legacy category-based UI)
         document.querySelectorAll('.category-section').forEach(section => {
             const visibleQuestions = section.querySelectorAll('.question-container:not([style*="display: none"]), .question-card:not([style*="display: none"])');
             section.style.display = visibleQuestions.length > 0 ? '' : 'none';
         });
-        
+
         updateCounts();
     }
-    
+
     // ==================== DEBOUNCED SEARCH ====================
     function setupDebouncedSearch() {
         const searchInput = document.getElementById('search-input');
         if (!searchInput) return;
-        
+
         searchInput.addEventListener('input', () => {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => {
@@ -955,22 +955,22 @@
             }, 300);
         });
     }
-    
-    
+
+
     // Update progress grid in the Progress panel (tab)
     function updateProgressGridPanel() {
         const grid = document.getElementById('progress-grid-panel');
         const stats = calculateStats();
         const streak = loadStreak();
-        
+
         // Calculate overall progress percentage using canonical total from examQuizData (803 questions)
-        const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0) 
-            ? Object.keys(examQuizData).length 
+        const totalQuestions = (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)
+            ? Object.keys(examQuizData).length
             : 803;
         const totalAttempted = Object.keys(answerState).length;
         const progressPercent = Math.min(100, Math.round((totalAttempted / totalQuestions) * 100));
         const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-        
+
         // Count appendices/categories started
         const appendicesWithProgress = new Set();
         const masteredCategories = new Set();
@@ -984,7 +984,7 @@
                 }
             }
         });
-        
+
         // Count mastered categories (>= 80% accuracy with >= 10 questions)
         const categoryStats = getCategoryStats();
         Object.entries(categoryStats).forEach(([cat, catStats]) => {
@@ -993,7 +993,7 @@
                 if (catAcc >= 80) masteredCategories.add(cat);
             }
         });
-        
+
         // Update SOC Progress Center elements
         const overallProgressEl = document.getElementById('overall-progress');
         const completionStatusEl = document.getElementById('completion-status');
@@ -1002,13 +1002,13 @@
         const currentStreakEl = document.getElementById('current-streak');
         const categoriesMasteredEl = document.getElementById('categories-mastered');
         const readinessBadgeEl = document.getElementById('readiness-badge');
-        
+
         if (overallProgressEl) overallProgressEl.textContent = `${progressPercent}%`;
         if (questionsAnsweredEl) questionsAnsweredEl.textContent = stats.attempted;
         if (appendicesStartedEl) appendicesStartedEl.textContent = appendicesWithProgress.size;
         if (currentStreakEl) currentStreakEl.textContent = streak.count || 0;
         if (categoriesMasteredEl) categoriesMasteredEl.textContent = masteredCategories.size;
-        
+
         // Update completion status badge
         if (completionStatusEl) {
             if (progressPercent >= 80) {
@@ -1025,7 +1025,7 @@
                 completionStatusEl.className = 'progress-status starting';
             }
         }
-        
+
         // Update readiness badge
         if (readinessBadgeEl) {
             const readinessScore = calculateReadinessScore(progressPercent, accuracy, appendicesWithProgress.size);
@@ -1040,16 +1040,16 @@
                 readinessBadgeEl.className = 'readiness-badge';
             }
         }
-        
+
         // Render Chart.js Progress visualizations
         renderProgressCharts(progressPercent, accuracy, appendicesWithProgress.size, categoryStats);
-        
+
         // Also render the legacy grid if it exists
         if (!grid) return;
         if (typeof quizData === 'undefined' || !quizData) return;
-        
+
         const categorizedQuestions = {};
-        
+
         Object.entries(quizData).forEach(([id, q]) => {
             const category = categorizeQuestion(q);
             if (!categorizedQuestions[category]) {
@@ -1057,7 +1057,7 @@
             }
             categorizedQuestions[category].push(id);
         });
-        
+
         const examAnsweredIds = Object.keys(answerState).filter(qId => isExamQuestion(qId));
         if (examAnsweredIds.length > 0 || (typeof examQuizData !== 'undefined' && Object.keys(examQuizData).length > 0)) {
             const examCategory = 'Exam Questions';
@@ -1070,14 +1070,14 @@
                 }
             });
         }
-        
+
         grid.innerHTML = '';
-        
+
         Object.entries(categorizedQuestions).forEach(([category, questions]) => {
             const catStats = stats.categoryStats[category] || { attempted: 0, correct: 0 };
             const total = questions.length;
             const percentage = total > 0 ? Math.round((catStats.correct / total) * 100) : 0;
-            
+
             const item = document.createElement('div');
             item.className = 'progress-item';
             item.innerHTML = `
@@ -1092,7 +1092,7 @@
                     <div class="progress-item-fill" style="width: ${percentage}%"></div>
                 </div>
             `;
-            
+
             const resetBtn = item.querySelector('.category-reset-btn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', (e) => {
@@ -1102,11 +1102,11 @@
                     updateProgressGridPanel();
                 });
             }
-            
+
             grid.appendChild(item);
         });
     }
-    
+
     // Calculate exam readiness score
     function calculateReadinessScore(progressPercent, accuracy, appendicesStarted) {
         const progressWeight = 0.3;
@@ -1119,7 +1119,7 @@
             (coverageScore * coverageWeight)
         );
     }
-    
+
     // Render Progress page Chart.js charts
     function renderProgressCharts(progressPercent, accuracy, appendicesStarted, categoryStats) {
         if (!ChartManager.isReady()) {
@@ -1127,14 +1127,14 @@
             return;
         }
         const colors = ChartManager.getChartColors();
-        
+
         // Overall Completion Doughnut
         ChartManager.createDoughnutChart('progress-chart', progressPercent, 100, colors.teal, 'Complete');
-        
+
         // Exam Readiness Gauge (semi-circle)
         const readinessScore = calculateReadinessScore(progressPercent, accuracy, appendicesStarted);
         ChartManager.createGaugeChart('readiness-chart', readinessScore, 'Ready');
-        
+
         // Appendix Progress Bar Chart
         const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
         const labels = appendices;
@@ -1147,7 +1147,7 @@
         });
         ChartManager.createBarChart('appendix-progress-chart', labels, data);
     }
-    
+
     // ==================== FLAG FOR REVIEW ====================
     function toggleFlag(questionId) {
         if (flaggedQuestions.has(questionId)) {
@@ -1156,9 +1156,9 @@
             flaggedQuestions.add(questionId);
         }
         saveProgress();
-        
+
         // Update UI - support both old (.question-container) and new (.question-card) DOM structures
-        const container = document.querySelector(`.question-card[data-question-id="${questionId}"]`) || 
+        const container = document.querySelector(`.question-card[data-question-id="${questionId}"]`) ||
                          document.querySelector(`.question-container[data-question-id="${questionId}"]`);
         if (container) {
             container.classList.toggle('flagged', flaggedQuestions.has(questionId));
@@ -1174,17 +1174,17 @@
                 }
             }
         }
-        
+
         // Update all UI panels to reflect the flag change across all pages
         updateAllUI();
     }
-    
+
     // ==================== SHARE PROGRESS ====================
     function generateShareText() {
         const stats = calculateStats();
         const streak = loadStreak();
         const badges = loadBadges();
-        
+
         return `CPSA Quiz Progress
 - Score: ${stats.correct}/${stats.attempted} (${stats.accuracy}% accuracy)
 - Streak: ${streak.count} days
@@ -1192,10 +1192,10 @@
 
 Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     }
-    
+
     function shareProgress() {
         const text = generateShareText();
-        
+
         if (navigator.share) {
             navigator.share({
                 title: 'My CPSA Quiz Progress',
@@ -1208,7 +1208,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             copyToClipboard(text);
         }
     }
-    
+
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
             showToast('Progress copied to clipboard!');
@@ -1216,36 +1216,36 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             showToast('Could not copy to clipboard');
         });
     }
-    
+
     // ==================== RESET PROGRESS ====================
         function resetProgress() {
             if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
                 return;
             }
-        
+
             // Clear state (both practice and exam)
             score = 0;
             examScore = 0;
             Object.keys(answerState).forEach(key => delete answerState[key]);
             Object.keys(examAnswerState).forEach(key => delete examAnswerState[key]);
             flaggedQuestions.clear();
-        
+
             // Clear localStorage (both practice and exam)
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem(EXAM_STORAGE_KEY);
             localStorage.removeItem(STREAK_KEY);
             localStorage.removeItem(BADGES_KEY);
-        
+
             // Reload page to reset UI
             location.reload();
         }
-    
+
     // Reset progress for a specific category
     function resetCategoryProgress(categoryName) {
         if (!confirm(`Reset progress for "${categoryName}"? This will clear your answers and flags for this category.`)) {
             return;
         }
-        
+
         const categorizedQuestions = {};
         Object.keys(quizData).forEach(key => {
             const questionObj = quizData[key];
@@ -1255,12 +1255,12 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             }
             categorizedQuestions[category].push({ key, questionObj });
         });
-        
+
         const questions = categorizedQuestions[categoryName];
         if (!questions) return;
-        
+
         let resetCount = 0;
-        
+
         questions.forEach(({ key }) => {
             // Check if this question was answered
             if (answerState[key]) {
@@ -1271,24 +1271,24 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 delete answerState[key];
                 resetCount++;
             }
-            
+
             // Clear flags
             flaggedQuestions.delete(key);
-            
+
             // Reset DOM for this question
             const container = document.querySelector(`.question-container[data-question-id="${key}"]`);
             if (!container) return;
-            
+
             // Remove status classes
             container.classList.remove("flagged", "answered-correct", "answered-incorrect");
-            
+
             // Reset flag button
             const flagBtn = container.querySelector(".flag-button");
             if (flagBtn) {
                 flagBtn.classList.remove("flagged");
                 flagBtn.textContent = "[_] Flag";
             }
-            
+
             // Reset options
             container.querySelectorAll(".option").forEach(optionDiv => {
                 optionDiv.classList.remove("correct", "incorrect");
@@ -1298,14 +1298,14 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     input.disabled = false;
                 }
             });
-            
+
             // Reset explanation panels
             const answerExplanation = container.querySelector(".answer-explanation");
             if (answerExplanation) {
                 answerExplanation.classList.remove("show", "loading", "correct-explanation", "incorrect-explanation");
                 answerExplanation.textContent = "";
             }
-            
+
             // Reset explain answer button (icon-only)
             const explainBtn = container.querySelector(".gemini-btn[id^='explain-answer-btn-']");
             if (explainBtn) {
@@ -1316,16 +1316,16 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 explainBtn.innerHTML = getGeminiIcon(qId);
             }
         });
-        
+
         // Update score display
         const scoreElement = document.getElementById("score");
         const percentageElement = document.getElementById("percentage");
         const accuracyBar = document.getElementById("accuracy-bar");
-        
+
         if (scoreElement) {
             scoreElement.textContent = score;
         }
-        
+
         // Update percentage
         const percentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(2) : 0;
         if (percentageElement) {
@@ -1334,35 +1334,35 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         if (accuracyBar) {
             accuracyBar.style.width = `${Math.min(parseFloat(percentage), 100)}%`;
         }
-        
+
         // Update attempted count
         const attemptedEl = document.getElementById('attempted-count');
         if (attemptedEl) {
             attemptedEl.textContent = Object.keys(answerState).length;
         }
-        
+
         // Save progress and update UI
         saveProgress();
         updateReviewStats();
-        
+
         showToast(`Reset ${resetCount} question${resetCount === 1 ? '' : 's'} in "${categoryName}"`);
     }
-    
+
     // ==================== UPDATE COUNTS ====================
     function updateCounts() {
         const visibleCategories = document.querySelectorAll('.category-section:not([style*="display: none"])').length;
         const visibleQuestions = document.querySelectorAll('.question-container:not([style*="display: none"])').length;
-        
+
         const categoryChip = document.getElementById('category-count-chip');
         const questionChip = document.getElementById('question-count-chip');
-        
+
         if (categoryChip) categoryChip.textContent = `Categories: ${visibleCategories}`;
         if (questionChip) questionChip.textContent = `Questions: ${visibleQuestions}`;
     }
 
     // ==================== CENTRALIZED UI UPDATE ====================
     let uiUpdateTimer = null;
-    
+
         function updateAllUI() {
             updateCounts();
             updateProgressGridPanel();
@@ -1373,13 +1373,13 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             renderStreak();
             renderXP();
             updateAdditionalVisualizations(); // Update new KPIs and charts
-        
+
             // Update nav bar stats
             const stats = calculateStats();
             const percentageElement = document.getElementById("percentage");
             const accuracyBar = document.getElementById("accuracy-bar");
             const attemptedCount = document.getElementById("attempted-count");
-        
+
             if (percentageElement) {
                 const percentage = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
                 percentageElement.textContent = percentage;
@@ -1392,7 +1392,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                 attemptedCount.textContent = stats.attempted;
             }
         }
-    
+
     function scheduleUIUpdate() {
         if (uiUpdateTimer) {
             clearTimeout(uiUpdateTimer);
@@ -1446,17 +1446,17 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 
     // ==================== CROSS-PAGE HELPER FUNCTIONS ====================
     // These helpers enable all pages to work with both practice and exam questions
-    
+
     // Check if a question ID is from the exam panel
     function isExamQuestion(qId) {
         return qId && qId.startsWith('exam_');
     }
-    
+
     // Get the base ID for an exam question (strips 'exam_' prefix)
     function getBaseExamId(qId) {
         return isExamQuestion(qId) ? qId.substring(5) : qId;
     }
-    
+
     // Unified question lookup - resolves from both quizData and examQuizData
     function getQuestionById(qId) {
         // First check quizData (practice questions)
@@ -1479,7 +1479,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
         }
         return null;
     }
-    
+
     // Get category for any question ID (works for both practice and exam)
     function getCategoryForQuestion(qId) {
         const question = getQuestionById(qId);
@@ -1495,17 +1495,17 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // For general queries: only attaches RAG if query is CPSA-specific OR has high BM25 score
     async function callOpenAI(prompt, options = {}) {
         const { useRAG = false, ragQuery = null, topK = 5, sourceChunkId = null, scoreThreshold = 5.0 } = options;
-        
+
         try {
             let systemContent = 'You are a CPSA tutor. Be concise. Plain text only, no markdown. Created by Suraj Sharma (sudosuraj).';
             let userContent = prompt;
             let sources = [];
-            
+
             // OPTIMIZED RAG: Use source_chunk_id directly if provided (for explain buttons)
             // This is more accurate and uses fewer tokens than broad search
             if (useRAG && typeof RAG !== 'undefined' && RAG.isReady()) {
                 let retrievedChunks = [];
-                
+
                 if (sourceChunkId) {
                     // Direct chunk lookup - most efficient for explain buttons
                     const sourceChunk = RAG.getChunkById(sourceChunkId);
@@ -1518,28 +1518,28 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
                     const isCPSASpecific = RAG.isCPSAQuery(query);
                     const scoredResults = RAG.searchWithScores(query, topK);
                     const topScore = scoredResults.length > 0 ? scoredResults[0].score : 0;
-                    
+
                     // Only attach RAG context if query is CPSA-specific OR has high BM25 score
                     if (isCPSASpecific || topScore >= scoreThreshold) {
                         retrievedChunks = scoredResults.map(r => r.chunk);
                     }
                 }
-                
+
                 if (retrievedChunks.length > 0) {
                     // Use token-budgeted context formatting
                     const context = RAG.formatContext(retrievedChunks, { maxTokens: 2500 });
                     sources = RAG.formatSources(retrievedChunks);
-                    
+
                     systemContent = `CPSA tutor with study notes. Cite sources when relevant. Plain text only.`;
                     userContent = `Reference material:\n${context}\n\nQuestion: ${prompt}`;
                 }
             }
-            
+
             // LLMClient is required - no direct fetch fallback to ensure rate limiting
             if (typeof LLMClient === 'undefined') {
                 throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
-            
+
             const data = await LLMClient.requestHighPriority({
                 messages: [
                     { role: 'system', content: systemContent },
@@ -1550,7 +1550,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             });
 
             const answer = data.choices?.[0]?.message?.content?.trim() || 'No explanation available.';
-            
+
             // Return with sources if RAG was used
             if (useRAG && sources.length > 0) {
                 return { answer, sources };
@@ -1565,7 +1565,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     // Help chatbot API wrapper (keeps conversation history) - Simplified without RAG for faster responses
     async function callTutor(messages) {
         const systemContent = 'CPSA study assistant. Be concise. Plain text only. Created by Suraj Sharma (sudosuraj).';
-        
+
         // Build payload - simple system message + conversation
         const payload = [
             {
@@ -1580,7 +1580,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
             if (typeof LLMClient === 'undefined') {
                 throw new Error('LLMClient not available - ensure llm-client.js is loaded before app.js');
             }
-            
+
             const data = await LLMClient.requestHighPriority({
                 messages: payload,
                 max_tokens: 400,
@@ -1601,7 +1601,7 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
     async function explainQuestion(questionText, questionId) {
         const explanationDiv = document.getElementById(`question-explanation-${questionId}`);
         const button = document.getElementById(`explain-question-btn-${questionId}`);
-        
+
         if (explanationDiv.classList.contains('show')) {
             explanationDiv.classList.remove('show');
             button.textContent = '[AI] Explain Question';
@@ -1623,20 +1623,20 @@ Practice at: https://sudosuraj.github.io/crest-cpsa/`;
 Correct Answer: "${correctAnswer}"
 
 Provide background context and key concepts/terms that are relevant to understanding this question. Focus on explaining the foundational knowledge, important terms, and context needed to answer it. Keep it concise (3-4 sentences).`;
-        
+
         // Call without RAG for faster response
         const result = await callOpenAI(prompt, { useRAG: false });
 
         explanationDiv.classList.remove('loading');
         explanationDiv.textContent = result || 'Unable to generate explanation.';
-        
+
         button.disabled = false;
         button.textContent = '[AI] Hide Explanation';
     }
 
     // Cache for AI explanations to avoid repeated LLM calls
     const explanationCache = {};
-    
+
     // Function to explain answer on demand - simplified to only explain why selected answer is right/wrong
     async function explainAnswer(questionId) {
         const state = answerState[questionId];
@@ -1693,7 +1693,7 @@ Provide background context and key concepts/terms that are relevant to understan
         try {
             // Simplified prompt - only explain why the selected answer is right or wrong
             let prompt;
-            
+
             if (isCorrect) {
                 prompt = `Question: "${questionText}"
 Your Answer: "${selectedAnswer}"
@@ -1719,7 +1719,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
             explanationDiv.classList.remove('loading');
             explanationDiv.textContent = explanation;
-            
+
             // Update button to show "hide" state with filled icon
             button.innerHTML = getGeminiIconFilled(questionId);
             button.title = 'Hide explanation';
@@ -1733,7 +1733,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             button.disabled = false;
         }
     }
-    
+
     // Helper function to get the Gemini icon SVG (outline version)
     function getGeminiIcon(id) {
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -1749,7 +1749,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="url(#gemini-grad-${id})" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>`;
     }
-    
+
     // Helper function to get the Gemini icon SVG (filled version for active state)
     function getGeminiIconFilled(id) {
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
@@ -1781,13 +1781,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
         // Show appendix selection screen
         quizContainer.innerHTML = '';
-        
+
         // Add toolbar-collapsed class to hide toolbar by default
         const mainContent = document.getElementById('main-content');
         if (mainContent) {
             mainContent.classList.add('toolbar-collapsed');
         }
-        
+
         // Remove active state from all tabs, then activate practice panel
         // This ensures the practice panel is visible when showing appendix selection
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
@@ -1797,7 +1797,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         document.querySelectorAll('.toolbar-panel').forEach(panel => {
             panel.classList.remove('active');
         });
-        
+
         // Re-activate the practice panel since appendix selection is displayed there
         const practicePanel = document.getElementById('practice-panel');
         const practiceTab = document.getElementById('tab-practice');
@@ -1806,7 +1806,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             practiceTab.classList.add('active');
             practiceTab.setAttribute('aria-selected', 'true');
         }
-        
+
         const selectionScreen = document.createElement('div');
         selectionScreen.className = 'appendix-selection';
         selectionScreen.innerHTML = `
@@ -1857,14 +1857,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 const card = document.createElement('div');
                 card.className = 'appendix-card';
                 card.dataset.appendix = appendix.letter;
-                
+
                 // Get chunk count for this appendix
                 const chunkCount = RAG.getAppendixChunkCount(appendix.letter);
                 const estimatedQuestions = chunkCount * 5; // ~5 questions per chunk
-                
+
                 // Get appendix icon class
                 const iconClass = `appendix-${appendix.letter.toLowerCase()}`;
-                
+
                 card.innerHTML = `
                     <div class="appendix-card-header">
                         <div class="appendix-icon ${iconClass}">${appendix.letter}</div>
@@ -1901,7 +1901,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         </div>
                     </div>
                 `;
-                
+
                 card.addEventListener('click', () => {
                     // Use Router to navigate - this updates URL and handles navigation
                     Router.navigate('appendix', appendix.letter, { skipHandler: true });
@@ -1924,7 +1924,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     async function loadAppendixQuiz(appendixLetter, appendixTitle) {
         const quizContainer = document.getElementById("quiz-container");
         currentAppendix = { letter: appendixLetter, title: appendixTitle };
-        
+
         // CRITICAL: Ensure practice panel is active before loading any content
         // This fixes the blank page bug when navigating to appendix routes
         // Only activate if we're on a practice/appendix route to prevent "stealing" UI from other tabs
@@ -1937,17 +1937,17 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 practiceTab.setAttribute('aria-selected', 'true');
             }
         }
-        
+
         // Check if this appendix has been preloaded
         const isPreloaded = QuizDataLoader.isAppendixPreloaded && QuizDataLoader.isAppendixPreloaded(appendixLetter);
-        
+
         if (isPreloaded) {
             // Use preloaded questions - instant display!
             console.log(`Using preloaded questions for Appendix ${appendixLetter}`);
-            
+
             const questions = QuizDataLoader.getAllAppendixQuestions(appendixLetter);
             const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
-            
+
             // Update total questions count
             totalQuestions = QuizDataLoader.getTotalQuestionCount();
             const totalElement = document.getElementById("total-questions");
@@ -1957,20 +1957,20 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
             // Display the questions immediately
             displayQuestionsWithPagination(questions, appendixLetter, appendixTitle, paginationInfo);
-            
+
             // Start loading next batch in background for when user clicks "Next"
             setTimeout(() => {
                 QuizDataLoader.loadAppendixNextPage(appendixLetter, null).then(() => {
                     console.log(`Background: Next batch ready for Appendix ${appendixLetter}`);
                 });
             }, 500);
-            
+
             return;
         }
-        
+
                 // Not preloaded - use STREAMING RAG to show questions immediately as they're generated
                 // This is TRUE RAG: retrieves chunks, generates questions, streams them to UI
-        
+
                 // Show API key modal if no API key is set (one-time per session)
                 const hasApiKey = typeof LLMClient !== 'undefined' && LLMClient.hasApiKey();
                 const modalShownThisSession = sessionStorage.getItem('api_key_modal_shown') === 'true';
@@ -1978,11 +1978,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     sessionStorage.setItem('api_key_modal_shown', 'true');
                     window.openApiKeyModal();
                 }
-        
+
                 // Track questions as they stream in
                 let streamedQuestions = {};
                 let firstQuestionShown = false;
-        
+
         // Initial loading state - will be replaced as soon as first question arrives
         quizContainer.innerHTML = `
             <div class="generation-progress" id="streaming-progress">
@@ -2044,7 +2044,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 // THIS IS THE KEY: Called for EACH question as it arrives
                 onQuestion: (question, id, currentCount, targetCount) => {
                     streamedQuestions[id] = question;
-                    
+
                     // Show questions as soon as we have the first one!
                     if (!firstQuestionShown) {
                         firstQuestionShown = true;
@@ -2063,12 +2063,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         if (streamingIndicator) {
                             streamingIndicator.textContent = `Generating: ${currentCount}/${targetCount} questions`;
                         }
-                        
+
                         // Add the new question to the display
                         addStreamedQuestion(question, id, currentCount);
                     }
                 },
-                
+
                 onProgress: (progress) => {
                     // Update progress bar if still showing loading screen
                     const progressBar = document.getElementById('generation-progress-bar');
@@ -2081,7 +2081,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         statusEl.textContent = `Processing section ${progress.section} (${progress.questionsGenerated} questions)`;
                     }
                 },
-                
+
                 onError: (error) => {
                     console.error('Streaming RAG error:', error);
                     // Show error but don't stop if we have some questions
@@ -2105,7 +2105,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             // Questions are already displayed via addStreamedQuestion() during streaming.
             // Calling displayQuestionsWithPagination() would re-render and shuffle all questions,
             // causing the "questions appearing from above" issue.
-            
+
             // Just update the pagination info
             const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
             const infoEl = document.querySelector('.pagination-info');
@@ -2116,18 +2116,18 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     ${paginationInfo.exhausted ? '<span class="exhausted-badge">All content processed</span>' : ''}
                 `;
             }
-            
+
             // Remove streaming indicator
             const streamingIndicator = document.getElementById('streaming-indicator');
             if (streamingIndicator) {
                 streamingIndicator.remove();
             }
-            
+
             // Automatically continue generating more questions if available
             if (result.hasMore && !result.exhausted) {
                 continuouslyGenerateMoreQuestions(appendixLetter);
             }
-            
+
         } catch (error) {
             console.error('Error generating questions:', error);
             quizContainer.innerHTML = `
@@ -2136,7 +2136,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
         }
     }
-    
+
     /**
      * Add a single streamed question to the display
      * Called when a new question arrives during streaming RAG
@@ -2147,10 +2147,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         if (!isOnPracticeRoute()) {
             return;
         }
-        
+
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
-        
+
         // Create question card matching existing structure
         const questionCard = document.createElement('div');
         questionCard.classList.add('question-card', 'fade-in');
@@ -2214,15 +2214,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         allAnswers.forEach((answer, index) => {
             const optionDiv = document.createElement('div');
             optionDiv.classList.add('option-tile');
-            
+
             const optionLetter = document.createElement('span');
             optionLetter.classList.add('option-letter');
             optionLetter.textContent = String.fromCharCode(65 + index); // A, B, C, D
-            
+
             const optionText = document.createElement('span');
             optionText.classList.add('option-text');
             optionText.textContent = answer;
-            
+
             optionDiv.appendChild(optionLetter);
             optionDiv.appendChild(optionText);
             optionDiv.dataset.correct = answer === question.answer ? 'true' : 'false';
@@ -2234,7 +2234,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
                 const isCorrect = this.dataset.correct === 'true';
                 const selectedAnswer = this.querySelector('.option-text').textContent;
-                
+
                 // Mark all options as answered
                 optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
                     opt.classList.add('answered');
@@ -2269,7 +2269,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     addXP(10);
                     updateStreak(); // Update streak on first correct answer of the day
                 }
-                
+
                 updateCounts();
                 saveProgress();
                 checkAndAwardBadges();
@@ -2296,7 +2296,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     async function loadNextPage() {
         const quizContainer = document.getElementById("quiz-container");
         const { letter, title } = currentAppendix;
-        
+
         if (!letter) {
             console.error('No appendix selected');
             return;
@@ -2329,7 +2329,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 onQuestion: (question, id) => {
                     currentQuestionCount++;
                     addStreamedQuestion(question, id, currentQuestionCount);
-                    
+
                     // Update total questions count as each arrives
                     totalQuestions = QuizDataLoader.getTotalQuestionCount();
                     const totalElement = document.getElementById("total-questions");
@@ -2353,14 +2353,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     if (streamingIndicator) {
                         streamingIndicator.classList.add('hidden');
                     }
-                    
+
                     // Update pagination info
                     const paginationInfo = QuizDataLoader.getPaginationInfo(letter);
                     const paginationEl = document.getElementById('pagination-info');
                     if (paginationEl && paginationInfo) {
                         paginationEl.textContent = `Page ${paginationInfo.currentPage} of ${paginationInfo.totalPages} (${paginationInfo.totalQuestions} questions)`;
                     }
-                    
+
                     // Update next page button
                     if (nextPageBtn) {
                         if (finalResult.hasMore) {
@@ -2384,7 +2384,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     showToast('Error generating questions. Please try again.', { variant: 'error' });
                 }
             });
-            
+
         } catch (error) {
             console.error('Error generating next page:', error);
             if (streamingIndicator) {
@@ -2408,13 +2408,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             console.log('continuouslyGenerateMoreQuestions: Stopping - not on practice route');
             return;
         }
-        
+
         const MAX_RETRIES = 3;
         const questionsContainer = document.getElementById('questions-list');
         if (!questionsContainer) return;
 
         let currentQuestionCount = questionsContainer.children.length;
-        
+
         // Show a subtle indicator that more questions are being generated
         let continuousIndicator = document.getElementById('continuous-generation-indicator');
         if (!continuousIndicator) {
@@ -2434,14 +2434,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 onQuestion: (question, id) => {
                     currentQuestionCount++;
                     addStreamedQuestion(question, id, currentQuestionCount);
-                    
+
                     // Update total questions count as each arrives
                     totalQuestions = QuizDataLoader.getTotalQuestionCount();
                     const totalElement = document.getElementById("total-questions");
                     if (totalElement) {
                         totalElement.textContent = totalQuestions;
                     }
-                    
+
                     // Update pagination info
                     const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
                     const infoEl = document.querySelector('.pagination-info');
@@ -2469,7 +2469,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     } else {
                         // All done - hide the indicator and show completion message
                         continuousIndicator.classList.add('hidden');
-                        
+
                         // Update pagination info to show completion
                         const paginationInfo = QuizDataLoader.getPaginationInfo(appendixLetter);
                         const infoEl = document.querySelector('.pagination-info');
@@ -2480,7 +2480,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                                 <span class="exhausted-badge">All content processed</span>
                             `;
                         }
-                        
+
                         console.log(`Continuous generation complete for Appendix ${appendixLetter}: ${paginationInfo ? paginationInfo.totalQuestions : 'unknown'} questions`);
                     }
                 },
@@ -2518,12 +2518,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             console.log('displayQuestionsWithPagination: Skipping UI update - not on practice route');
             return;
         }
-        
+
         const quizContainer = document.getElementById("quiz-container");
         const scoreElement = document.getElementById("score");
         const percentageElement = document.getElementById("percentage");
         const accuracyBar = document.getElementById("accuracy-bar");
-        
+
         // Track answers for this quiz session
         let correctAnswers = 0;
         let answeredQuestions = 0;
@@ -2533,7 +2533,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         if (mainContent) {
             mainContent.classList.add('toolbar-collapsed');
         }
-        
+
         // Activate practice panel only if we're on a practice/appendix route (already checked above)
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
             tab.classList.remove('active');
@@ -2542,7 +2542,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         document.querySelectorAll('.toolbar-panel').forEach(panel => {
             panel.classList.remove('active');
         });
-        
+
         // Re-activate the practice panel since quiz content is displayed there
         const practicePanel = document.getElementById('practice-panel');
         const practiceTab = document.getElementById('tab-practice');
@@ -2557,7 +2557,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         // Add header with back button and pagination info
         const header = document.createElement('div');
         header.className = 'quiz-header-pagination';
-        
+
         const backBtn = document.createElement('button');
         backBtn.className = 'back-to-selection back-btn';
         backBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg> Back';
@@ -2611,11 +2611,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         if (!paginationResult.isStreaming) {
             shuffleArray(questionKeys);
         }
-        
+
         let questionNumber = 1;
         questionKeys.forEach(key => {
             const questionObj = questions[key];
-            
+
             // Create modern question card
             const questionCard = document.createElement("div");
             questionCard.classList.add("question-card");
@@ -2680,15 +2680,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             allAnswers.forEach((answer, index) => {
                 const optionDiv = document.createElement("div");
                 optionDiv.classList.add("option-tile");
-                
+
                 const optionLetter = document.createElement("span");
                 optionLetter.classList.add("option-letter");
                 optionLetter.textContent = String.fromCharCode(65 + index); // A, B, C, D
-                
+
                 const optionText = document.createElement("span");
                 optionText.classList.add("option-text");
                 optionText.textContent = answer;
-                
+
                 optionDiv.appendChild(optionLetter);
                 optionDiv.appendChild(optionText);
                 optionDiv.dataset.correct = answer === questionObj.answer ? "true" : "false";
@@ -2700,7 +2700,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
                     const isCorrect = this.dataset.correct === "true";
                     const selectedAnswer = this.querySelector(".option-text").textContent;
-                    
+
                     // Mark all options as answered
                     optionsDiv.querySelectorAll(".option-tile").forEach(opt => {
                         opt.classList.add("answered");
@@ -2737,7 +2737,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         updateStreak(); // Update streak on first correct answer of the day
                     }
                     answeredQuestions++;
-                    
+
                     updateCounts();
                     saveProgress();
                     checkAndAwardBadges();
@@ -2788,12 +2788,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
     // ==================== EXAM PANEL ====================
     // Exam panel uses pre-loaded questions from examQuizData (CREST repo)
     // Questions are shuffled on every load for variety
-    
+
     const EXAM_STORAGE_KEY = 'cpsa_exam_progress';
     const examAnswerState = {};
     let examScore = 0;
     let examLoaded = false;
-    
+
         function loadExamProgress() {
             try {
                 const saved = localStorage.getItem(EXAM_STORAGE_KEY);
@@ -2810,7 +2810,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             }
             return null;
         }
-    
+
     function saveExamProgress() {
         try {
             const data = {
@@ -2824,32 +2824,32 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             console.error('Error saving exam progress:', e);
         }
     }
-    
+
     function loadExamQuiz() {
         const examContainer = document.getElementById('exam-container');
         if (!examContainer) return;
-        
+
         // Load saved exam progress
         loadExamProgress();
-        
+
         // Get all questions from examQuizData and shuffle them
         const questionKeys = Object.keys(examQuizData);
         shuffleArray(questionKeys);
-        
+
         const totalQuestions = questionKeys.length;
-        
+
         // Clear container and build UI
         examContainer.innerHTML = '';
-        
+
         // Add header
         const header = document.createElement('div');
         header.className = 'quiz-header-pagination';
-        
+
         const titleEl = document.createElement('h2');
         titleEl.className = 'appendix-quiz-title';
         titleEl.textContent = 'CPSA Exam Practice';
         header.appendChild(titleEl);
-        
+
         const infoEl = document.createElement('div');
         infoEl.className = 'pagination-info';
         const examAttempted = Object.keys(examAnswerState).length;
@@ -2860,53 +2860,53 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             <span class="chunk-progress">Attempted: ${examAttempted} | Correct: ${examCorrect} | Accuracy: ${examAccuracy}%</span>
         `;
         header.appendChild(infoEl);
-        
+
         // Add shuffle button
         const shuffleBtn = document.createElement('button');
         shuffleBtn.className = 'action-btn';
         shuffleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg> Shuffle Questions';
         shuffleBtn.addEventListener('click', () => loadExamQuiz());
         header.appendChild(shuffleBtn);
-        
+
         examContainer.appendChild(header);
-        
+
         // Create questions container
         const questionsContainer = document.createElement('div');
         questionsContainer.id = 'exam-questions-list';
         questionsContainer.className = 'questions-container flat-list';
-        
+
         let questionNumber = 1;
         questionKeys.forEach(key => {
             const questionObj = examQuizData[key];
             const examKey = `exam_${key}`;
-            
+
             const questionCard = document.createElement('div');
             questionCard.classList.add('question-card');
             questionCard.dataset.questionId = examKey;
-            
+
             // Check if already answered
             if (examAnswerState[examKey]) {
                 questionCard.classList.add(examAnswerState[examKey].correct ? 'answered-correct' : 'answered-incorrect');
             }
-            
+
             // Question header
             const questionHeader = document.createElement('div');
             questionHeader.classList.add('question-card-header');
-            
+
             const questionBadge = document.createElement('span');
             questionBadge.classList.add('question-number-badge');
             questionBadge.textContent = questionNumber;
-            
+
             const questionActions = document.createElement('div');
             questionActions.classList.add('question-card-actions');
-            
+
             // Flag button
             const flagBtn = document.createElement('button');
             flagBtn.classList.add('flag-btn');
             flagBtn.title = 'Flag for review';
             flagBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>';
             flagBtn.addEventListener('click', () => toggleFlag(examKey));
-            
+
             // Explain button
             const explainBtn = document.createElement('button');
             explainBtn.classList.add('gemini-btn');
@@ -2926,40 +2926,40 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#gemini-grad-${examKey})"/>
             </svg>`;
             explainBtn.addEventListener('click', () => explainExamAnswer(examKey, questionObj));
-            
+
             questionActions.appendChild(flagBtn);
             questionActions.appendChild(explainBtn);
             questionHeader.appendChild(questionBadge);
             questionHeader.appendChild(questionActions);
-            
+
             // Question text
             const questionText = document.createElement('div');
             questionText.classList.add('question-card-text');
             questionText.textContent = questionObj.question;
-            
+
             // Options container
             const optionsDiv = document.createElement('div');
             optionsDiv.classList.add('question-card-options');
-            
+
             const allAnswers = [questionObj.answer, ...questionObj.incorrect];
             shuffleArray(allAnswers);
-            
+
             allAnswers.forEach((answer, index) => {
                 const optionDiv = document.createElement('div');
                 optionDiv.classList.add('option-tile');
-                
+
                 const optionLetter = document.createElement('span');
                 optionLetter.classList.add('option-letter');
                 optionLetter.textContent = String.fromCharCode(65 + index);
-                
+
                 const optionText = document.createElement('span');
                 optionText.classList.add('option-text');
                 optionText.textContent = answer;
-                
+
                 optionDiv.appendChild(optionLetter);
                 optionDiv.appendChild(optionText);
                 optionDiv.dataset.correct = answer === questionObj.answer ? 'true' : 'false';
-                
+
                 // Restore previous answer state
                 if (examAnswerState[examKey]) {
                     optionDiv.classList.add('answered');
@@ -2969,13 +2969,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         optionDiv.classList.add('incorrect');
                     }
                 }
-                
+
                 optionDiv.addEventListener('click', function() {
                     if (this.classList.contains('answered')) return;
-                    
+
                     const isCorrect = this.dataset.correct === 'true';
                     const selectedAnswer = this.querySelector('.option-text').textContent;
-                    
+
                     optionsDiv.querySelectorAll('.option-tile').forEach(opt => {
                         opt.classList.add('answered');
                         if (opt.dataset.correct === 'true') {
@@ -2984,12 +2984,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                             opt.classList.add('incorrect');
                         }
                     });
-                    
+
                     questionCard.classList.add(isCorrect ? 'answered-correct' : 'answered-incorrect');
-                    
+
                     explainBtn.disabled = false;
                     explainBtn.title = 'Explain Answer';
-                    
+
                     examAnswerState[examKey] = {
                         selected: selectedAnswer,
                         correct: isCorrect,
@@ -2999,17 +2999,17 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         correctAnswer: questionObj.answer,
                         isCorrect: isCorrect
                     };
-                    
+
                     // Also update main answerState for unified progress tracking
                     answerState[examKey] = examAnswerState[examKey];
-                    
+
                     if (isCorrect) {
                         examScore++;
                         score++;
                         addXP(10);
                         updateStreak();
                     }
-                    
+
                     updateCounts();
                     saveExamProgress();
                     saveProgress();
@@ -3017,36 +3017,36 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     updateAllUI();
                     updateExamStats();
                 });
-                
+
                 optionsDiv.appendChild(optionDiv);
             });
-            
+
             // Answer explanation container
             const answerExplanation = document.createElement('div');
             answerExplanation.id = `answer-explanation-${examKey}`;
             answerExplanation.classList.add('answer-explanation');
-            
+
             questionCard.appendChild(questionHeader);
             questionCard.appendChild(questionText);
             questionCard.appendChild(optionsDiv);
             questionCard.appendChild(answerExplanation);
-            
+
             questionsContainer.appendChild(questionCard);
             questionNumber++;
         });
-        
+
         examContainer.appendChild(questionsContainer);
-        
+
         // Update stats
         updateExamStats();
         examLoaded = true;
     }
-    
+
     function updateExamStats() {
         const examAttempted = Object.keys(examAnswerState).length;
         const examCorrect = Object.values(examAnswerState).filter(a => a.correct).length;
         const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
-        
+
         const infoEl = document.querySelector('#exam-container .pagination-info');
         if (infoEl) {
             const totalQuestions = Object.keys(examQuizData).length;
@@ -3056,10 +3056,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
         }
     }
-    
+
     // Cache for exam AI explanations to avoid repeated LLM calls
     const examExplanationCache = {};
-    
+
     async function explainExamAnswer(examKey, questionObj) {
         const state = examAnswerState[examKey];
         const explanationDiv = document.getElementById(`answer-explanation-${examKey}`);
@@ -3113,7 +3113,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         try {
             // Simplified prompt - only explain why the selected answer is right or wrong
             let prompt;
-            
+
             if (isCorrect) {
                 prompt = `Question: "${questionText}"
 Your Answer: "${selectedAnswer}"
@@ -3139,7 +3139,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
 
             explanationDiv.classList.remove('loading');
             explanationDiv.textContent = explanation;
-            
+
             // Update button to show "hide" state with filled icon
             button.innerHTML = getGeminiIconFilled(examKey);
             button.title = 'Hide explanation';
@@ -3161,12 +3161,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             if (resetProgressBtn) {
                 resetProgressBtn.addEventListener("click", resetProgress);
             }
-        
+
             // Setup mobile menu toggle
             const mobileMenuBtn = document.getElementById("mobile-menu-btn");
             const sideNav = document.getElementById("side-nav");
             const mobileNavOverlay = document.getElementById("mobile-nav-overlay");
-        
+
             if (mobileMenuBtn && sideNav) {
                 mobileMenuBtn.addEventListener("click", () => {
                     sideNav.classList.toggle('open');
@@ -3174,7 +3174,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         mobileNavOverlay.hidden = !sideNav.classList.contains('open');
                     }
                 });
-            
+
                 // Close sidebar when clicking overlay
                 if (mobileNavOverlay) {
                     mobileNavOverlay.addEventListener("click", () => {
@@ -3182,7 +3182,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                         mobileNavOverlay.hidden = true;
                     });
                 }
-            
+
                 // Close sidebar when clicking a nav button on mobile
                 const navButtons = sideNav.querySelectorAll('.nav-btn');
                 navButtons.forEach(btn => {
@@ -3194,7 +3194,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     });
                 });
             }
-        
+
             // Setup sidebar collapse
         const sideNavCollapse = document.getElementById("side-nav-collapse");
         if (sideNavCollapse && sideNav) {
@@ -3209,35 +3209,35 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 sideNavCollapse.setAttribute('aria-expanded', !isCollapsed);
             });
         }
-        
+
         // Setup debounced search
         setupDebouncedSearch();
-        
+
         // Setup filter dropdown
         setupFilters();
-        
+
         // Setup back to top button
         setupBackToTop();
-        
+
         // Setup offline detection
         setupOfflineDetection();
-        
+
         // Setup share dropdown
         setupShareDropdown();
-        
+
         // Setup tabbed toolbar
         setupTabbedToolbar();
-        
+
         // Setup mode toggle (Study/Exam)
         setupModeToggle();
-        
+
         // Setup view toggle (List/Single)
         setupViewToggle();
-        
+
         // Setup XP system
         setupXPSystem();
     }
-    
+
     // Tabbed Toolbar
     function setupTabbedToolbar() {
         const tabs = document.querySelectorAll('.toolbar-tab');
@@ -3246,29 +3246,29 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const reviewFlaggedBtn = document.getElementById('review-flagged-btn');
         const reviewIncorrectBtn = document.getElementById('review-incorrect-btn');
         const mainContent = document.getElementById('main-content');
-        
+
         // Tab switching - use centralized switchPanel for consistent routing
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
                 const isCurrentlyActive = tab.classList.contains('active');
-                
+
                 // If clicking the active tab, toggle toolbar visibility
                 if (isCurrentlyActive && mainContent) {
                     mainContent.classList.toggle('toolbar-collapsed');
                     return;
                 }
-                
+
                 // Show toolbar (remove collapsed class)
                 if (mainContent) {
                     mainContent.classList.remove('toolbar-collapsed');
                 }
-                
+
                 // Use centralized switchPanel which handles URL updates and panel-specific content
                 switchPanel(tabName);
             });
         });
-        
+
         // Reset all progress button
         const resetAllBtn = document.getElementById('reset-all-progress-btn');
         if (resetAllBtn) {
@@ -3280,7 +3280,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 }
             });
         }
-        
+
         // More dropdown
         if (moreBtn && moreMenu) {
             moreBtn.addEventListener('click', (e) => {
@@ -3289,36 +3289,36 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 moreMenu.hidden = !isHidden;
                 moreBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
             });
-            
+
             // Close on outside click
             document.addEventListener('click', () => {
                 moreMenu.hidden = true;
                 moreBtn.setAttribute('aria-expanded', 'false');
             });
-            
+
             // Prevent closing when clicking inside menu
             moreMenu.addEventListener('click', (e) => {
                 e.stopPropagation();
             });
         }
-        
+
         // Review flagged button
         if (reviewFlaggedBtn) {
             reviewFlaggedBtn.addEventListener('click', () => {
                 // flaggedQuestions is a Set, convert to array directly
                 const flaggedIds = Array.from(flaggedQuestions);
-                
+
                 if (flaggedIds.length === 0) {
                     showToast('No flagged questions to review');
                     return;
                 }
-                
+
                 // Render flagged questions into the review panel
                 renderReviewQuestions(flaggedIds, 'Flagged Questions');
                 showToast(`Showing ${flaggedIds.length} flagged questions`);
             });
         }
-        
+
         // Review incorrect button
         if (reviewIncorrectBtn) {
             reviewIncorrectBtn.addEventListener('click', () => {
@@ -3326,19 +3326,19 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 const incorrectIds = Object.entries(answerState)
                     .filter(([_, state]) => !state.correct)
                     .map(([id, _]) => id);
-                
+
                 if (incorrectIds.length === 0) {
                     showToast('No incorrect questions to review! Answer some questions first.');
                     return;
                 }
-                
+
                 // Render incorrect questions into the review panel
                 renderReviewQuestions(incorrectIds, 'Incorrect Questions');
                 showToast(`Showing ${incorrectIds.length} incorrect questions`);
             });
         }
     }
-    
+
     // Update insights summary
     function updateInsightsSummary() {
         const allAnswers = Object.entries(answerState);
@@ -3346,7 +3346,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-        
+
         // Calculate study time
         const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
         const totalSeconds = getStudyTime() + currentSession;
@@ -3354,7 +3354,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         const studyTimeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-        
+
         // Update SOC Command Center elements
         const overallAccuracyEl = document.getElementById('overall-accuracy');
         const scoreStatusEl = document.getElementById('score-status');
@@ -3364,12 +3364,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const streakDaysEl = document.getElementById('streak-days');
         const masteryLevelEl = document.getElementById('mastery-level');
         const masteryBadgeEl = document.getElementById('mastery-badge');
-        
+
         if (overallAccuracyEl) overallAccuracyEl.textContent = `${accuracy}%`;
         if (totalAttemptedEl) totalAttemptedEl.textContent = attempted;
         if (totalCorrectEl) totalCorrectEl.textContent = correct;
         if (studyTimeEl) studyTimeEl.textContent = studyTimeStr;
-        
+
         // Update score status badge
         if (scoreStatusEl) {
             if (accuracy >= 80) {
@@ -3386,13 +3386,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 scoreStatusEl.className = 'kpi-status critical';
             }
         }
-        
+
         // Update streak
         if (streakDaysEl) {
             const streak = loadStreak();
             streakDaysEl.textContent = streak.count || 0;
         }
-        
+
         // Calculate mastery level
         const masteryLevel = calculateMasteryLevel(accuracy, attempted);
         if (masteryLevelEl) masteryLevelEl.textContent = `${masteryLevel}%`;
@@ -3411,14 +3411,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 masteryBadgeEl.className = 'kpi-badge beginner';
             }
         }
-        
+
         // Render Chart.js visualizations for Insights
         renderInsightsCharts(accuracy, masteryLevel, correct, incorrect);
         renderInsightsRecommendations();
         renderAchievementsBadges();
         renderRecentActivity();
     }
-    
+
     // Render Insights page Chart.js charts
     function renderInsightsCharts(accuracy, masteryLevel, correct, incorrect) {
         if (!ChartManager.isReady()) {
@@ -3426,13 +3426,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return;
         }
         const colors = ChartManager.getChartColors();
-        
+
         // Overall Score Gauge (semi-circle)
         ChartManager.createGaugeChart('insights-gauge-chart', accuracy, 'Score');
-        
+
         // Mastery Level Doughnut
         ChartManager.createDoughnutChart('mastery-chart', masteryLevel, 100, colors.purple, 'Mastery');
-        
+
         // Category Performance Bar Chart
         const categoryStats = getCategoryStats();
         const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
@@ -3445,7 +3445,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return 0;
         });
         ChartManager.createBarChart('insights-category-chart', labels, data);
-        
+
         // Accuracy Donut (correct vs incorrect)
         const total = correct + incorrect;
         if (total > 0) {
@@ -3478,14 +3478,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 });
             }
         }
-        
+
         // Activity Trend Line Chart
         const history = getPerformanceHistory();
         if (history.length >= 2) {
             const trendLabels = history.slice(-7).map((_, i) => 'Day ' + (i + 1));
             ChartManager.createLineChart('activity-chart', trendLabels, history.slice(-7));
         }
-        
+
         // Practice vs Exam Comparison
         const practiceStats = calculateStats();
         const examStats = calculateExamStats();
@@ -3493,22 +3493,22 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const examAcc = examStats.attempted > 0 ? Math.round((examStats.correct / examStats.attempted) * 100) : 0;
         ChartManager.createComparisonChart('comparison-chart', ['Practice', 'Exam'], [practiceAcc, examAcc]);
     }
-    
+
     // Calculate mastery level based on accuracy and coverage
     function calculateMasteryLevel(accuracy, attempted) {
         const totalQuestions = Object.keys(window.questionBank || {}).reduce((sum, key) => {
             return sum + (window.questionBank[key]?.length || 0);
         }, 0) + (window.examQuestions?.length || 0);
-        
+
         const coverage = totalQuestions > 0 ? (attempted / totalQuestions) * 100 : 0;
         return Math.round((accuracy * 0.7) + (Math.min(coverage, 100) * 0.3));
     }
-    
+
     // Render Insights Recommendations
     function renderInsightsRecommendations() {
         const alertList = document.getElementById('insights-recommendations');
         if (!alertList) return;
-        
+
         const categoryStats = getCategoryStats();
         const weakAreas = Object.entries(categoryStats)
             .map(([cat, stats]) => ({
@@ -3520,7 +3520,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             .filter(a => a.accuracy < 70 && a.attempted >= 2)
             .sort((a, b) => a.accuracy - b.accuracy)
             .slice(0, 3);
-        
+
         if (weakAreas.length === 0) {
             alertList.innerHTML = `
                 <div class="alert-placeholder">
@@ -3530,7 +3530,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
             return;
         }
-        
+
         alertList.innerHTML = weakAreas.map(area => `
             <div class="alert-item ${area.accuracy < 50 ? '' : 'warning'}">
                 <div class="alert-icon">
@@ -3544,12 +3544,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `).join('');
     }
-    
+
     // Render Achievements Badges
     function renderAchievementsBadges() {
         const badgesGrid = document.getElementById('achievements-grid');
         if (!badgesGrid) return;
-        
+
         const earnedBadges = loadBadges();
         const allBadges = [
             { id: 'first_question', name: 'First Step', icon: '1' },
@@ -3561,7 +3561,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             { id: 'streak_7', name: 'Week Warrior', icon: '7d' },
             { id: 'all_categories', name: 'Explorer', icon: 'E' }
         ];
-        
+
         badgesGrid.innerHTML = allBadges.map(badge => `
             <div class="achievement-badge ${earnedBadges.includes(badge.id) ? 'earned' : ''}">
                 <span class="badge-icon">${badge.icon}</span>
@@ -3569,15 +3569,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `).join('');
     }
-    
+
     // Render Recent Activity Timeline
     function renderRecentActivity() {
         const timelineList = document.getElementById('activity-timeline');
         if (!timelineList) return;
-        
+
         const allAnswers = Object.entries(answerState);
         const recentAnswers = allAnswers.slice(-10).reverse();
-        
+
         if (recentAnswers.length === 0) {
             timelineList.innerHTML = `
                 <div class="timeline-placeholder">
@@ -3586,13 +3586,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
             return;
         }
-        
+
         timelineList.innerHTML = recentAnswers.map(([qId, state]) => {
             const question = getQuestionById(qId);
             const questionText = question?.question || 'Question';
             const truncated = questionText.length > 50 ? questionText.substring(0, 50) + '...' : questionText;
             const category = question?.appendix || 'Exam';
-            
+
             return `
                 <div class="timeline-item">
                     <div class="timeline-dot ${state.correct ? 'correct' : 'incorrect'}"></div>
@@ -3604,7 +3604,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
         }).join('');
     }
-    
+
     // Update review stats
     function updateReviewStats() {
         const allAnswers = Object.entries(answerState);
@@ -3614,7 +3614,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const flaggedCount = flaggedQuestions.size;
         const totalReviewCount = incorrectCount + flaggedCount;
         const accuracy = attempted > 0 ? Math.round((correctCount / attempted) * 100) : 0;
-        
+
         // Update dashboard elements
         const incorrectEl = document.getElementById('incorrect-count');
         const flaggedEl = document.getElementById('flagged-count');
@@ -3625,7 +3625,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const filterFlaggedCount = document.getElementById('filter-flagged-count');
         const queueCount = document.getElementById('queue-count');
         const alertCount = document.getElementById('alert-count');
-        
+
         if (incorrectEl) incorrectEl.textContent = incorrectCount;
         if (flaggedEl) flaggedEl.textContent = flaggedCount;
         if (totalReviewEl) totalReviewEl.textContent = totalReviewCount;
@@ -3635,13 +3635,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         if (filterFlaggedCount) filterFlaggedCount.textContent = flaggedCount;
         if (queueCount) queueCount.textContent = totalReviewCount + ' items';
         if (alertCount) alertCount.textContent = getWeakAreasCount() + ' areas need attention';
-        
+
         // Update sidebar review badge
         const reviewBadge = document.getElementById('review-count');
         if (reviewBadge) {
             reviewBadge.textContent = totalReviewCount;
         }
-        
+
         // Update risk badge
         const riskBadge = document.getElementById('risk-badge');
         if (riskBadge) {
@@ -3657,12 +3657,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 riskBadge.className = 'metric-badge high';
             }
         }
-        
+
         // Render Chart.js visualizations
         renderReviewCharts(accuracy);
         renderWeakAreasAlerts();
     }
-    
+
     // Render Review page Chart.js charts
     function renderReviewCharts(accuracy) {
         if (!ChartManager.isReady()) {
@@ -3671,13 +3671,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         }
         const colors = ChartManager.getChartColors();
         const riskLevel = 100 - accuracy;
-        
+
         // Risk Gauge (semi-circle doughnut)
         ChartManager.createGaugeChart('risk-gauge-chart', riskLevel, 'Risk');
-        
+
         // Accuracy Doughnut
         ChartManager.createDoughnutChart('accuracy-chart', accuracy, 100, colors.teal, 'Accuracy');
-        
+
         // Category Performance Bar Chart
         const categoryStats = getCategoryStats();
         const appendices = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
@@ -3690,7 +3690,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return 0;
         });
         ChartManager.createBarChart('category-chart', labels, data);
-        
+
         // Performance Trend Line Chart
         const history = getPerformanceHistory();
         if (history.length >= 2) {
@@ -3698,7 +3698,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             ChartManager.createLineChart('trend-chart', trendLabels, history);
         }
     }
-    
+
     // Get count of weak areas (categories with <70% accuracy)
     function getWeakAreasCount() {
         const categoryStats = getCategoryStats();
@@ -3707,7 +3707,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             return acc < 70 && stats.attempted >= 3;
         }).length;
     }
-    
+
     // Get category statistics
     function getCategoryStats() {
         const categoryStats = {};
@@ -3716,7 +3716,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const isExam = isExamQuestion(qId);
             const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
             const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
-            
+
             if (!categoryStats[category]) {
                 categoryStats[category] = { title: categoryTitle, attempted: 0, correct: 0, isExam };
             }
@@ -3725,29 +3725,29 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         });
         return categoryStats;
     }
-    
+
     // Get performance history(simulated from current data)
     function getPerformanceHistory() {
         const allAnswers = Object.entries(answerState);
         if (allAnswers.length < 5) return [];
-        
+
         const chunkSize = Math.ceil(allAnswers.length / 7);
         const history = [];
-        
+
         for (let i = 0; i < 7 && i * chunkSize < allAnswers.length; i++) {
             const chunk = allAnswers.slice(0, (i + 1) * chunkSize);
             const correct = chunk.filter(([, s]) => s.correct).length;
             history.push(Math.round((correct / chunk.length) * 100));
         }
-        
+
         return history;
     }
-    
+
     // Render Weak Areas Alerts
     function renderWeakAreasAlerts() {
         const alertList = document.getElementById('review-weak-areas');
         if (!alertList) return;
-        
+
         const categoryStats = getCategoryStats();
         const weakAreas = Object.entries(categoryStats)
             .map(([cat, stats]) => ({
@@ -3760,7 +3760,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             .filter(a => a.accuracy < 70 && a.attempted >= 3)
             .sort((a, b) => a.accuracy - b.accuracy)
             .slice(0, 5);
-        
+
         if (weakAreas.length === 0) {
             alertList.innerHTML = `
                 <div class="alert-placeholder">
@@ -3770,7 +3770,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
             return;
         }
-        
+
         alertList.innerHTML = weakAreas.map(area => `
             <div class="alert-item ${area.accuracy < 50 ? '' : 'warning'}">
                 <div class="alert-icon">
@@ -3784,26 +3784,26 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `).join('');
     }
-    
+
     // Render questions into the review panel's #review-list container
     function renderReviewQuestions(questionIds, title) {
         const reviewList = document.getElementById('review-list');
         if (!reviewList) return;
-        
+
         if (questionIds.length === 0) {
             reviewList.innerHTML = '<p class="placeholder-text">No questions to review</p>';
             return;
         }
-        
+
         let html = `<h3 class="review-section-title">${escapeHtml(title)} (${questionIds.length})</h3>`;
-        
+
         questionIds.forEach((qId, index) => {
             // Use unified getQuestionById to resolve from both quizData and examQuizData
             const question = getQuestionById(qId);
             const state = answerState[qId];
             const isFlagged = flaggedQuestions.has(qId);
             const isExam = isExamQuestion(qId);
-            
+
             // Handle case where question data is not available (e.g., from previous session)
             const questionText = question?.question || 'Question data not available - please reload the appendix';
             const correctAnswer = question?.answer || 'N/A';
@@ -3812,7 +3812,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const explanation = question?.explanation || '';
             const appendix = isExam ? 'Exam' : (question?.appendix || '');
             const appendixTitle = question?.appendix_title || '';
-            
+
             html += `
                 <div class="review-question-card ${isCorrect ? 'correct' : 'incorrect'} ${isFlagged ? 'flagged' : ''}" data-question-id="${qId}">
                     <div class="review-question-header">
@@ -3846,15 +3846,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 </div>
             `;
         });
-        
+
         reviewList.innerHTML = html;
     }
-    
+
     // Render category performance stats for insights panel
     function renderCategoryStats() {
         const categoryStatsEl = document.getElementById('category-stats');
         if (!categoryStatsEl) return;
-        
+
         // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
         Object.entries(answerState).forEach(([qId, state]) => {
@@ -3863,11 +3863,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const isExam = isExamQuestion(qId);
             const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
             const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
-            
+
             if (!categoryStats[category]) {
-                categoryStats[category] = { 
+                categoryStats[category] = {
                     title: categoryTitle,
-                    attempted: 0, 
+                    attempted: 0,
                     correct: 0,
                     isExam: isExam
                 };
@@ -3877,12 +3877,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 categoryStats[category].correct++;
             }
         });
-        
+
         if (Object.keys(categoryStats).length === 0) {
             categoryStatsEl.innerHTML = '<p class="placeholder-text">Complete some questions to see category performance</p>';
             return;
         }
-        
+
         // Sort by appendix letter (Exam goes last)
         const sortedCategories = Object.entries(categoryStats)
             .sort(([a, statsA], [b, statsB]) => {
@@ -3890,13 +3890,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 if (statsB.isExam) return -1;
                 return a.localeCompare(b);
             });
-        
+
         let html = '';
         sortedCategories.forEach(([category, stats]) => {
             const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
             const barColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
             const categoryLabel = stats.isExam ? 'Exam Questions' : `Appendix ${category}: ${escapeHtml(stats.title)}`;
-            
+
             html += `
                 <div class="category-stat-item">
                     <div class="category-stat-header">
@@ -3912,15 +3912,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 </div>
             `;
         });
-        
+
         categoryStatsEl.innerHTML = html;
     }
-    
+
     // Render weak areas analysis for insights panel
     function renderWeakAreas() {
         const weakAreasEl = document.getElementById('weak-areas');
         if (!weakAreasEl) return;
-        
+
         // Calculate stats per appendix/category - include ALL questions (practice and exam)
         const categoryStats = {};
         Object.entries(answerState).forEach(([qId, state]) => {
@@ -3929,11 +3929,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const isExam = isExamQuestion(qId);
             const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
             const categoryTitle = isExam ? 'Exam Questions' : (question?.appendix_title || category);
-            
+
             if (!categoryStats[category]) {
-                categoryStats[category] = { 
+                categoryStats[category] = {
                     title: categoryTitle,
-                    attempted: 0, 
+                    attempted: 0,
                     correct: 0,
                     isExam: isExam
                 };
@@ -3943,7 +3943,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 categoryStats[category].correct++;
             }
         });
-        
+
         // Find weak areas (categories with accuracy < 70% and at least 3 questions attempted)
         const weakAreas = Object.entries(categoryStats)
             .filter(([_, stats]) => {
@@ -3959,7 +3959,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 isExam: stats.isExam
             }))
             .sort((a, b) => a.accuracy - b.accuracy);
-        
+
         if (weakAreas.length === 0) {
             // Include ALL questions for total count
             const totalAttempted = Object.keys(answerState).length;
@@ -3970,7 +3970,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             }
             return;
         }
-        
+
         let html = '<ul class="weak-areas-list">';
         weakAreas.slice(0, 5).forEach(area => {
             const areaLabel = area.isExam ? 'Exam Questions' : `Appendix ${area.category}`;
@@ -3982,21 +3982,21 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
         });
         html += '</ul>';
-        
+
         weakAreasEl.innerHTML = html;
     }
-    
+
     // Render SVG donut chart for accuracy visualization
     function renderAccuracyDonut() {
         const container = document.getElementById('accuracy-donut');
         if (!container) return;
-        
+
         // Include ALL questions (both practice and exam) for accuracy stats
         const allAnswers = Object.entries(answerState);
         const attempted = allAnswers.length;
         const correct = allAnswers.filter(([, s]) => s.correct).length;
         const incorrect = attempted - correct;
-        
+
         if (attempted === 0) {
             container.innerHTML = `
                 <div class="donut-placeholder">
@@ -4011,15 +4011,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
             return;
         }
-        
+
         const accuracy = Math.round((correct / attempted) * 100);
         const circumference = 2 * Math.PI * 50;
         const correctDash = (correct / attempted) * circumference;
         const incorrectDash = (incorrect / attempted) * circumference;
-        
+
         // Color based on accuracy
         const accuracyColor = accuracy >= 80 ? 'var(--success)' : accuracy >= 60 ? 'var(--warning)' : 'var(--danger)';
-        
+
         container.innerHTML = `
             <div class="donut-chart">
                 <svg width="160" height="160" viewBox="0 0 120 120">
@@ -4047,12 +4047,12 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `;
     }
-    
+
     // Render SVG donut chart for review panel
     function renderReviewDonut() {
         const container = document.getElementById('review-donut');
         if (!container) return;
-        
+
         // Include ALL questions (both practice and exam) for review stats
         const allAnswers = Object.entries(answerState);
         const attempted = allAnswers.length;
@@ -4060,7 +4060,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const incorrect = attempted - correct;
         // Include ALL flagged questions (both practice and exam)
         const flagged = flaggedQuestions.size;
-        
+
         if (attempted === 0) {
             container.innerHTML = `
                 <div class="donut-placeholder small">
@@ -4074,11 +4074,11 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
             return;
         }
-        
+
         const accuracy = Math.round((correct / attempted) * 100);
         const circumference = 2 * Math.PI * 40;
         const correctDash = (correct / attempted) * circumference;
-        
+
         container.innerHTML = `
             <div class="donut-chart small">
                 <svg width="100" height="100" viewBox="0 0 100 100">
@@ -4095,31 +4095,31 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `;
     }
-    
+
     // ==================== ADDITIONAL KPI & VISUALIZATION FUNCTIONS ====================
-    
+
     // Render Practice vs Exam comparison chart
     function renderPracticeExamComparison() {
         const container = document.getElementById('practice-exam-comparison');
         if (!container) return;
-        
+
         // Calculate practice stats (non-exam questions)
         const practiceAnswers = Object.entries(answerState).filter(([qId]) => !isExamQuestion(qId));
         const practiceAttempted = practiceAnswers.length;
         const practiceCorrect = practiceAnswers.filter(([, s]) => s.correct).length;
         const practiceAccuracy = practiceAttempted > 0 ? Math.round((practiceCorrect / practiceAttempted) * 100) : 0;
-        
+
         // Calculate exam stats
         const examAnswers = Object.entries(answerState).filter(([qId]) => isExamQuestion(qId));
         const examAttempted = examAnswers.length;
         const examCorrect = examAnswers.filter(([, s]) => s.correct).length;
         const examAccuracy = examAttempted > 0 ? Math.round((examCorrect / examAttempted) * 100) : 0;
-        
+
         if (practiceAttempted === 0 && examAttempted === 0) {
             container.innerHTML = '<p class="placeholder-text">No data yet</p>';
             return;
         }
-        
+
         container.innerHTML = `
             <div class="comparison-bar-group">
                 <div class="comparison-bar-label"><span>Practice</span><span>${practiceCorrect}/${practiceAttempted}</span></div>
@@ -4139,16 +4139,16 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             </div>
         `;
     }
-    
+
     // Render 7-day activity chart
     function renderWeeklyActivityChart() {
         const container = document.getElementById('weekly-activity-chart');
         if (!container) return;
-        
+
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const today = new Date();
         const days = [];
-        
+
         // Get last 7 days
         for (let i = 6; i >= 0; i--) {
             const date = new Date(today);
@@ -4159,14 +4159,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 isToday: i === 0
             });
         }
-        
+
         // Count questions answered per day
         const dailyCounts = days.map(day => {
             const dayStart = new Date(day.date);
             dayStart.setHours(0, 0, 0, 0);
             const dayEnd = new Date(day.date);
             dayEnd.setHours(23, 59, 59, 999);
-            
+
             let count = 0;
             Object.values(answerState).forEach(state => {
                 if (state.timestamp) {
@@ -4178,15 +4178,15 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             });
             return count;
         });
-        
+
         const maxCount = Math.max(...dailyCounts, 1);
-        
+
         let html = '<div class="activity-days">';
         days.forEach((day, i) => {
             const count = dailyCounts[i];
             const height = Math.max(4, (count / maxCount) * 80);
             const barClass = day.isToday ? 'today' : (count > 0 ? 'active' : 'inactive');
-            
+
             html += `
                 <div class="activity-day">
                     <div class="activity-bar-container">
@@ -4198,10 +4198,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             `;
         });
         html += '</div>';
-        
+
         container.innerHTML = html;
     }
-    
+
     // Render additional KPI metrics
     function renderKPIMetrics() {
         // Average speed (questions per minute based on study time)
@@ -4209,10 +4209,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const masteryLevelEl = document.getElementById('mastery-level');
         const bestCategoryEl = document.getElementById('best-category');
         const longestStreakEl = document.getElementById('longest-streak');
-        
+
         const totalAttempted = Object.keys(answerState).length;
         const studySeconds = getStudyTime();
-        
+
         if (avgSpeedEl) {
             if (totalAttempted > 0 && studySeconds > 60) {
                 const questionsPerMin = (totalAttempted / (studySeconds / 60)).toFixed(1);
@@ -4221,7 +4221,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 avgSpeedEl.textContent = '--';
             }
         }
-        
+
         // Categories mastered (>80% accuracy with 5+ questions)
         if (masteryLevelEl) {
             const categoryStats = {};
@@ -4229,18 +4229,18 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 const question = getQuestionById(qId);
                 const isExam = isExamQuestion(qId);
                 const category = isExam ? 'Exam' : (question?.appendix || 'Unknown');
-                
+
                 if (!categoryStats[category]) {
                     categoryStats[category] = { attempted: 0, correct: 0 };
                 }
                 categoryStats[category].attempted++;
                 if (state.correct) categoryStats[category].correct++;
             });
-            
+
             let masteredCount = 0;
             let bestCategory = null;
             let bestAccuracy = 0;
-            
+
             Object.entries(categoryStats).forEach(([cat, stats]) => {
                 if (stats.attempted >= 5) {
                     const accuracy = (stats.correct / stats.attempted) * 100;
@@ -4251,37 +4251,37 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                     }
                 }
             });
-            
+
             masteryLevelEl.textContent = masteredCount;
-            
+
             if (bestCategoryEl) {
                 bestCategoryEl.textContent = bestCategory ? (bestCategory.length > 8 ? bestCategory.substring(0, 8) + '...' : bestCategory) : '--';
             }
         }
-        
+
         // Longest streak
         if (longestStreakEl) {
             const streak = loadStreak();
             longestStreakEl.textContent = `${streak.longest || streak.count || 0}d`;
         }
     }
-    
+
     // Render recent activity feed
     function renderRecentActivity() {
         const container = document.getElementById('recent-activity');
         if (!container) return;
-        
+
         // Get recent answers sorted by timestamp
         const recentAnswers = Object.entries(answerState)
             .filter(([, state]) => state.timestamp)
             .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp))
             .slice(0, 8);
-        
+
         if (recentAnswers.length === 0) {
             container.innerHTML = '<p class="placeholder-text">No activity yet</p>';
             return;
         }
-        
+
         let html = '';
         recentAnswers.forEach(([qId, state]) => {
             const question = getQuestionById(qId);
@@ -4290,13 +4290,13 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             const isExam = isExamQuestion(qId);
             const category = isExam ? 'Exam' : (question?.appendix || '?');
             const timeAgo = getTimeAgo(new Date(state.timestamp));
-            
+
             html += `
                 <div class="recent-activity-item">
                     <div class="recent-activity-icon ${state.correct ? 'correct' : 'incorrect'}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            ${state.correct 
-                                ? '<path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/>' 
+                            ${state.correct
+                                ? '<path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/>'
                                 : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
                         </svg>
                     </div>
@@ -4308,10 +4308,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 </div>
             `;
         });
-        
+
         container.innerHTML = html;
     }
-    
+
     // Helper: Get time ago string
     function getTimeAgo(date) {
         const seconds = Math.floor((new Date() - date) / 1000);
@@ -4323,34 +4323,34 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         const days = Math.floor(hours / 24);
         return `${days}d`;
     }
-    
+
     // Update all additional visualizations
     function updateAdditionalVisualizations() {
         renderWeeklyActivityChart();
         renderKPIMetrics();
         renderRecentActivity();
     }
-    
+
     // Mode toggle (Study/Exam)
     let currentMode = 'study'; // 'study' or 'exam'
-    
+
     function setupModeToggle() {
         const studyBtn = document.getElementById('study-mode-btn');
         const examBtn = document.getElementById('exam-mode-btn');
         const quizContainer = document.getElementById('quiz-container');
-        
+
         if (!studyBtn || !examBtn) return;
-        
+
         studyBtn.addEventListener('click', () => setMode('study'));
         examBtn.addEventListener('click', () => setMode('exam'));
     }
-    
+
     function setMode(mode) {
         currentMode = mode;
         const studyBtn = document.getElementById('study-mode-btn');
         const examBtn = document.getElementById('exam-mode-btn');
         const quizContainer = document.getElementById('quiz-container');
-        
+
         if (mode === 'study') {
             studyBtn.classList.add('active');
             studyBtn.setAttribute('aria-pressed', 'true');
@@ -4367,30 +4367,30 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             showToast('Exam mode: Answers hidden until you finish');
         }
     }
-    
+
     // View toggle (List/Single)
     let currentView = 'list'; // 'list' or 'single'
     let currentQuestionIndex = 0;
     let allQuestionIds = [];
-    
+
     function setupViewToggle() {
         const listBtn = document.getElementById('list-view-btn');
         const singleBtn = document.getElementById('single-view-btn');
         const prevBtn = document.getElementById('prev-question-btn');
         const nextBtn = document.getElementById('next-question-btn');
-        
+
         if (!listBtn || !singleBtn) return;
-        
+
         listBtn.addEventListener('click', () => setView('list'));
         singleBtn.addEventListener('click', () => setView('single'));
-        
+
         if (prevBtn) prevBtn.addEventListener('click', () => navigateQuestion(-1));
         if (nextBtn) nextBtn.addEventListener('click', () => navigateQuestion(1));
-        
+
         // Build question ID list
         buildQuestionIdList();
     }
-    
+
     function buildQuestionIdList() {
         allQuestionIds = [];
         document.querySelectorAll('.question-container').forEach(q => {
@@ -4398,22 +4398,22 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             if (id) allQuestionIds.push(id);
         });
     }
-    
+
     function setView(view) {
         const listBtn = document.getElementById('list-view-btn');
         const singleBtn = document.getElementById('single-view-btn');
         const singleNav = document.getElementById('single-question-nav');
         const navigator = document.getElementById('question-navigator');
-        
+
         // Guard: view toggle elements only exist when quiz is displayed
         if (!listBtn || !singleBtn || !singleNav || !navigator) {
             return;
         }
-        
+
         currentView = view;
         const categories = document.querySelectorAll('.category-section');
         const questions = document.querySelectorAll('.question-container');
-        
+
         if (view === 'list') {
             listBtn.classList.add('active');
             listBtn.setAttribute('aria-pressed', 'true');
@@ -4421,7 +4421,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             singleBtn.setAttribute('aria-pressed', 'false');
             singleNav.classList.remove('show');
             navigator.classList.remove('show');
-            
+
             // Show all categories and questions
             categories.forEach(c => c.style.display = '');
             questions.forEach(q => q.style.display = '');
@@ -4432,7 +4432,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             listBtn.setAttribute('aria-pressed', 'false');
             singleNav.classList.add('show');
             navigator.classList.add('show');
-            
+
             // Expand all categories and hide category headers
             categories.forEach(c => {
                 c.style.display = 'block';
@@ -4441,26 +4441,26 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 const title = c.querySelector('.category-title');
                 if (title) title.style.display = 'none';
             });
-            
+
             // Build navigator dots
             buildNavigatorDots();
-            
+
             // Show only current question
             showQuestion(currentQuestionIndex);
         }
     }
-    
+
     function buildNavigatorDots() {
         const navigator = document.getElementById('question-navigator');
         if (!navigator) return;
-        
+
         navigator.innerHTML = '';
         allQuestionIds.forEach((id, index) => {
             const dot = document.createElement('button');
             dot.className = 'nav-dot';
             dot.textContent = index + 1;
             dot.title = `Question ${index + 1}`;
-            
+
             // Add status classes
             if (answerState[id]) {
                 dot.classList.add(answerState[id].correct ? 'correct' : 'incorrect');
@@ -4471,46 +4471,46 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             if (index === currentQuestionIndex) {
                 dot.classList.add('current');
             }
-            
+
             dot.addEventListener('click', () => {
                 currentQuestionIndex = index;
                 showQuestion(index);
                 updateNavigatorDots();
             });
-            
+
             navigator.appendChild(dot);
         });
     }
-    
+
     function updateNavigatorDots() {
         const dots = document.querySelectorAll('.nav-dot');
         dots.forEach((dot, index) => {
             dot.classList.toggle('current', index === currentQuestionIndex);
         });
     }
-    
+
     function showQuestion(index) {
         const questions = document.querySelectorAll('.question-container');
         questions.forEach((q, i) => {
             q.style.display = i === index ? '' : 'none';
         });
-        
+
         // Update counter
         const counter = document.getElementById('question-counter');
         if (counter) {
             counter.textContent = `${index + 1} / ${allQuestionIds.length}`;
         }
-        
+
         // Update nav buttons
         const prevBtn = document.getElementById('prev-question-btn');
         const nextBtn = document.getElementById('next-question-btn');
         if (prevBtn) prevBtn.disabled = index === 0;
         if (nextBtn) nextBtn.disabled = index === allQuestionIds.length - 1;
-        
+
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    
+
     function navigateQuestion(direction) {
         const newIndex = currentQuestionIndex + direction;
         if (newIndex >= 0 && newIndex < allQuestionIds.length) {
@@ -4519,14 +4519,14 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             updateNavigatorDots();
         }
     }
-    
+
     // XP System
     let xp = 0;
     let level = 1;
     const XP_PER_CORRECT = 10;
     const XP_PER_INCORRECT = 2;
     const XP_PER_LEVEL = 100;
-    
+
     function setupXPSystem() {
         // Load saved XP
         const savedXP = localStorage.getItem('cpsa_quiz_xp');
@@ -4537,10 +4537,10 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
         }
         renderXP();
     }
-    
+
     function addXP(amount) {
         xp += amount;
-        
+
         // Check for level up
         const newLevel = Math.floor(xp / XP_PER_LEVEL) + 1;
         if (newLevel > level) {
@@ -4551,17 +4551,17 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 duration: 5000
             });
         }
-        
+
         // Save XP
         localStorage.setItem('cpsa_quiz_xp', JSON.stringify({ xp, level }));
         renderXP();
     }
-    
+
     function renderXP() {
         const levelEl = document.getElementById('xp-level');
         const textEl = document.getElementById('xp-text');
         const barEl = document.getElementById('xp-bar');
-        
+
         if (levelEl) levelEl.textContent = level;
         if (textEl) textEl.textContent = `${xp} XP`;
         if (barEl) {
@@ -4570,81 +4570,81 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             barEl.style.width = `${percentage}%`;
         }
     }
-    
+
     // Sprint Timer
     let sprintActive = false;
     let sprintTimeLeft = 600; // 10 minutes in seconds
     let sprintAnswered = 0;
     let sprintInterval = null;
-    
+
     function startSprint(duration = 600) {
         sprintActive = true;
         sprintTimeLeft = duration;
         sprintAnswered = 0;
-        
+
         const timerEl = document.getElementById('sprint-timer');
         if (timerEl) timerEl.classList.add('active');
-        
+
         updateSprintDisplay();
-        
+
         sprintInterval = setInterval(() => {
             sprintTimeLeft--;
             updateSprintDisplay();
-            
+
             if (sprintTimeLeft <= 60) {
                 const timerEl = document.getElementById('sprint-timer');
                 if (timerEl) timerEl.classList.add('warning');
             }
-            
+
             if (sprintTimeLeft <= 0) {
                 endSprint();
             }
         }, 1000);
-        
+
         showToast('Sprint started! Answer as many as you can!');
     }
-    
+
     function updateSprintDisplay() {
         const timeEl = document.getElementById('sprint-time');
         const countEl = document.getElementById('sprint-count');
-        
+
         if (timeEl) {
             const mins = Math.floor(sprintTimeLeft / 60);
             const secs = sprintTimeLeft % 60;
             timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
         }
-        
+
         if (countEl) {
             countEl.textContent = `${sprintAnswered} answered`;
         }
     }
-    
+
     function endSprint() {
         sprintActive = false;
         clearInterval(sprintInterval);
-        
+
         const timerEl = document.getElementById('sprint-timer');
         if (timerEl) {
             timerEl.classList.remove('active', 'warning');
         }
-        
+
         showToast(`Sprint complete! You answered ${sprintAnswered} questions!`);
     }
-    
+
     function incrementSprintCount() {
         if (sprintActive) {
             sprintAnswered++;
             updateSprintDisplay();
         }
     }
-    
+
     // Share dropdown functionality
     function setupShareDropdown() {
         const trigger = document.getElementById('share-trigger');
         const menu = document.getElementById('share-menu');
-        
+
         if (!trigger || !menu) return;
-        
+
         // Toggle menu on click
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -4652,7 +4652,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             menu.hidden = isOpen;
             trigger.setAttribute('aria-expanded', !isOpen);
         });
-        
+
         // Close menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!menu.hidden && !menu.contains(e.target) && e.target !== trigger) {
@@ -4660,7 +4660,7 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 trigger.setAttribute('aria-expanded', 'false');
             }
         });
-        
+
         // Handle share options
         menu.querySelectorAll('.share-option').forEach(option => {
             option.addEventListener('click', () => {
@@ -4671,22 +4671,22 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
             });
         });
     }
-    
+
     function getShareContent() {
         const scoreEl = document.getElementById('score');
         const totalEl = document.getElementById('total-questions');
         const percentageEl = document.getElementById('percentage');
         const streakEl = document.getElementById('streak-count');
         const attemptedEl = document.getElementById('attempted-count');
-        
+
         const currentScore = scoreEl ? scoreEl.textContent : '0';
         const total = totalEl ? totalEl.textContent : '803';
         const percentage = percentageEl ? percentageEl.textContent : '0';
         const streak = streakEl ? streakEl.textContent : '0';
         const attempted = attemptedEl ? attemptedEl.textContent : '0';
-        
+
         const url = 'https://sudosuraj.github.io/crest-cpsa/';
-        
+
         return {
             twitter: `I'm preparing for my CREST CPSA certification!
 
@@ -4699,7 +4699,7 @@ Free practice quiz with 803 questions - try it yourself!
 ${url}
 
 #CPSA #CREST #Cybersecurity #InfoSec #PenTest`,
-            
+
             linkedin: `Excited to share my CREST CPSA certification prep journey!
 
 I've been using this fantastic free practice quiz to prepare for the CPSA exam:
@@ -4715,7 +4715,7 @@ The quiz covers all CPSA domains with 803 practice questions. If you're preparin
 ${url}
 
 #CPSA #CREST #Cybersecurity #PenetrationTesting #InfoSec #CareerDevelopment`,
-            
+
             clipboard: `CREST CPSA Practice Quiz Progress
 
 Score: ${currentScore}/${total} correct (${percentage}% accuracy)
@@ -4723,27 +4723,27 @@ Streak: ${streak} days
 Attempted: ${attempted} questions
 
 Try it yourself: ${url}`,
-            
+
             url: url
         };
     }
-    
+
     function handleShare(platform) {
         const content = getShareContent();
-        
+
         switch (platform) {
             case 'twitter':
                 const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(content.twitter)}`;
                 window.open(twitterUrl, '_blank', 'width=550,height=420');
                 break;
-                
+
             case 'linkedin':
                 const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(content.url)}`;
                 window.open(linkedinUrl, '_blank', 'width=550,height=420');
                 showToast('LinkedIn opened! Paste your progress in the post.');
                 navigator.clipboard.writeText(content.linkedin).catch(() => {});
                 break;
-                
+
             case 'copy':
                 navigator.clipboard.writeText(content.clipboard).then(() => {
                     showToast('Progress copied to clipboard!');
@@ -4751,7 +4751,7 @@ Try it yourself: ${url}`,
                     showToast('Failed to copy. Please try again.');
                 });
                 break;
-                
+
             case 'native':
                 if (navigator.share) {
                     navigator.share({
@@ -4768,14 +4768,80 @@ Try it yourself: ${url}`,
         }
     }
 
-    function appendChatMessage(role, text) {
+    function stripMarkdown(text) {
+        if (typeof text !== 'string') return text;
+        return text
+            .replace(/#{1,6}\s*/g, '')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/__([^_]+)__/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            .replace(/`{3}[\s\S]*?`{3}/g, (match) => match.replace(/`{3}\w*\n?/g, '').trim())
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/^\s*[-*+]\s+/gm, '')
+            .replace(/^\s*\d+\.\s+/gm, '')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+            .replace(/^>\s*/gm, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    function typeText(element, text, speed = 15) {
+        return new Promise((resolve) => {
+            let index = 0;
+            const messagesEl = document.getElementById("chat-messages");
+
+            function typeChar() {
+                if (index < text.length) {
+                    element.textContent += text.charAt(index);
+                    index++;
+                    if (messagesEl) {
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    }
+                    setTimeout(typeChar, speed);
+                } else {
+                    resolve();
+                }
+            }
+            typeChar();
+        });
+    }
+
+    function appendChatMessage(role, text, skipTyping = false) {
         const messagesEl = document.getElementById("chat-messages");
         if (!messagesEl) return null;
+
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("chat-message-wrapper", role === "user" ? "user" : "assistant");
+
+        const icon = document.createElement("div");
+        icon.classList.add("chat-icon");
+        if (role === "user") {
+            icon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+        } else {
+            icon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
+        }
+
         const bubble = document.createElement("div");
-        bubble.classList.add("chat-message", role === "user" ? "user" : "assistant");
-        bubble.textContent = text;
-        messagesEl.appendChild(bubble);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        bubble.classList.add("chat-bubble");
+
+        const plainText = role === "assistant" ? stripMarkdown(text) : text;
+
+        if (role === "assistant" && !skipTyping && text) {
+            wrapper.appendChild(icon);
+            wrapper.appendChild(bubble);
+            messagesEl.appendChild(wrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            typeText(bubble, plainText);
+        } else {
+            bubble.textContent = plainText;
+            wrapper.appendChild(icon);
+            wrapper.appendChild(bubble);
+            messagesEl.appendChild(wrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
         return bubble;
     }
 
@@ -4789,11 +4855,11 @@ Try it yourself: ${url}`,
         const content = sanitizeUserMessage(rawContent);
         if (!content) return;
         if (content.length > CHAT_MAX_LENGTH) {
-            appendChatMessage("assistant", `Please keep messages under ${CHAT_MAX_LENGTH} characters.`);
+            appendChatMessage("assistant", `Please keep messages under ${CHAT_MAX_LENGTH} characters.`, true);
             return;
         }
         if (isUnsafeMessage(content)) {
-            appendChatMessage("assistant", "I can only help with CPSA study questions, not system or role-change requests.");
+            appendChatMessage("assistant", "I can only help with CPSA study questions, not system or role-change requests.", true);
             input.value = "";
             return;
         }
@@ -4807,19 +4873,29 @@ Try it yourself: ${url}`,
         input.focus();
         sendBtn.disabled = true;
 
-        // Show typing indicator with animated dots (reuses existing .ai-dots CSS animation)
-        const placeholder = document.createElement("div");
-        placeholder.classList.add("chat-message", "assistant");
-        placeholder.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
-        messagesEl.appendChild(placeholder);
+        // Show typing indicator with animated dots
+        const typingWrapper = document.createElement("div");
+        typingWrapper.classList.add("chat-message-wrapper", "assistant", "typing-indicator");
+
+        const typingIcon = document.createElement("div");
+        typingIcon.classList.add("chat-icon");
+        typingIcon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
+
+        const typingBubble = document.createElement("div");
+        typingBubble.classList.add("chat-bubble");
+        typingBubble.innerHTML = '<span class="ai-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+        typingWrapper.appendChild(typingIcon);
+        typingWrapper.appendChild(typingBubble);
+        messagesEl.appendChild(typingWrapper);
         messagesEl.scrollTop = messagesEl.scrollHeight;
-        
+
         const result = await callTutor(chatHistory.slice(-10));
-        
-        // callTutor now returns a string directly (RAG removed for faster responses)
-        if (placeholder) {
-            placeholder.textContent = result;
-        }
+
+        // Remove typing indicator and add the actual response with typing animation
+        typingWrapper.remove();
+        appendChatMessage("assistant", result);
+
         chatHistory.push({ role: "assistant", content: result });
         if (chatHistory.length > MAX_CHAT_TURNS) {
             chatHistory.shift();
@@ -4869,7 +4945,7 @@ Try it yourself: ${url}`,
             });
         }
     }
-	
+
 	// Helper function to activate a panel - used during startup to ensure a panel is always active
 	    function activatePanel(panelId) {
 	        // Deactivate all tabs and panels first
@@ -4880,7 +4956,7 @@ Try it yourself: ${url}`,
 	        document.querySelectorAll('.toolbar-panel').forEach(panel => {
 	            panel.classList.remove('active');
 	        });
-        
+
 	        // Activate the specified panel and tab
 	        const panel = document.getElementById(`${panelId}-panel`);
 	        const tab = document.getElementById(`tab-${panelId}`);
@@ -4889,7 +4965,7 @@ Try it yourself: ${url}`,
 	            tab.classList.add('active');
 	            tab.setAttribute('aria-selected', 'true');
 	        }
-	        
+
 	        // Notify PDF viewer iframe when Notes panel becomes visible
 	        if (panelId === 'notes') {
 	            const pdfViewer = document.getElementById('pdf-viewer');
@@ -4897,7 +4973,7 @@ Try it yourself: ${url}`,
 	                pdfViewer.contentWindow.postMessage({ type: 'panelVisible' }, window.location.origin);
 	            }
 	        }
-	        
+
 	        // Load exam quiz when activating exam panel
 	        if (panelId === 'exam' && typeof loadExamQuiz === 'function') {
 	            loadExamQuiz();
@@ -4908,10 +4984,10 @@ Try it yourself: ${url}`,
 	    	        // Load saved progress first (practice + exam)
 	    	        loadProgress();
 	    	        loadExamProgress(); // Load exam progress to sync with main answerState
-        
+
 	        // Initialize the Router and get the initial route from URL hash
 	        const initialRoute = Router.init();
-        
+
 	        // Handle initial route - either load specific appendix or show home
 	        if (initialRoute.type === 'appendix' && initialRoute.value) {
 	            // Deep link to specific appendix - load it directly
@@ -4926,38 +5002,38 @@ Try it yourself: ${url}`,
 	            await loadQuiz();
 	            activatePanel('practice');
 	        }
-        
+
 	        setupUtilities();
 	        setupChatbot();
-        
+
 	        // Restore UI state from saved progress
 	        restoreUIState();
-        
+
 	        // Render streak indicator
 	        renderStreak();
-        
+
 	        // Register service worker for PWA
 	        registerServiceWorker();
-        
+
 	        // Update counts
 	        updateCounts();
-        
+
 	        // Setup share dropdown (moved here to ensure it runs)
 	        setupShareDropdown();
 	    });
-    
+
     // Restore UI state from saved progress
     function restoreUIState() {
         const scoreElement = document.getElementById("score");
         const percentageElement = document.getElementById("percentage");
         const accuracyBar = document.getElementById("accuracy-bar");
         const attemptedEl = document.getElementById("attempted-count");
-        
+
         // Restore score display
         if (scoreElement) {
             scoreElement.textContent = score;
         }
-        
+
         // Calculate and restore percentage
         const attempted = Object.keys(answerState).length;
         if (attempted > 0) {
@@ -4970,21 +5046,21 @@ Try it yourself: ${url}`,
                 accuracyBar.style.width = `${pctNumber}%`;
             }
         }
-        
+
         // Restore attempted count
         if (attemptedEl) {
             attemptedEl.textContent = attempted;
         }
-        
+
         // Restore answered questions UI - support both old and new DOM structures
         Object.entries(answerState).forEach(([qId, state]) => {
             const container = document.querySelector(`.question-card[data-question-id="${qId}"]`) ||
                              document.querySelector(`.question-container[data-question-id="${qId}"]`);
             if (!container) return;
-            
+
             // Mark container as answered
             container.classList.add(state.correct ? 'answered-correct' : 'answered-incorrect');
-            
+
             // Find and select the answered option - support both old (.option) and new (.option-tile) structures
             const options = container.querySelectorAll('.option-tile, .option');
             options.forEach(optionDiv => {
@@ -5002,13 +5078,13 @@ Try it yourself: ${url}`,
                     // For old UI (.option), check input value
                     const input = optionDiv.querySelector('input');
                     if (!input) return;
-                    
+
                     input.disabled = true;
-                    
+
                     if (input.value === state.correctAnswer) {
                         optionDiv.classList.add('correct');
                     }
-                    
+
                     if (input.value === state.selectedAnswer) {
                         input.checked = true;
                         if (!state.correct) {
@@ -5017,14 +5093,14 @@ Try it yourself: ${url}`,
                     }
                 }
             });
-            
+
             // Enable explain answer button
             const explainBtn = document.getElementById(`explain-answer-btn-${qId}`);
             if (explainBtn) {
                 explainBtn.disabled = false;
             }
         });
-        
+
         // Restore flagged questions UI - support both old and new DOM structures
         flaggedQuestions.forEach(qId => {
             const container = document.querySelector(`.question-card[data-question-id="${qId}"]`) ||
@@ -5043,7 +5119,7 @@ Try it yourself: ${url}`,
             }
         });
     }
-    
+
     // ==========================================
     // PRACTICE EXAM SYSTEM
     // ==========================================
@@ -5054,7 +5130,7 @@ Try it yourself: ${url}`,
     let examTimeLeft = 0;
     let examInterval = null;
     let examStartTime = null;
-    
+
     function setupPracticeExam() {
         const examBtn = document.getElementById('start-exam-btn');
         const examModal = document.getElementById('exam-modal');
@@ -5062,46 +5138,46 @@ Try it yourself: ${url}`,
         const startConfirm = document.getElementById('start-exam-confirm');
         const reviewBtn = document.getElementById('exam-review-btn');
         const retryBtn = document.getElementById('exam-retry-btn');
-        
+
         if (examBtn) {
             examBtn.addEventListener('click', () => openModal('exam-modal'));
         }
-        
+
         if (examClose) {
             examClose.addEventListener('click', () => closeModal('exam-modal'));
         }
-        
+
         if (startConfirm) {
             startConfirm.addEventListener('click', startPracticeExam);
         }
-        
+
         if (reviewBtn) {
             reviewBtn.addEventListener('click', () => {
                 closeModal('exam-modal');
                 showToast('Review your answers in the quiz below');
             });
         }
-        
+
         if (retryBtn) {
             retryBtn.addEventListener('click', () => {
                 document.getElementById('exam-config').style.display = 'block';
                 document.getElementById('exam-results').style.display = 'none';
             });
         }
-        
+
         // Preset buttons
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const questions = btn.dataset.questions;
                 const time = btn.dataset.time;
                 const cat = btn.dataset.cat;
-                
+
                 document.getElementById('exam-questions').value = questions;
                 document.getElementById('exam-time').value = time;
                 document.getElementById('exam-categories').value = cat;
             });
         });
-        
+
         // Close modal on overlay click
         if (examModal) {
             examModal.addEventListener('click', (e) => {
@@ -5109,7 +5185,7 @@ Try it yourself: ${url}`,
             });
         }
     }
-    
+
     function openModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -5117,7 +5193,7 @@ Try it yourself: ${url}`,
             modal.setAttribute('aria-hidden', 'false');
         }
     }
-    
+
     function closeModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
@@ -5125,12 +5201,12 @@ Try it yourself: ${url}`,
             modal.setAttribute('aria-hidden', 'true');
         }
     }
-    
+
     function startPracticeExam() {
         const numQuestions = parseInt(document.getElementById('exam-questions').value);
         examTimeLimit = parseInt(document.getElementById('exam-time').value);
         const category = document.getElementById('exam-categories').value;
-        
+
         // Get questions, filtered by category if specified
         let eligibleIds = Object.keys(quizData);
         if (category && category !== 'all') {
@@ -5140,21 +5216,21 @@ Try it yourself: ${url}`,
                 return qCategory.toLowerCase().includes(category.toLowerCase());
             });
         }
-        
+
         // Use Fisher-Yates shuffle (unbiased)
         const shuffled = [...eligibleIds];
         shuffleArray(shuffled);
         examQuestions = shuffled.slice(0, Math.min(numQuestions, shuffled.length));
         examAnswers = {};
         examStartTime = Date.now();
-        
+
         // Update UI
         document.getElementById('exam-config').style.display = 'none';
         document.getElementById('exam-progress').style.display = 'block';
         document.getElementById('exam-results').style.display = 'none';
         document.getElementById('exam-total').textContent = examQuestions.length;
         document.getElementById('exam-answered').textContent = '0';
-        
+
         // Start timer if time limit set
         if (examTimeLimit > 0) {
             examTimeLeft = examTimeLimit;
@@ -5169,46 +5245,46 @@ Try it yourself: ${url}`,
         } else {
             document.getElementById('exam-timer-display').textContent = '--:--';
         }
-        
+
         examActive = true;
         closeModal('exam-modal');
-        
+
         // Set to exam mode
         setMode('exam');
-        
+
         showToast(`Practice exam started! ${examQuestions.length} questions`);
     }
-    
+
     function updateExamTimer() {
         const mins = Math.floor(examTimeLeft / 60);
         const secs = examTimeLeft % 60;
-        document.getElementById('exam-timer-display').textContent = 
+        document.getElementById('exam-timer-display').textContent =
             `${mins}:${secs.toString().padStart(2, '0')}`;
     }
-    
+
     function recordExamAnswer(questionId, isCorrect) {
         if (!examActive) return;
-        
+
         examAnswers[questionId] = isCorrect;
         const answered = Object.keys(examAnswers).length;
         document.getElementById('exam-answered').textContent = answered;
-        
+
         const progress = (answered / examQuestions.length) * 100;
         document.getElementById('exam-progress-fill').style.width = `${progress}%`;
-        
+
         // Check if all questions answered
         if (answered >= examQuestions.length) {
             endPracticeExam();
         }
     }
-    
+
     function endPracticeExam() {
         examActive = false;
         if (examInterval) {
             clearInterval(examInterval);
             examInterval = null;
         }
-        
+
         // Calculate results
         const correct = Object.values(examAnswers).filter(v => v).length;
         const total = Object.keys(examAnswers).length;
@@ -5216,22 +5292,22 @@ Try it yourself: ${url}`,
         const timeTaken = Math.round((Date.now() - examStartTime) / 1000);
         const mins = Math.floor(timeTaken / 60);
         const secs = timeTaken % 60;
-        
+
         // Update results UI
         document.getElementById('exam-score').textContent = `${score}%`;
         document.getElementById('exam-correct').textContent = correct;
         document.getElementById('exam-incorrect').textContent = total - correct;
         document.getElementById('exam-time-taken').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-        
+
         // Show results
         document.getElementById('exam-progress').style.display = 'none';
         document.getElementById('exam-results').style.display = 'block';
         openModal('exam-modal');
-        
+
         // Save exam history
         saveExamHistory(score, correct, total, timeTaken);
     }
-    
+
     function saveExamHistory(score, correct, total, timeTaken) {
         const history = JSON.parse(localStorage.getItem('cpsa_exam_history') || '[]');
         history.push({
@@ -5245,41 +5321,41 @@ Try it yourself: ${url}`,
         if (history.length > 50) history.shift();
         localStorage.setItem('cpsa_exam_history', JSON.stringify(history));
     }
-    
+
     // ==========================================
     // ANALYTICS SYSTEM
     // ==========================================
     let dailyStats = {};
-    
+
     function setupAnalytics() {
         const analyticsBtn = document.getElementById('analytics-btn');
         const analyticsModal = document.getElementById('analytics-modal');
         const analyticsClose = document.getElementById('analytics-modal-close');
-        
+
         if (analyticsBtn) {
             analyticsBtn.addEventListener('click', () => {
                 loadAnalyticsData();
                 openModal('analytics-modal');
             });
         }
-        
+
         if (analyticsClose) {
             analyticsClose.addEventListener('click', () => closeModal('analytics-modal'));
         }
-        
+
         // Tab switching
         document.querySelectorAll('.analytics-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
-                
+
                 // Update active tab
                 document.querySelectorAll('.analytics-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                
+
                 // Update active panel
                 document.querySelectorAll('.analytics-panel').forEach(p => p.classList.remove('active'));
                 document.getElementById(`analytics-${tabName}`).classList.add('active');
-                
+
                 if (tabName === 'trends') {
                     renderTrendChart();
                 } else if (tabName === 'missed') {
@@ -5287,7 +5363,7 @@ Try it yourself: ${url}`,
                 }
             });
         });
-        
+
         // Close on overlay click
         if (analyticsModal) {
             analyticsModal.addEventListener('click', (e) => {
@@ -5295,20 +5371,20 @@ Try it yourself: ${url}`,
             });
         }
     }
-    
+
     function loadAnalyticsData() {
         // Load daily stats
         dailyStats = JSON.parse(localStorage.getItem('cpsa_daily_stats') || '{}');
-        
+
         // Update overview stats
         const attempted = Object.keys(answerState).length;
         const correct = Object.values(answerState).filter(s => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-        
+
         document.getElementById('total-attempted').textContent = attempted;
         document.getElementById('total-correct').textContent = correct;
         document.getElementById('overall-accuracy').textContent = `${accuracy}%`;
-        
+
         // Calculate study time from actual tracked time
         const currentSession = Math.floor((Date.now() - sessionStartTime) / 1000);
         const totalSeconds = getStudyTime() + currentSession;
@@ -5316,25 +5392,25 @@ Try it yourself: ${url}`,
         const hours = Math.floor(studyMins / 60);
         const mins = studyMins % 60;
         document.getElementById('study-time').textContent = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        
+
         // Render category stats
         renderCategoryStats();
     }
-    
+
     // Render Analytics Trend Chart (canvas-based, for analytics panel)
     function renderAnalyticsTrendChart() {
         const canvas = document.getElementById('trend-canvas');
         if (!canvas) return;
-        
+
         const ctx = canvas.getContext('2d');
         const parentWidth = canvas.parentElement?.clientWidth;
         if (!parentWidth) return;
-        
+
         const width = parentWidth - 32;
         const height = 160;
         canvas.width = width;
         canvas.height = height;
-        
+
         // Get last 14 days of data
         const days = [];
         for (let i = 13; i >= 0; i--) {
@@ -5347,31 +5423,31 @@ Try it yourself: ${url}`,
                 count: dailyStats[key]?.count || 0
             });
         }
-        
+
         // Draw chart
         ctx.clearRect(0, 0, width, height);
         ctx.strokeStyle = '#2563eb';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
+
         const maxAcc = 100;
         const padding = 20;
         const chartWidth = width - padding * 2;
         const chartHeight = height - padding * 2;
-        
+
         days.forEach((day, i) => {
             const x = padding + (i / (days.length - 1)) * chartWidth;
             const y = height - padding - (day.accuracy / maxAcc) * chartHeight;
-            
+
             if (i === 0) {
                 ctx.moveTo(x, y);
             } else {
                 ctx.lineTo(x, y);
             }
         });
-        
+
         ctx.stroke();
-        
+
         // Draw dots
         ctx.fillStyle = '#2563eb';
         days.forEach((day, i) => {
@@ -5381,27 +5457,27 @@ Try it yourself: ${url}`,
             ctx.arc(x, y, 4, 0, Math.PI * 2);
             ctx.fill();
         });
-        
+
         // Update trend summary (with null guards)
         const last7 = days.slice(-7);
         const last30 = days;
         const avg7 = last7.reduce((a, d) => a + d.accuracy, 0) / last7.filter(d => d.count > 0).length || 0;
         const avg30 = last30.reduce((a, d) => a + d.accuracy, 0) / last30.filter(d => d.count > 0).length || 0;
         const best = Math.max(...days.map(d => d.accuracy));
-        
+
         const trend7dayEl = document.getElementById('trend-7day');
         const trend30dayEl = document.getElementById('trend-30day');
         const trendBestEl = document.getElementById('trend-best');
-        
+
         if (trend7dayEl) trend7dayEl.textContent = `${Math.round(avg7)}%`;
         if (trend30dayEl) trend30dayEl.textContent = `${Math.round(avg30)}%`;
         if (trendBestEl) trendBestEl.textContent = `${best}%`;
     }
-    
+
     function renderMissedQuestions() {
         const container = document.getElementById('missed-questions-list');
         if (!container) return;
-        
+
         // Get questions answered incorrectly
         const missed = Object.entries(answerState)
             .filter(([_, state]) => !state.correct)
@@ -5412,12 +5488,12 @@ Try it yourself: ${url}`,
             }))
             .sort((a, b) => b.attempts - a.attempts)
             .slice(0, 10);
-        
+
         if (missed.length === 0) {
             container.innerHTML = '<p style="color: var(--muted);">No missed questions yet. Keep practicing!</p>';
             return;
         }
-        
+
         container.innerHTML = missed.map(q => `
             <div class="missed-question-item">
                 <div class="missed-question-text">${escapeHtml(q.question.substring(0, 100))}${q.question.length > 100 ? '...' : ''}</div>
@@ -5425,7 +5501,7 @@ Try it yourself: ${url}`,
             </div>
         `).join('');
     }
-    
+
     function recordDailyStats(isCorrect) {
         const today = new Date().toISOString().split('T')[0];
         if (!dailyStats[today]) {
@@ -5437,60 +5513,60 @@ Try it yourself: ${url}`,
         dailyStats[today].accuracy = Math.round((dailyStats[today].correct / dailyStats[today].total) * 100);
         localStorage.setItem('cpsa_daily_stats', JSON.stringify(dailyStats));
     }
-    
+
     // ==========================================
     // REVIEW MISSED QUESTIONS SYSTEM
     // ==========================================
     function setupSpacedRepetition() {
         const reviewBtn = document.getElementById('spaced-review-btn');
-        
+
         if (reviewBtn) {
             reviewBtn.addEventListener('click', startSpacedReview);
         }
     }
-    
+
     function startSpacedReview() {
         // Get questions that were answered incorrectly
         const incorrectIds = Object.entries(answerState)
             .filter(([_, state]) => !state.correct)
             .map(([id, _]) => id);
-        
+
         if (incorrectIds.length === 0) {
             showToast('No questions to review! Answer some questions first.');
             return;
         }
-        
+
         // Switch to single view mode
         setView('single');
-        
+
         // Build question list from incorrect answers
         allQuestionIds = incorrectIds;
         currentQuestionIndex = 0;
-        
+
         // Show first question
         showQuestion(0);
         buildNavigatorDots();
-        
+
         showToast(`Review mode: ${incorrectIds.length} questions to review`);
     }
-    
+
     // ==========================================
     // PDF EXPORT
     // ==========================================
     function setupPDFExport() {
         const exportBtn = document.getElementById('export-pdf-btn');
-        
+
         if (exportBtn) {
             exportBtn.addEventListener('click', generatePDFReport);
         }
     }
-    
+
     function generatePDFReport() {
         // Create a printable report
         const attempted = Object.keys(answerState).length;
         const correct = Object.values(answerState).filter(s => s.correct).length;
         const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-        
+
         const reportHTML = `
             <!DOCTYPE html>
             <html>
@@ -5510,7 +5586,7 @@ Try it yourself: ${url}`,
             <body>
                 <h1>CPSA Practice Quiz - Progress Report</h1>
                 <p>Generated on ${new Date().toLocaleDateString()}</p>
-                
+
                 <div class="stats">
                     <div class="stat">
                         <div class="stat-value">${attempted}</div>
@@ -5529,27 +5605,27 @@ Try it yourself: ${url}`,
                         <div class="stat-label">Current Level</div>
                     </div>
                 </div>
-                
+
                 <h2>Category Performance</h2>
                 ${generateCategoryReport()}
-                
+
                 <div class="footer">
                     <p>CREST CPSA Practice Quiz - https://sudosuraj.github.io/crest-cpsa/</p>
                 </div>
             </body>
             </html>
         `;
-        
+
         // Open in new window for printing
         const printWindow = window.open('', '_blank');
         printWindow.document.write(reportHTML);
         printWindow.document.close();
         printWindow.print();
     }
-    
+
     function generateCategoryReport() {
         const categoryStats = {};
-        
+
         Object.entries(answerState).forEach(([qId, state]) => {
             const cat = state.category || 'Unknown';
             if (!categoryStats[cat]) {
@@ -5558,14 +5634,14 @@ Try it yourself: ${url}`,
             categoryStats[cat].total++;
             if (state.correct) categoryStats[cat].correct++;
         });
-        
+
         return Object.entries(categoryStats)
             .map(([cat, stats]) => {
                 const accuracy = Math.round((stats.correct / stats.total) * 100);
                 return `<div class="category"><strong>${cat}</strong>: ${stats.correct}/${stats.total} correct (${accuracy}%)</div>`;
             }).join('');
     }
-    
+
     // ==========================================
     // CHALLENGE MODE
     // ==========================================
@@ -5575,19 +5651,19 @@ Try it yourself: ${url}`,
         const challengeClose = document.getElementById('challenge-modal-close');
         const generateBtn = document.getElementById('generate-challenge');
         const copyBtn = document.getElementById('copy-challenge');
-        
+
         if (challengeBtn) {
             challengeBtn.addEventListener('click', () => openModal('challenge-modal'));
         }
-        
+
         if (challengeClose) {
             challengeClose.addEventListener('click', () => closeModal('challenge-modal'));
         }
-        
+
         if (generateBtn) {
             generateBtn.addEventListener('click', generateChallengeLink);
         }
-        
+
         if (copyBtn) {
             copyBtn.addEventListener('click', async () => {
                 const linkInput = document.getElementById('challenge-link');
@@ -5602,24 +5678,24 @@ Try it yourself: ${url}`,
                 }
             });
         }
-        
+
         // Close on overlay click
         if (challengeModal) {
             challengeModal.addEventListener('click', (e) => {
                 if (e.target === challengeModal) closeModal('challenge-modal');
             });
         }
-        
+
         // Check for challenge in URL
         checkForChallenge();
     }
-    
+
     function generateChallengeLink() {
         const numQuestions = parseInt(document.getElementById('challenge-questions').value);
         const category = document.getElementById('challenge-category').value;
-        
+
         let questionIds;
-        
+
         if (category === 'missed') {
             // Get missed questions using Fisher-Yates shuffle
             const missedIds = Object.entries(answerState)
@@ -5634,21 +5710,21 @@ Try it yourself: ${url}`,
             shuffleArray(shuffled);
             questionIds = shuffled.slice(0, numQuestions);
         }
-        
+
         // Create challenge URL
         const baseUrl = window.location.origin + window.location.pathname;
         const challengeData = btoa(JSON.stringify({ q: questionIds }));
         const challengeUrl = `${baseUrl}?challenge=${challengeData}`;
-        
+
         // Show result
         document.getElementById('challenge-link').value = challengeUrl;
         document.getElementById('challenge-result').style.display = 'block';
     }
-    
+
     function checkForChallenge() {
         const params = new URLSearchParams(window.location.search);
         const challengeData = params.get('challenge');
-        
+
         if (challengeData) {
             try {
                 const data = JSON.parse(atob(challengeData));
@@ -5668,20 +5744,20 @@ Try it yourself: ${url}`,
             }
         }
     }
-    
+
     // ==========================================
     // SPRINT MODE SETUP
     // ==========================================
     function setupSprintMode() {
         const sprintBtn = document.getElementById('start-sprint-btn');
-        
+
         if (sprintBtn) {
             sprintBtn.addEventListener('click', () => {
                 startSprint(600); // 10 minutes
             });
         }
     }
-    
+
     // ==========================================
     // MOBILE NAVIGATION SETUP
     // ==========================================
@@ -5697,49 +5773,49 @@ Try it yourself: ${url}`,
                 mobileSidebar.classList.add('open');
                 mobileNavToggle.setAttribute('aria-expanded', 'true');
                 document.body.style.overflow = 'hidden';
-                
+
                 const mainContent = document.querySelector('.app-shell');
                 if (mainContent) mainContent.setAttribute('aria-hidden', 'true');
-                
+
                 const firstFocusable = mobileSidebar.querySelector('button, input, select, [tabindex]:not([tabindex="-1"])');
                 if (firstFocusable) firstFocusable.focus();
             };
-            
+
             const closeSidebar = () => {
                 mobileSidebar.classList.remove('open');
                 mobileNavToggle.setAttribute('aria-expanded', 'false');
                 document.body.style.overflow = '';
-                
+
                 const mainContent = document.querySelector('.app-shell');
                 if (mainContent) mainContent.removeAttribute('aria-hidden');
-                
+
                 mobileNavToggle.focus();
             };
-            
+
             closeMobileSidebar = closeSidebar;
-            
+
             mobileNavToggle.addEventListener('click', openSidebar);
             mobileSidebarClose.addEventListener('click', closeSidebar);
-            
+
             mobileSidebar.addEventListener('click', (e) => {
                 if (e.target === mobileSidebar) {
                     closeSidebar();
                 }
             });
-            
+
             document.addEventListener('keydown', (e) => {
                 if (!mobileSidebar.classList.contains('open')) return;
-                
+
                 if (e.key === 'Escape') {
                     closeSidebar();
                     return;
                 }
-                
+
                 if (e.key === 'Tab') {
                     const focusableElements = mobileSidebar.querySelectorAll('button, input, select, [tabindex]:not([tabindex="-1"])');
                     const firstFocusable = focusableElements[0];
                     const lastFocusable = focusableElements[focusableElements.length - 1];
-                    
+
                     if (e.shiftKey && document.activeElement === firstFocusable) {
                         e.preventDefault();
                         lastFocusable.focus();
@@ -5761,7 +5837,7 @@ Try it yourself: ${url}`,
                 desktopSearchInput.value = mobileSearchInput.value;
                 applyFilters();
             });
-            
+
             desktopSearchInput.addEventListener('input', () => {
                 mobileSearchInput.value = desktopSearchInput.value;
             });
@@ -5772,7 +5848,7 @@ Try it yourself: ${url}`,
                 desktopFilterSelect.value = mobileFilterSelect.value;
                 applyFilters();
             });
-            
+
             desktopFilterSelect.addEventListener('change', () => {
                 mobileFilterSelect.value = desktopFilterSelect.value;
             });
@@ -5841,26 +5917,26 @@ Try it yourself: ${url}`,
 
         updateMobileSidebarStats();
     }
-    
+
     // ==========================================
     // P2P STATUS INDICATOR
     // ==========================================
     function setupP2PStatusIndicator() {
         const statusEl = document.getElementById('p2p-status');
         const countEl = document.getElementById('p2p-online-count');
-        
+
         if (!statusEl || !countEl) return;
-        
+
         function updateP2PStatus() {
             if (typeof P2PSync === 'undefined' || !P2PSync.isAvailable()) {
                 statusEl.style.display = 'none';
                 return;
             }
-            
+
             statusEl.style.display = 'flex';
             const onlineCount = P2PSync.getOnlineCount();
             countEl.textContent = onlineCount;
-            
+
             const stats = P2PSync.getStats();
             if (stats.questionsReceived > 0 || stats.questionsSent > 0) {
                 statusEl.classList.add('syncing');
@@ -5870,10 +5946,10 @@ Try it yourself: ${url}`,
                 statusEl.title = 'P2P Question Sync';
             }
         }
-        
+
         updateP2PStatus();
         setInterval(updateP2PStatus, 5000);
-        
+
         if (typeof P2PSync !== 'undefined') {
             P2PSync.onQuestionReceived(() => {
                 updateP2PStatus();
@@ -5887,7 +5963,7 @@ Try it yourself: ${url}`,
         const stats = calculateStats();
         const totalQuestions = Object.keys(quizData).length;
         const streak = loadStreak();
-        
+
         const mobileScore = document.getElementById('mobile-score');
         const mobileTotal = document.getElementById('mobile-total');
         const mobilePercentage = document.getElementById('mobile-percentage');
@@ -5915,9 +5991,9 @@ Try it yourself: ${url}`,
                 const modelInput = document.getElementById('custom-model-input');
                 const status = document.getElementById('api-key-status');
                 const indicator = document.getElementById('api-key-indicator');
-        
+
                 if (!modal || !btn) return;
-        
+
                 function updateStatus() {
                     if (typeof LLMClient === 'undefined') {
                         status.textContent = 'LLM client not available';
@@ -5925,16 +6001,16 @@ Try it yourself: ${url}`,
                         indicator.hidden = true;
                         return;
                     }
-                    
+
                     const hasKey = LLMClient.hasApiKey();
                     const hasEndpoint = LLMClient.hasCustomEndpoint();
                     const hasModel = LLMClient.hasCustomModel();
-                    
+
                     let statusParts = [];
                     if (hasKey) statusParts.push('API key set');
                     if (hasEndpoint) statusParts.push('Custom endpoint: ' + escapeHtml(LLMClient.getCustomEndpoint()));
                     if (hasModel) statusParts.push('Custom model: ' + escapeHtml(LLMClient.getCustomModel()));
-                    
+
                     if (statusParts.length > 0) {
                         status.innerHTML = statusParts.join('<br>');
                         status.className = 'api-key-status success';
@@ -5945,11 +6021,11 @@ Try it yourself: ${url}`,
                         indicator.hidden = true;
                     }
                 }
-        
+
                 function openModal() {
                     modal.setAttribute('aria-hidden', 'false');
                     modal.classList.add('show');
-                    
+
                     // Pre-fill inputs with current values
                     if (typeof LLMClient !== 'undefined') {
                         const currentEndpoint = LLMClient.getCustomEndpoint();
@@ -5957,10 +6033,10 @@ Try it yourself: ${url}`,
                         if (endpointInput && currentEndpoint) endpointInput.value = currentEndpoint;
                         if (modelInput && currentModel) modelInput.value = currentModel;
                     }
-                    
+
                     updateStatus();
                 }
-        
+
                 function closeModal() {
                     modal.setAttribute('aria-hidden', 'true');
                     modal.classList.remove('show');
@@ -5968,28 +6044,28 @@ Try it yourself: ${url}`,
                     if (endpointInput) endpointInput.value = '';
                     if (modelInput) modelInput.value = '';
                 }
-            
+
                 window.openApiKeyModal = openModal;
-        
+
                 btn.addEventListener('click', openModal);
                 closeBtn.addEventListener('click', closeModal);
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) closeModal();
                 });
-        
+
                 saveBtn.addEventListener('click', () => {
                     if (typeof LLMClient === 'undefined') {
                         showToast('LLM client not available', { variant: 'error' });
                         return;
                     }
-                    
+
                     const key = input.value.trim();
                     const endpoint = endpointInput ? endpointInput.value.trim() : '';
                     const model = modelInput ? modelInput.value.trim() : '';
-                    
+
                     let hasErrors = false;
                     let savedSomething = false;
-                    
+
                     // Save API key if provided
                     if (key) {
                         if (LLMClient.setApiKey(key)) {
@@ -5999,7 +6075,7 @@ Try it yourself: ${url}`,
                             hasErrors = true;
                         }
                     }
-                    
+
                     // Save custom endpoint if provided (with OWASP validation)
                     if (endpoint) {
                         const endpointResult = LLMClient.setCustomEndpoint(endpoint);
@@ -6010,7 +6086,7 @@ Try it yourself: ${url}`,
                             hasErrors = true;
                         }
                     }
-                    
+
                     // Save custom model if provided (with OWASP validation)
                     if (model) {
                         const modelResult = LLMClient.setCustomModel(model);
@@ -6021,7 +6097,7 @@ Try it yourself: ${url}`,
                             hasErrors = true;
                         }
                     }
-                    
+
                     if (!hasErrors) {
                         if (savedSomething) {
                             showToast('LLM settings saved successfully');
@@ -6035,7 +6111,7 @@ Try it yourself: ${url}`,
                         updateStatus();
                     }
                 });
-        
+
                 clearBtn.addEventListener('click', () => {
                     if (typeof LLMClient !== 'undefined') {
                         LLMClient.clearAllCustomSettings();
@@ -6046,14 +6122,14 @@ Try it yourself: ${url}`,
                         if (modelInput) modelInput.value = '';
                     }
                 });
-        
+
                 updateStatus();
             }
 
         // ==========================================
         // DESKTOP SIDEBAR NAVIGATION
         // ==========================================
-    
+
     // Centralized panel switching function (avoids brittle .click() delegation)
     // options.updateUrl: whether to update the URL (default: true)
     function switchPanel(panelName, options = {}) {
@@ -6061,36 +6137,36 @@ Try it yourself: ${url}`,
         const toolbarTabs = document.querySelectorAll('.toolbar-tab');
         const toolbarPanels = document.querySelectorAll('.toolbar-panel');
         const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
-        
+
         // Update toolbar tabs
         toolbarTabs.forEach(tab => {
             const isActive = tab.dataset.tab === panelName;
             tab.classList.toggle('active', isActive);
             tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
-        
+
         // Update toolbar panels
         toolbarPanels.forEach(panel => {
             panel.classList.toggle('active', panel.id === `${panelName}-panel`);
         });
-        
+
         // Update sidebar nav items
         sidebarNavItems.forEach(nav => {
             const isActive = nav.dataset.panel === panelName;
             nav.classList.toggle('active', isActive);
             nav.setAttribute('aria-current', isActive ? 'page' : 'false');
         });
-        
+
         // Update URL for deep linking (only for non-practice tabs)
         if (updateUrl && panelName !== 'practice' && typeof Router !== 'undefined') {
             Router.navigate('tab', panelName, { skipHandler: true });
         }
-        
+
         // Load exam quiz when switching to exam panel
         if (panelName === 'exam' && typeof loadExamQuiz === 'function') {
             loadExamQuiz();
         }
-        
+
         // Update panel-specific content after panel is visible
         // Use requestAnimationFrame to ensure panel is rendered before updating charts
         requestAnimationFrame(() => {
@@ -6105,17 +6181,17 @@ Try it yourself: ${url}`,
             }
         });
     }
-    
+
     // Update sidebar stats (called from updateAllUI, not setInterval)
     function updateSidebarStats() {
         const percentage = document.getElementById('percentage');
         const streakCount = document.getElementById('streak-count');
         const attemptedCount = document.getElementById('attempted-count');
-        
+
         const sidebarAccuracy = document.getElementById('sidebar-accuracy');
         const sidebarStreak = document.getElementById('sidebar-streak');
         const sidebarAttempted = document.getElementById('sidebar-attempted');
-        
+
         if (percentage && sidebarAccuracy) {
             sidebarAccuracy.textContent = percentage.textContent + '%';
         }
@@ -6126,10 +6202,10 @@ Try it yourself: ${url}`,
             sidebarAttempted.textContent = attemptedCount.textContent;
         }
     }
-    
+
     function setupDesktopSidebar() {
         const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
-        
+
         // Sidebar nav clicks use centralized switchPanel
         sidebarNavItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -6142,13 +6218,13 @@ Try it yourself: ${url}`,
                 switchPanel(panel);
             });
         });
-        
+
         // Note: Toolbar tab clicks are handled by setupTabbedToolbar() to avoid double-binding
-        
+
         // Sidebar action buttons - call functions directly instead of .click()
         const sidebarStartExam = document.getElementById('sidebar-start-exam');
         const sidebarSprint = document.getElementById('sidebar-sprint');
-        
+
         if (sidebarStartExam) {
             sidebarStartExam.addEventListener('click', () => {
                 if (typeof startPracticeExam === 'function') {
@@ -6160,7 +6236,7 @@ Try it yourself: ${url}`,
                 }
             });
         }
-        
+
         if (sidebarSprint) {
             sidebarSprint.addEventListener('click', () => {
                 if (typeof startSprintMode === 'function') {
@@ -6172,7 +6248,7 @@ Try it yourself: ${url}`,
                 }
             });
         }
-        
+
         // Initial sidebar stats update
         updateSidebarStats();
     }
@@ -6185,25 +6261,25 @@ Try it yourself: ${url}`,
             const commandPalette = document.getElementById('command-palette');
             const commandSearch = document.getElementById('command-search');
             const commandResults = document.getElementById('command-results');
-        
+
             if (!searchTrigger || !commandPalette || !commandSearch || !commandResults) return;
-        
+
             function openCommandPalette() {
                 commandPalette.hidden = false;
                 commandSearch.value = '';
                 commandSearch.focus();
                 renderResults('');
             }
-        
+
             function closeCommandPalette() {
                 commandPalette.hidden = true;
                 commandSearch.value = '';
             }
-        
+
             function renderResults(query) {
                 const lowerQuery = query.toLowerCase().trim();
                 let html = '';
-            
+
                 const appendices = [
                     { letter: 'A', title: 'Soft Skills and Assessment Management' },
                     { letter: 'B', title: 'Core Technical Skills' },
@@ -6216,13 +6292,13 @@ Try it yourself: ${url}`,
                     { letter: 'I', title: 'Web Testing Techniques' },
                     { letter: 'J', title: 'Databases' }
                 ];
-            
-                const filteredAppendices = appendices.filter(a => 
-                    !lowerQuery || 
-                    a.letter.toLowerCase().includes(lowerQuery) || 
+
+                const filteredAppendices = appendices.filter(a =>
+                    !lowerQuery ||
+                    a.letter.toLowerCase().includes(lowerQuery) ||
                     a.title.toLowerCase().includes(lowerQuery)
                 );
-            
+
                 if (filteredAppendices.length > 0) {
                     html += '<div class="command-group"><div class="command-group-title">Appendices</div>';
                     filteredAppendices.forEach(a => {
@@ -6232,7 +6308,7 @@ Try it yourself: ${url}`,
                     });
                     html += '</div>';
                 }
-            
+
                 const panels = [
                     { id: 'practice', title: 'Practice', desc: 'Start practicing questions' },
                     { id: 'exam', title: 'Exam', desc: 'Full exam practice with all CREST questions' },
@@ -6240,13 +6316,13 @@ Try it yourself: ${url}`,
                     { id: 'insights', title: 'Insights', desc: 'View performance analytics' },
                     { id: 'progress', title: 'Progress', desc: 'Track your learning journey' }
                 ];
-            
-                const filteredPanels = panels.filter(p => 
-                    !lowerQuery || 
-                    p.title.toLowerCase().includes(lowerQuery) || 
+
+                const filteredPanels = panels.filter(p =>
+                    !lowerQuery ||
+                    p.title.toLowerCase().includes(lowerQuery) ||
                     p.desc.toLowerCase().includes(lowerQuery)
                 );
-            
+
                 if (filteredPanels.length > 0) {
                     html += '<div class="command-group"><div class="command-group-title">Navigation</div>';
                     filteredPanels.forEach(p => {
@@ -6256,7 +6332,7 @@ Try it yourself: ${url}`,
                     });
                     html += '</div>';
                 }
-            
+
                 if (lowerQuery && lowerQuery.length >= 2) {
                     html += '<div class="command-group"><div class="command-group-title">Search in PDF</div>';
                     html += `<button class="command-item" data-action="search-pdf" data-value="${encodeURIComponent(query)}">
@@ -6264,18 +6340,18 @@ Try it yourself: ${url}`,
                     </button>`;
                     html += '</div>';
                 }
-            
+
                 if (!html) {
                     html = '<div class="command-group"><div class="command-group-title">No results found</div></div>';
                 }
-            
+
                 commandResults.innerHTML = html;
-            
+
                 commandResults.querySelectorAll('.command-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const action = item.dataset.action;
                         const value = item.dataset.value;
-                    
+
                         if (action === 'appendix') {
                             const appendix = appendices.find(a => a.letter === value);
                             if (appendix) {
@@ -6295,24 +6371,24 @@ Try it yourself: ${url}`,
                                 pdfViewer.contentWindow.postMessage({ type: 'search', query: decodeURIComponent(value) }, window.location.origin);
                             }
                         }
-                    
+
                         closeCommandPalette();
                     });
                 });
             }
-        
+
             searchTrigger.addEventListener('click', openCommandPalette);
-        
+
             commandPalette.addEventListener('click', (e) => {
                 if (e.target === commandPalette) {
                     closeCommandPalette();
                 }
             });
-        
+
             commandSearch.addEventListener('input', (e) => {
                 renderResults(e.target.value);
             });
-        
+
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
@@ -6347,7 +6423,7 @@ Try it yourself: ${url}`,
                                         setupApiKeySettings();
                                         setupDesktopSidebar();
                                         setupCommandPalette();
-            
+
             // Setup "Start Practice" button on Study page
             const goToPracticeBtn = document.getElementById('go-to-practice-btn');
             if (goToPracticeBtn) {
@@ -6357,10 +6433,10 @@ Try it yourself: ${url}`,
                     }
                 });
             }
-        
+
         // Setup P2P status indicator updates
         setupP2PStatusIndicator();
-        
+
         // Start background preloading of all appendixes
         // This runs silently in the background to improve UX
         setTimeout(() => {
