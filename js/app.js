@@ -2199,9 +2199,8 @@ You answered incorrectly. Briefly explain why "${selectedAnswer}" is wrong and w
                 `;
 
                 card.addEventListener('click', () => {
-                    // Use Router to navigate - this updates URL and handles navigation
-                    Router.navigate('appendix', appendix.letter, { skipHandler: true });
-                    loadAppendixQuiz(appendix.letter, appendix.title);
+                    // Use Router to navigate - let handleRoute() manage panel switching and content loading
+                    Router.navigate('appendix', appendix.letter);
                 });
                 grid.appendChild(card);
             });
@@ -5336,17 +5335,18 @@ Try it yourself: ${url}`,
 
 	        // Handle initial route - either load specific appendix or show home
 	        if (initialRoute.type === 'appendix' && initialRoute.value) {
-	            // Deep link to specific appendix - load it directly
+	            // Deep link to specific appendix - switch to practice panel first, then load content
+	            switchPanel('practice', { updateUrl: false });
 	            const appendixTitle = APPENDIX_TITLES[initialRoute.value] || `Appendix ${initialRoute.value}`;
 	            await loadAppendixQuiz(initialRoute.value, appendixTitle.replace(/^Appendix [A-J]: /, ''));
 	        } else if (initialRoute.type === 'tab' && initialRoute.value) {
-	            // Deep link to specific tab - load home first, then switch tab
+	            // Deep link to specific tab - use switchPanel for consistent UI state
 	            await loadQuiz();
-	            activatePanel(initialRoute.value);
+	            switchPanel(initialRoute.value, { updateUrl: false });
 	        } else {
 	            // Default: show appendix selection and activate Practice panel
 	            await loadQuiz();
-	            activatePanel('practice');
+	            switchPanel('practice', { updateUrl: false });
 	        }
 
 	        setupUtilities();
@@ -6558,11 +6558,12 @@ Try it yourself: ${url}`,
             item.addEventListener('click', () => {
                 const panel = item.dataset.panel;
                 if (panel === 'practice') {
-                    // Always go to appendix cards page and update URL
-                    Router.navigate('home', null, { skipHandler: true });
-                    loadQuiz();
+                    // Let Router.handleRoute() manage panel switching and content loading
+                    Router.navigate('home', null);
+                } else {
+                    // For other panels, use switchPanel directly
+                    switchPanel(panel);
                 }
-                switchPanel(panel);
             });
         });
 
@@ -6700,11 +6701,8 @@ Try it yourself: ${url}`,
                         const value = item.dataset.value;
 
                         if (action === 'appendix') {
-                            const appendix = appendices.find(a => a.letter === value);
-                            if (appendix) {
-                                Router.navigate('appendix', value, { skipHandler: true });
-                                loadAppendixQuiz(value, appendix.title);
-                            }
+                            // Let Router.handleRoute() manage panel switching and content loading
+                            Router.navigate('appendix', value);
                         } else if (action === 'panel') {
                             if (typeof switchPanel === 'function') {
                                 switchPanel(value);
