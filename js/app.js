@@ -3,6 +3,8 @@
     const chatHistory = []; // Chatbot conversation
     const CHAT_MAX_LENGTH = 400;
     const MAX_CHAT_TURNS = 12;
+    let chatTypingCancelled = false; // Flag to cancel typing animation
+    let chatIsTyping = false; // Flag to track if LLM is currently typing
 
     // ==================== CHART.JS MANAGER ====================
     const ChartManager = {
@@ -5039,8 +5041,15 @@ Try it yourself: ${url}`,
         return new Promise((resolve) => {
             let index = 0;
             const messagesEl = document.getElementById("chat-messages");
+            chatIsTyping = true;
+            chatTypingCancelled = false;
 
             function typeChar() {
+                if (chatTypingCancelled) {
+                    chatIsTyping = false;
+                    resolve();
+                    return;
+                }
                 if (index < text.length) {
                     element.textContent += text.charAt(index);
                     index++;
@@ -5049,6 +5058,7 @@ Try it yourself: ${url}`,
                     }
                     setTimeout(typeChar, speed);
                 } else {
+                    chatIsTyping = false;
                     resolve();
                 }
             }
@@ -5056,7 +5066,28 @@ Try it yourself: ${url}`,
         });
     }
 
-    function appendChatMessage(role, text, skipTyping = false) {
+    function pauseChatTyping() {
+        chatTypingCancelled = true;
+        chatIsTyping = false;
+        updateChatSendButton();
+    }
+
+    function updateChatSendButton() {
+        const sendBtn = document.getElementById("chat-send");
+        if (!sendBtn) return;
+        
+        if (chatIsTyping) {
+            sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>';
+            sendBtn.title = "Stop response";
+            sendBtn.classList.add("pause-mode");
+        } else {
+            sendBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+            sendBtn.title = "Send message";
+            sendBtn.classList.remove("pause-mode");
+        }
+    }
+
+    async function appendChatMessage(role, text, skipTyping = false) {
         const messagesEl = document.getElementById("chat-messages");
         if (!messagesEl) return null;
 
@@ -5068,7 +5099,7 @@ Try it yourself: ${url}`,
         if (role === "user") {
             icon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
         } else {
-            icon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
+            icon.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="13" r="7"/><path d="M15 7L18 4"/><circle cx="19" cy="3" r="1.5"/><circle cx="8.5" cy="12.5" r="1" fill="currentColor"/><circle cx="13.5" cy="12.5" r="1" fill="currentColor"/><path d="M8.5 16c1.5 1.2 5 1.2 6.5 0"/></g></svg>';
         }
 
         const bubble = document.createElement("div");
@@ -5081,7 +5112,7 @@ Try it yourself: ${url}`,
             wrapper.appendChild(bubble);
             messagesEl.appendChild(wrapper);
             messagesEl.scrollTop = messagesEl.scrollHeight;
-            typeText(bubble, plainText);
+            await typeText(bubble, plainText);
         } else {
             bubble.textContent = plainText;
             wrapper.appendChild(icon);
@@ -5142,13 +5173,22 @@ Try it yourself: ${url}`,
 
         // Remove typing indicator and add the actual response with typing animation
         typingWrapper.remove();
-        appendChatMessage("assistant", result);
+        
+        // Update button to pause mode before typing starts
+        chatIsTyping = true;
+        updateChatSendButton();
+        sendBtn.disabled = false;
+        
+        await appendChatMessage("assistant", result);
 
         chatHistory.push({ role: "assistant", content: result });
         if (chatHistory.length > MAX_CHAT_TURNS) {
             chatHistory.shift();
         }
-        sendBtn.disabled = false;
+        
+        // Reset button after typing completes
+        chatIsTyping = false;
+        updateChatSendButton();
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
@@ -5179,7 +5219,13 @@ Try it yourself: ${url}`,
             closeBtn.addEventListener("click", () => togglePanel(false));
         }
         if (sendBtn) {
-            sendBtn.addEventListener("click", sendChatMessage);
+            sendBtn.addEventListener("click", () => {
+                if (chatIsTyping) {
+                    pauseChatTyping();
+                } else {
+                    sendChatMessage();
+                }
+            });
         }
         if (input) {
             input.addEventListener("keydown", (event) => {

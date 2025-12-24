@@ -296,7 +296,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .chatbot-toggle:hover { transform: scale(1.05); }
 .chatbot-label { font-weight: 500; }
 
-.chatbot-panel { position: fixed; bottom: 90px; right: 24px; width: 380px; max-height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: none; flex-direction: column; z-index: 80; overflow: hidden; }
+.chatbot-panel { position: fixed; bottom: 90px; right: 24px; width: 380px; height: 500px; max-height: calc(100vh - 120px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: none; flex-direction: column; z-index: 80; overflow: hidden; }
 .chatbot-panel.open { display: flex; }
 .chatbot-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--border); }
 .chatbot-identity { display: flex; align-items: center; gap: 12px; }
@@ -317,6 +317,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .chat-input:focus { outline: none; border-color: var(--accent); }
 .chat-send { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--accent); color: white; border-radius: var(--radius-sm); transition: all 0.15s; }
 .chat-send:hover { background: var(--accent-hover); }
+.chat-send.pause-mode { background: var(--danger, #dc3545); }
+.chat-send.pause-mode:hover { background: #c82333; }
 
 .chat-message-wrapper { display: flex; align-items: flex-start; gap: 8px; max-width: 85%; }
 .chat-message-wrapper.user { flex-direction: row-reverse; margin-left: auto; }
@@ -3450,7 +3452,7 @@ ul.weak-areas-list { list-style: none; }
 /* Chatbot Panel Mobile */
 @media (max-width: 768px) {
     .chatbot-panel {
-        max-height: calc(100vh - 120px);
+        height: calc(100dvh - 120px);
         max-height: calc(100dvh - 120px);
     }
     
@@ -3977,7 +3979,7 @@ ul.weak-areas-list { list-style: none; }
     }
     
     .chatbot-panel {
-        max-height: calc(100vh - 80px);
+        height: calc(100dvh - 80px);
         max-height: calc(100dvh - 80px);
     }
     
@@ -4204,7 +4206,7 @@ ul.weak-areas-list { list-style: none; }
         right: 12px;
         width: auto;
         bottom: 70px;
-        max-height: calc(100vh - 100px);
+        height: calc(100dvh - 100px);
         max-height: calc(100dvh - 100px);
     }
 }
